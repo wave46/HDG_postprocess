@@ -6,6 +6,6 @@ docs/build/
 test/
 PKG-INFO
 SOURCES.txt
-hdg_postprocess.egg-info/*
+hdg_postprocess.egg-info/
 hdg_postprocess.egg-info/SOURCES.txt
 
