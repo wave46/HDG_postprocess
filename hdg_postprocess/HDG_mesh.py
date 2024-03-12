@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
 from matplotlib import cm
+from scipy.spatial import Delaunay
+from scipy.interpolate import LinearNDInterpolator
+from raysect.core.math.function.float import Discrete2DMesh
 class HDGmesh:
     """
     SOLEDGE-HDG mesh object  
@@ -50,6 +53,8 @@ class HDGmesh:
         self._vertices_glob = None
         self._nelems_glob = None
         self._nvertices_glob = None
+        self._connectivity_big = None
+        self._element_number = None
      
     @property
     def raw_vertices(self):
@@ -70,6 +75,13 @@ class HDGmesh:
     def connectivity_glob(self):
         """connectivity of a global mesh"""
         return self._connectivity_glob
+
+    @property
+    def connectivity_big(self):
+        """big connectivity of a global mesh for plots
+        (each element is triangulated)
+        """
+        return self._connectivity_big
 
     @property
     def nelems_glob(self):
@@ -135,6 +147,19 @@ class HDGmesh:
     def mesh_extent(self):
         """Extent of the mesh. A dictionary with minr, maxr, minz and maxz keys."""
         return self._mesh_extent
+    
+    @property
+    def mask(self):
+        """Mesh mask which gives 1 if"""
+        return self._mask
+
+    @property
+    def element_number(self):
+        """
+        For given pair (R,Z) gives a number of element to which this point relates
+        Outside of the mesh gives -1
+        """
+        return self._element_number
 
     def plot_raw_meshes(self, data=None, ax=None):
         """
@@ -224,3 +249,57 @@ class HDGmesh:
         self._combined_to_full = True
 
 
+    def create_connectivity_big(self):
+        #additional triangulaton: since we have more than 3 points in each element, we can triangulate it
+        #take any triangle from the mesh
+        if not self._combined_to_full:
+            self.recombine_full_mesh()
+        # defining triangulation order of each big triangle
+        if self.mesh_parameters["element_type"] == "triangle":
+            if self.p_order == 4:
+                triangle_indexes = np.array([[1,4,12],
+                        [4,5,13],
+                        [5,6,14],
+                        [6,2,7],
+                        [7,8,14],
+                        [8,9,15],
+                        [9,3,10],
+                        [10,11,15],
+                        [11,12,13],
+                        [12,4,13],
+                        [14,6,7],
+                        [13,5,14],
+                        [13,14,8],
+                        [13,8,15],
+                        [15,9,10],
+                        [11,13,15]])
+                triangle_indexes -=1
+            else:
+                raise KeyError(f'{self.p_order} splitting of each element is not defined yet')
+        else:
+            raise KeyError(f'{self.mesh_parameters["element_type"]} splitting of each element is not defined yet')
+                
+        connectivity_big = self.connectivity_glob[:,triangle_indexes]
+        self._connectivity_big = connectivity_big.reshape(connectivity_big.shape[0]*connectivity_big.shape[1],3)
+
+    def make_mask(self):
+        """
+        to do create interpolator using
+        """
+        if self.connectivity_big is None:
+            self.create_connectivity_big()        
+        
+        self._mask = Discrete2DMesh(self.vertices_glob, self.connectivity_big,
+                     np.ones(self.connectivity_big.shape[0]), limit=False, default_value=0)
+
+    def make_element_number_funtion(self):
+        """
+        creates a function which gives number of element for givern point
+        if outside of the mesh, it gives -1
+        """
+        if self.connectivity_big is None:
+            self.create_connectivity_big()
+        element_numbers = np.repeat(np.arange(len(self.connectivity_glob)),self.connectivity_big.shape[0]/self.connectivity_glob.shape[0])
+        self._element_number = Discrete2DMesh(self.vertices_glob, self.connectivity_big,
+                                 element_numbers,limit=False,default_value = -1)
+        
