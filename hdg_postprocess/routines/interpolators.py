@@ -56,11 +56,18 @@ class SoledgeHDG2DInterpolator():
     def __reduce__(self):
         return self.__new__, (self.__class__, ), self.__getstate__()
 
+    def __call__(self,x,y):
+        """
+        Calculates interpolateion in given point (R,Z)
+        """
+        return self.evaluate(x,y)
+
     @classmethod
     def instance(cls,instance,vertex_data=None,limit=None,default_value=None):
         m = SoledgeHDG2DInterpolator.__new__(SoledgeHDG2DInterpolator)
         m._element_number = instance._element_number
         m._connectivity = instance._connectivity
+        m._vertex_coords = instance._vertex_coords
         m._reference_element_coordinates = instance._reference_element_coordinates
         m._vandermonde = instance._vandermonde
         m._inv_vandermonde = instance._inv_vandermonde

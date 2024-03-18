@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from hdg_postprocess.routines.atomic import *
+from hdg_postprocess.routines.neutrals import *
+from raysect.core.math.function.float import Discrete2DMesh
+from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
 class HDGsolution:
     ""
     
@@ -47,6 +50,14 @@ class HDGsolution:
         else: 
             self._e = 1.60217662e-19
             self.parameters['adimensionalization']['charge_scale'] = self.e
+
+        # defining the indexes of conservative variables
+        self._cons_idx = {}
+        for i,label in enumerate(self.parameters['physics']['conservative_variable_names']):
+            self._cons_idx[label] = i
+        self._phys_idx = {}
+        for i,label in enumerate(self.parameters['physics']['physical_variable_names']):
+            self._phys_idx[label] = i
         
         self._solution_simple_phys = None
         self._gradient_simple_phys = None
@@ -54,10 +65,26 @@ class HDGsolution:
         self._solution_glob_phys = None
         self._gradient_glob_phys = None
         self._atomic_parameters = None
+        self._dnn_parameters = None
 
 
         self._ionization_source_simple = None
-        self._sigma_iz_simple = None
+        self._ionization_rate_simple = None
+        self._cx_rate_simple = None
+        self._dnn_simple = None
+        self._mfp_simple = None
+
+        self._ionization_source = None
+        self._ionization_rate = None
+        self._cx_rate = None
+        self._dnn = None
+        self._mfp = None
+
+        self._reference_element = None
+        self._element_number_mask = None
+
+        self._solution_interpolators= None
+        self._gradient_interpolators= None
 
         
         
@@ -77,6 +104,26 @@ class HDGsolution:
     def atomic_parameters(self,value):
         self._atomic_parameters = value
 
+    @property
+    def dnn_parameters(self):
+        """Dictionary with atomic parameters"""
+        return self._dnn_parameters
+    @dnn_parameters.setter
+    def dnn_parameters(self,value):
+        self._dnn_parameters = value
+        self._dnn_parameters['dnn_max_adim']=(self._dnn_parameters['dnn_max']/
+                                              self.parameters['adimensionalization']['length_scale']**2*
+                                              self.parameters['adimensionalization']['time_scale'])
+        self._dnn_parameters['dnn_min_adim']=(self._dnn_parameters['dnn_min']/
+                                              self.parameters['adimensionalization']['length_scale']**2*
+                                              self.parameters['adimensionalization']['time_scale'])
+    @property
+    def reference_element(self):
+        """Dictionary with atomic parameters"""
+        return self._reference_element
+    @reference_element.setter
+    def reference_element(self,value):
+        self._reference_element = value
 
     @property
     def neq(self):
@@ -217,9 +264,44 @@ class HDGsolution:
         """Ionization source on a simple solution mesh"""
         return self._ionization_source_simple
     @property
-    def sigma_iz_simple(self):
+    def ionization_rate_simple(self):
         """Ionization rate coefficient on a simple solution mesh"""
-        return self._sigma_iz_simple
+        return self._ionization_rate_simple
+    
+    @property
+    def cx_rate_simple(self):
+        """Charge exchange rate coefficient on a simple solution mesh"""
+        return self._cx_rate_simple
+
+    @property
+    def dnn_simple(self):
+        """Neutral diffusion on a simple solution mesh"""
+        return self._dnn_simple
+    
+    @property
+    def mfp_simple(self):
+        """Neutral mean free path on a simple solution mesh"""
+        return self._mfp_simple
+
+    @property
+    def element_number_mask(self):
+        """Mask which gives a number of element for a given (R,Z)"""
+        return self._element_number_mask
+    @element_number_mask.setter
+    def element_number_mask(self,value):
+        self._element_number_mask = value
+
+    @property
+    def solutuion_interpolators(self):
+        """A list of interpolators of solutions in conservative form"""
+        return self._solutuion_interpolators
+
+    @property
+    def gradient_interpolators(self):
+        """A list of interpolators of solutions in conservative form"""
+        return self._gradient_interpolators
+    
+
 
 
     def recombine_full_solution(self):
@@ -397,13 +479,7 @@ class HDGsolution:
         u_physical [n_ponts x n_phys_variables] for example {n , u, Ei, Ee, pi, pe, Ti, Te, cs, Mach, n0}
         '''
 
-        # defining the indexes of conservative variables
-        self._cons_idx = {}
-        for i,label in enumerate(self.parameters['physics']['conservative_variable_names']):
-            self._cons_idx[label] = i
-        self._phys_idx = {}
-        for i,label in enumerate(self.parameters['physics']['physical_variable_names']):
-            self._phys_idx[label] = i
+        
         if which == 'simple':
             if not self.combined_simple_solution:
                 print('Comibining first simple solution full')
@@ -707,6 +783,143 @@ class HDGsolution:
 
             return fig,axes,solutions_plot
 
+    def calculate_ionization_rate(self,which="simple"):
+        """
+            calculate the ionization rate
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_ionization_rate(which="full")
+
+            self._ionization_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._ionization_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ionization_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._ionization_rate = calculate_iz_rate_cons(self.solution_glob,self.atomic_parameters['iz'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'])
+
+    def calculate_cx_rate(self,which="simple"):
+        """
+            calculate the charge exchange rate
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_cx_rate(which="full")
+
+            self._cx_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._cx_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._cx_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._cx_rate = calculate_cx_rate_cons(self.solution_glob,self.atomic_parameters['cx'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['physics']['Mref'])
+
+    def calculate_dnn(self,which="simple"):
+        """
+            calculate neutral diffusion
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if self.dnn_parameters is None:
+                raise ValueError("Please, provide neutral diffusion settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if "cx" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_dnn(which="full")
+
+            self._dnn_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._dnn_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._dnn = calculate_dnn_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
+                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['length_scale'],
+                                                                self.parameters['adimensionalization']['time_scale'])
+    
+    def calculate_mfp(self,which="simple"):
+        """
+            calculate neutral mean free path
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+        """    
+        if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+        if self.dnn_parameters is None:
+            raise ValueError("Please, provide neutral diffusion settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if "cx" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if not self._simple_phys_initialized:
+            print('Initializing physical solution first')
+            self.init_phys_variables('both')
+        if which=="simple":
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+                        
+            self.calculate_mfp(which="full")
+
+            self._mfp_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._mfp_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._mfp.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('full')
+            if self._dnn is None:
+                self.calculate_dnn('full')
+            ti = self.solution_glob_phys[:,:,6].copy()
+            ti = softplus(ti, self.dnn_parameters['ti_min'],self.dnn_parameters['ti_w'],self.dnn_parameters['ti_width'])
+            self._mfp = 2*self._dnn/np.sqrt(self._e*ti/self.parameters['adimensionalization']['mass_scale'])
+
+
     def calculate_ionization_source(self,which="simple"):
         """
             calculate the ionization source
@@ -727,7 +940,7 @@ class HDGsolution:
             self.calculate_ionization_source(which="full")
 
             self._ionization_source_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._ionization_source_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self._ionization_source.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1],self.neq)
+            self._ionization_source_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ionization_source.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
             
         if which =="full":
             if not self._combined_to_full:
@@ -736,3 +949,262 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'])
+
+    def define_interpolators(self):
+        """
+        defines interpolators for full solutions and gradients based on shape functions
+        """
+
+        if not self._combined_simple_solution:
+            print('Comibining first simple solution full')
+            self.recombine_simple_full_solution()
+        if self.mesh.connectivity_big is None:
+            print('Comibining first big connectivity')
+            self.mesh.create_connectivity_big()
+        
+        if self.reference_element is None:
+            raise ValueError("Please, provide reference element")
+        if self._element_number_mask is None:
+            print('Defining an element number mask')
+            el_numbers = np.repeat(np.arange(len(self.mesh.connectivity_glob)),self.mesh.connectivity_big.shape[0]/self.mesh.connectivity_glob.shape[0])
+        
+            self._element_number_mask = Discrete2DMesh(self.mesh.vertices_glob, self.mesh.connectivity_big,
+                      el_numbers,limit=False,default_value = -1)
+        self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
+            self.element_number_mask,self.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
+        self._solution_interpolators = []
+        self._gradient_interpolators = []
+        for i in range(self.neq):
+            self._solution_interpolators.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.solution_glob[:,:,i]))
+            grad = []
+            grad.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.gradient_glob[:,:,i,0]))
+            grad.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.gradient_glob[:,:,i,1]))
+            self._gradient_interpolators.append(grad)
+
+    def n(self,r,z):
+        """
+        returns value of density in given point (r,z)
+        """
+        if b'rho' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('density is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        # n0*U1
+        return self.parameters['adimensionalization']['density_scale']*self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+
+    def ti(self,r,z):
+        """
+        returns value of ion temperature in given point (r,z)
+        """
+        if b'Ti' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('ion temperature is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        # Ti = T0*2/3/Mref*(U3/U1-1/2*U2**2/U1**2)
+        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if u1 == 0:
+            return 0
+        u2 = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        u3 = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
+        return self.parameters['adimensionalization']['temperature_scale']*2/3/self.parameters['physics']['Mref']*(u3/u1-1/2*u2**2/u1**2)
+
+    def te(self,r,z):
+        """
+        returns value of electron temperature in given point (r,z)
+        """
+        if b'Te' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('electron temperature is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        # Te = T0*2/3/Mref*(U4/U1)
+        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if u1 == 0:
+            return 0
+
+        u4 = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
+        return self.parameters['adimensionalization']['temperature_scale']*2/3/self.parameters['physics']['Mref']*(u4/u1)
+    
+    def u(self,r,z):
+        """
+        returns value of plasma velocity in given point (r,z)
+        """
+        if b'u' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('Mach number is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        # u = u0*U2/U1
+        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if u1 == 0:
+            return 0
+        u2 = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        return self.parameters['adimensionalization']['speed_scale']*(u2/u1)
+    
+    def cs(self,r,z):
+        """
+        returns value of plasma sound speed in given point (r,z)
+        """
+        if b'Csi' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('Mach number is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        # cs = u0*(2/3*(U3+U4-1/2*U2**2/U1)/U1)**0.5
+        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if u1 == 0:
+            return 0
+        u2 = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        u3 = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
+        u4 = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
+        return self.parameters['adimensionalization']['speed_scale']*np.sqrt((u3+u4-1/2*u2**2/u1)/u1)
+    
+    def M(self,r,z):
+        """
+        returns value of mach number in given point (r,z)
+        """
+        if b'M' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('Mach number is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        # M = u/cs
+        cs = self.cs(r,z)
+        if cs == 0:
+            return 0
+        return self.u(r,z)/cs
+    def nn(self,r,z):
+        """
+        returns value of neutral density in given point (r,z)
+        """
+        if b'rhon' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('neutral density number is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        # nn=n0*U5
+
+        return self.parameters['adimensionalization']['density_scale']*self._solution_interpolators[self._cons_idx[b'rhon']](r,z)
+
+    def ionization_source_interp(self,r,z):
+        """
+        returns ionization source value in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+
+
+        return calculate_iz_source_cons(solution,self.atomic_parameters['iz'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'])
+
+    def iz_rate(self,r,z):
+        """
+        returns value of ionization rate in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+        return calculate_iz_rate_cons(solution,self.atomic_parameters['iz'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'])
+
+    def cx_rate(self,r,z):
+        """
+        returns value of cx rate in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+        if "cx" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+        return calculate_cx_rate_cons(solution,self.atomic_parameters['cx'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['physics']['Mref'])
+    
+    def dnn(self,r,z):
+        """
+        returns value of neutral diffusion in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+        if "cx" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+        return calculate_dnn_cons(solution,self.dnn_parameters, self.atomic_parameters,
+                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['length_scale'],
+                                                                self.parameters['adimensionalization']['time_scale'])
+    
+    def mfp_nn(self,r,z):
+        """
+        returns value of neutral mean free path in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+        if "cx" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+        diff_nn = self.dnn(r,z)
+        ti = self.ti(r,z)
+        return (2*diff_nn)/np.sqrt(self._e*ti/self.parameters['adimensionalization']['mass_scale'])

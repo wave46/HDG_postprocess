@@ -1,4 +1,41 @@
 import numpy as np
+from .tools import softplus,double_softplus
+def eirene_fit_1D_log(te,params):
+    """
+    This routine calculates AMJUEL 1D rate (typically on temperature) in loglog space
+    for given temperature and coefficients
+    Also used for extrapolation of thermal OpenADAS case
+    """
+    result = np.zeros_like(te)
+    for i in range(params.shape[0]):
+        result+=params[i]*np.log(te)**i
+    return result
+def d_eirene_fit_1D_dte(te,params):
+    """
+    calculates derivative of AMJUEL 1D spline in loglog space
+    """
+    res = np.zeros_like(te)
+    for i in range(1,params.shape[0]):
+        res+=i*params[i]*np.log(te)**(i-1)
+    return res
+
+def eirene_fit_1D(te,params,te_min):
+    """
+    This routine calculates extrapolated AMJUEL 1D rate (typically on temperature) 
+    for given temperature and coefficients
+    Also used for extrapolation of thermal OpenADAS case
+    """
+    result = np.zeros_like(te)
+    #good indices
+    index_1 = (te>=te_min)
+    result[index_1] = eirene_fit_1D_log(te[index_1],params)
+    #bad indices
+    index_2 = (te<te_min)
+    result[index_2] = eirene_fit_1D_log(te_min*np.ones_like(te[index_2]),params)
+    result[index_2] += (d_eirene_fit_1D_dte(te_min*np.ones_like(te[index_2]),params)*
+                        (np.log(te[index_2])-np.log(te_min*np.ones_like(te[index_2]))))
+    return np.exp(result)/1e6
+
 
 def d_eirene_fit_dte(M,params):
     """
@@ -95,7 +132,7 @@ def eirene_fit(M,params,te_min,te_max,ne_min, ne_max):
 
 def calculate_iz_rate(te,ne,iz_parameters):
     """
-    calculates cx rate for given te,ne
+    calculates iz rate for given te,ne
     """
     database = iz_parameters['database']
     alpha = iz_parameters['alpha']
@@ -106,9 +143,43 @@ def calculate_iz_rate(te,ne,iz_parameters):
     if database == "AMJUEL 2.1.5JH":
         return eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
 
-def calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref,tol=1e-20):
+def calculate_cx_rate(te,parameters):
     """
     calculates cx rate for given te,ne
+    """
+    database = parameters['database']
+    alpha = parameters['alpha']
+    te_min = parameters['te_min']
+    if database == "OpenADAS expanded":
+        return eirene_fit_1D(te,alpha,te_min)
+
+def calculate_cx_rate_cons(solutions,parameters,T0,Mref,tol=1e-20):
+    """
+    calculates cx rate for given te,ne
+    """
+    database = parameters['database']
+    alpha = parameters['alpha']
+    te_min = parameters['te_min']
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape     
+        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+
+    if database == "OpenADAS expanded":
+        te = np.zeros_like(solutions[:,0])
+        #good U1 and U4
+        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
+        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
+        te[~good_idx] = 1e-10
+
+        res= eirene_fit_1D(te,alpha,te_min)
+        if dimensions is not None:
+            res = res.reshape(dimensions[0],dimensions[1])
+        return res
+
+def calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref,tol=1e-20):
+    """
+    calculates iz rate for given te,ne
     """
     database = iz_parameters['database']
     alpha = iz_parameters['alpha']
@@ -116,16 +187,24 @@ def calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref,tol=1e-20):
     te_max = iz_parameters['te_max']
     ne_min = iz_parameters['ne_min']
     ne_max = iz_parameters['ne_max']
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape     
+        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
     if database == "AMJUEL 2.1.5JH":
         te = np.zeros_like(solutions[:,0])
         ne = np.zeros_like(solutions[:,0])
         #good U1 and U4
-        good_idx = (solutions[:,0]>tol)&(solutions[:,3]>tol)
+        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
+
         te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
         ne[good_idx] = n0*solutions[good_idx,0]
         te[~good_idx] = 1e-10
         ne[~good_idx] = n0*1e-20
-        return eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
+        res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
+        if dimensions is not None:
+            res = res.reshape(dimensions[0],dimensions[1])
+        return res
 
 def calculate_iz_source(te,ne,nn,iz_parameters):
     """
@@ -143,6 +222,9 @@ def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref):
     """
 
     sigma_iz = calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref)
-    return n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz
-
+    if len(solutions.shape)>2:
+        res = n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_iz
+    else:
+        res =n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz
+    return res
 
