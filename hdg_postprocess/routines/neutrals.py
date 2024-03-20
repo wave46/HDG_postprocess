@@ -6,7 +6,7 @@ def calculate_dnn(ti,te,ne,dnn_params,atomic_parameters,kb,mD):
     calculates neutral diffusion value
     """
     if dnn_params['const']:
-        return dnn_params['dnn_max']
+        return dnn_params['dnn_max']*np.ones_like(ti)
     else:
         if dnn_params['ti_soft']:
             ti = softplus(ti,dnn_params['ti_min'],dnn_params['ti_w'],dnn_params['ti_width'])
@@ -31,7 +31,10 @@ def calculate_dnn_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L
     """
     dimensions = None
     if dnn_params['const']:
-        return dnn_params['dnn_max']
+        if len(solutions.shape)>2:
+            return dnn_params['dnn_max']*np.ones((solutions.shape[0],solutions.shape[1]))
+        else:
+            return dnn_params['dnn_max']*np.ones((solutions.shape[0]))
     else:
         if len(solutions.shape)>2:
             dimensions = solutions.shape
@@ -65,3 +68,43 @@ def calculate_dnn_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L
             dnn = dnn.reshape(dimensions[0],dimensions[1])
         
         return dnn*(L0**2/t0)
+
+def calculate_mfp(ti,te,ne,dnn_params,atomic_parameters,kb,mD):
+    """
+    calculates neutral mean free path value based on conservatives values
+    """
+    dimensions = None
+    
+
+
+    dnn = calculate_dnn(ti,te,ne,dnn_params,atomic_parameters,kb,mD)
+    if dnn_params['ti_soft']:
+        ti = softplus(ti,dnn_params['ti_min'],dnn_params['ti_w'],dnn_params['ti_width'])
+    else:
+        ti[ti<dnn_params['ti_min']] = dnn_params['ti_min']
+    mfp = 2*dnn/np.sqrt(kb*ti/mD)
+
+    return mfp
+
+def calculate_mfp_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L0,t0):
+    """
+    calculates neutral mean free path value based on conservatives values
+    """
+    dimensions = None
+    
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        ti = T0*2/3/Mref*(solutions[:,:,2]/solutions[:,:,0]-1/2*solutions[:,:,1]**2/solutions[:,:,0]**2)
+        ti = ti.flatten()
+        dnn = calculate_dnn_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L0,t0).flatten()
+    else:
+        ti = T0*2/3/Mref*(solutions[:,:,2]/solutions[:,:,0]-1/2*solutions[:,:,1]**2/solutions[:,:,0]**2)
+        dnn = calculate_dnn_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L0,t0)
+    if dnn_params['ti_soft']:
+        ti = softplus(ti,dnn_params['ti_min'],dnn_params['ti_w'],dnn_params['ti_width'])
+    else:
+        ti[ti<dnn_params['ti_min']] = dnn_params['ti_min']
+    mfp = 2*dnn/np.sqrt(kb*ti/mD)
+    if dimensions is not None:
+        mfp = mfp.reshape(dimensions[0],dimensions[1])
+    return mfp

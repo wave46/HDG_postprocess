@@ -1,9 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from hdg_postprocess.routines.atomic import *
+from hdg_postprocess.routines.plasma import *
 from hdg_postprocess.routines.neutrals import *
 from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
+import os
 class HDGsolution:
     ""
     
@@ -29,7 +31,9 @@ class HDGsolution:
 
             self._raw_solutions.append(raw_solution.reshape(raw_solution.shape[0]//self.neq,self.neq))
             self._raw_solutions_skeleton.append(raw_solution_skeleton.reshape(raw_solution_skeleton.shape[0]//self.neq,self.neq))
-            self._raw_gradients.append(np.swapaxes(raw_gradient.reshape(raw_gradient.shape[0]//(self.ndim*self.neq),self.ndim,self.neq),2,1))
+            raw_gradient = raw_gradient.reshape(raw_gradient.shape[0]//(self.neq*self.ndim), (self.neq*self.ndim))
+            raw_gradient = raw_gradient.reshape(raw_gradient.shape[0],self.neq,self.ndim)
+            self._raw_gradients.append(raw_gradient)
 
         self._initial_setup()
 
@@ -42,9 +46,12 @@ class HDGsolution:
 
         self._solution_glob = None
         self._gradient_glob = None
+        self._magnetic_field_glob = None
+        self._jtor_glob = None
 
         self._solution_simple = None
         self._gradient_simple = None
+        self._magnetic_field_simple= None
         if 'charge_scale' in self.parameters['adimensionalization'].keys():
             self._e = self.parameters['adimensionalization']['charge_scale']
         else: 
@@ -70,21 +77,31 @@ class HDGsolution:
 
         self._ionization_source_simple = None
         self._ionization_rate_simple = None
+        self._ohmic_source_simple = None
         self._cx_rate_simple = None
         self._dnn_simple = None
         self._mfp_simple = None
 
         self._ionization_source = None
+        self._ohmic_source = None
         self._ionization_rate = None
         self._cx_rate = None
         self._dnn = None
         self._mfp = None
 
-        self._reference_element = None
-        self._element_number_mask = None
+        
+        self._sample_interpolator = None
 
         self._solution_interpolators= None
         self._gradient_interpolators= None
+
+        self._solution_gauss = None
+        self._gradient_gauss = None
+        self._magnetic_field_gauss = None
+        self._jtor_gauss = None
+        self._ohmic_source_gauss = None
+        self._ionization_source_gauss = None
+        
 
         
         
@@ -114,17 +131,11 @@ class HDGsolution:
         self._dnn_parameters['dnn_max_adim']=(self._dnn_parameters['dnn_max']/
                                               self.parameters['adimensionalization']['length_scale']**2*
                                               self.parameters['adimensionalization']['time_scale'])
-        self._dnn_parameters['dnn_min_adim']=(self._dnn_parameters['dnn_min']/
+        if not value['const']:
+            self._dnn_parameters['dnn_min_adim']=(self._dnn_parameters['dnn_min']/
                                               self.parameters['adimensionalization']['length_scale']**2*
                                               self.parameters['adimensionalization']['time_scale'])
-    @property
-    def reference_element(self):
-        """Dictionary with atomic parameters"""
-        return self._reference_element
-    @reference_element.setter
-    def reference_element(self,value):
-        self._reference_element = value
-
+    
     @property
     def neq(self):
         """number of equations"""
@@ -201,6 +212,11 @@ class HDGsolution:
         return self._gradient_simple_phys
 
     @property
+    def magnetic_field_simple(self):
+        """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
+        return self._magnetic_field_simple
+
+    @property
     def combined_to_full(self):
         """Flag which tells if the solution has been combined to full"""
         return self._combined_to_full
@@ -228,6 +244,36 @@ class HDGsolution:
     def gradient_glob(self):
         """Gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq x ndim]"""
         return self._gradient_glob
+
+    @property
+    def magnetic_field_glob(self):
+        """magnetic field recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
+        return self._magnetic_field_glob
+
+    @property
+    def jtor_glob(self):
+        """plassma current recombined on a full mesh. This one has shape [Nelems x nodes_per_elem]"""
+        return self._jtor_glob
+
+    @property
+    def solution_gauss(self):
+        """Solution recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq]"""
+        return self._solution_gauss
+
+    @property
+    def gradient_gauss(self):
+        """Gradients recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq x ndim]"""
+        return self._gradient_gauss
+
+    @property
+    def magnetic_field_gauss(self):
+        """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
+        return self._magnetic_field_gauss
+
+    @property
+    def jtor_gauss(self):
+        """plassma current recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
+        return self._jtor_gauss
 
     @property
     def solution_glob_phys(self):
@@ -263,6 +309,26 @@ class HDGsolution:
     def ionization_source_simple(self):
         """Ionization source on a simple solution mesh"""
         return self._ionization_source_simple
+    
+    @property
+    def ionization_source_gauss(self):
+        """Ionization source on gauss points"""
+        return self._ionization_source_gauss
+    
+    @property
+    def ohmic_source(self):
+        """Ohmic heating source on a full solution mesh using conservative values as inputs"""
+        return self._ohmic_source
+
+    @property
+    def ohmic_source_simple(self):
+        """Ohmic heating source on a simple solution mesh"""
+        return self._ohmic_source_simple
+
+    @property
+    def ohmic_source_gauss(self):
+        """Ohmic heating source on gauss points mesh"""
+        return self._ohmic_source_gauss
     @property
     def ionization_rate_simple(self):
         """Ionization rate coefficient on a simple solution mesh"""
@@ -282,24 +348,29 @@ class HDGsolution:
     def mfp_simple(self):
         """Neutral mean free path on a simple solution mesh"""
         return self._mfp_simple
-
+        
     @property
-    def element_number_mask(self):
-        """Mask which gives a number of element for a given (R,Z)"""
-        return self._element_number_mask
-    @element_number_mask.setter
-    def element_number_mask(self,value):
-        self._element_number_mask = value
-
+    def sample_interpolator(self):
+        """Sample interpolator for acceleration"""
+        return self._sample_interpolator
+    @sample_interpolator.setter
+    def sample_interpolator(self,value):
+        self._sample_interpolator = value
+    
     @property
-    def solutuion_interpolators(self):
+    def solution_interpolators(self):
         """A list of interpolators of solutions in conservative form"""
-        return self._solutuion_interpolators
+        return self._solution_interpolators
 
     @property
     def gradient_interpolators(self):
         """A list of interpolators of solutions in conservative form"""
         return self._gradient_interpolators
+
+    @property
+    def field_interpolators(self):
+        """A list of interpolators of magnetic field"""
+        return self._field_interpolators
     
 
 
@@ -316,6 +387,11 @@ class HDGsolution:
             np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element'],self.neq))
         self._gradient_glob = \
             np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim))
+        self._magnetic_field_glob = \
+            np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element'],3))
+        
+        self._jtor_glob = \
+            np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element']))
 
         for i in range(self.n_partitions):
             # reshape to the shape of elements
@@ -328,6 +404,16 @@ class HDGsolution:
             raw_gradient = self.raw_gradients[i].reshape(self.raw_gradients[i].shape[0]//self.mesh.mesh_parameters['nodes_per_element'],self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim)
             raw_gradient = raw_gradient[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:,:]
             self._gradient_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]] = raw_gradient
+
+            #magnetic field
+            raw_field = self.raw_equilibriums[i]['magnetic_field'][self.mesh.raw_connectivity[i]]
+            raw_field = raw_field[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
+            self._magnetic_field_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_field
+
+            #plasma current
+            raw_jtor = self.raw_equilibriums[i]['plasma_current'][self.mesh.raw_connectivity[i]]
+            raw_jtor = raw_jtor[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
+            self._jtor_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_jtor
 
 
         self._combined_to_full = True
@@ -350,7 +436,24 @@ class HDGsolution:
         self._gradient_simple = np.zeros([self.mesh.vertices_glob.shape[0],self.neq,self.ndim])
         self._gradient_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:,:] = self.gradient_glob.reshape(self.gradient_glob.shape[0]*self.gradient_glob.shape[1],self.neq,self.ndim)
 
+        self._magnetic_field_simple = np.zeros([self.mesh.vertices_glob.shape[0],3])
+        self._magnetic_field_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.magnetic_field_glob.reshape(self.magnetic_field_glob.shape[0]*self.magnetic_field_glob.shape[1],3)
         self._combined_simple_solution = True
+    
+    def calculate_in_gauss_points(self):
+        if not self.combined_to_full:
+            print('Comibining first solution full')
+            self.recombine_full_solution()
+        if self.mesh.reference_element is None:
+            raise ValueError("Please, provide reference element to the mesh")
+
+        self._solution_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.solution_glob)
+        self._gradient_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N'],self.gradient_glob)
+        self._magnetic_field_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_glob)
+        self._jtor_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.jtor_glob)
+        
+
+
 
     def plot_overview(self,n_levels=100):
         """
@@ -782,6 +885,180 @@ class HDGsolution:
     
 
             return fig,axes,solutions_plot
+    
+    def calculate_variables_along_line(self,r_line,z_line,variable_list):
+        """
+        calculates plasma parameters noted in variables list on a given line
+        returns a dictionary with variables as keys and values along lines for them
+        """
+        defined_variables = ['n','nn','te','ti','M','dnn','mfp','u',
+                             'p_dyn','q_i_par','q_e_par','gamma',
+                             'q_i_par_conv','q_i_par_cond',
+                             'q_e_par_conv','q_e_par_cond']
+        for variable in variable_list:
+            if variable not in defined_variables:
+                raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
+        result = {}
+        for variable in variable_list:
+            temp = np.zeros_like(z_line)
+            if variable == 'n':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.n(r,z)
+            elif variable == 'nn':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.nn(r,z)
+            elif variable == 'ti':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.ti(r,z)
+            elif variable == 'te':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.te(r,z)
+            elif variable == 'M':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.M(r,z)
+            elif variable == 'dnn':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.dnn(r,z)
+            elif variable == 'mfp':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.mfp_nn(r,z)
+            elif variable == 'p_dyn':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.p_dyn(r,z)
+            elif variable == 'q_i_par':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.ion_heat_flux_par(r,z)
+            elif variable == 'q_i_par_conv':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.ion_heat_flux_par_conv(r,z)
+            elif variable == 'q_i_par_cond':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.ion_heat_flux_par_cond(r,z)
+            elif variable == 'q_e_par':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.electron_heat_flux_par(r,z)
+            elif variable == 'q_e_par_conv':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.electron_heat_flux_par_conv(r,z)
+            elif variable == 'q_e_par_cond':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.electron_heat_flux_par_cond(r,z)
+            elif variable == 'gamma':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.particle_flux_par(r,z)
+            elif variable == 'u':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.u(r,z)
+            else:
+                raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
+            result[variable] = temp
+        return result
+
+
+
+    def save_summary_line(self,save_folder,r_line,z_line,variable_list):
+
+
+        defined_variables = ['n','nn','te','ti','M','dnn','mfp','u',
+                             'p_dyn','q_i_par','q_e_par','gamma',
+                             'q_i_par_conv','q_i_par_cond',
+                             'q_e_par_conv','q_e_par_cond']
+        for variable in variable_list:
+            if variable not in defined_variables:
+                raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
+        vertices = np.stack([r_line,z_line]).T
+        np.save(f'{save_folder}vertices.npy',vertices)
+        
+        
+        values_on_line = self.calculate_variables_along_line(r_line,z_line,variable_list)
+        
+        for variable,values in values_on_line.items():
+            if variable == 'n':
+                np.save(f'{save_folder}density.npy',values)
+            elif variable == 'nn':
+                np.save(f'{save_folder}neitral_density.npy',values)
+            elif variable == 'te':
+                np.save(f'{save_folder}te.npy',values)
+            elif variable == 'ti':
+                np.save(f'{save_folder}ti.npy',values)
+            elif variable == 'M':                
+                np.save(f'{save_folder}M.npy',values)
+            elif variable == 'dnn':
+                np.save(f'{save_folder}dnn.npy',values)
+            elif variable == 'mfp':
+                np.save(f'{save_folder}mfp.npy',values)
+            elif variable == 'u':
+                np.save(f'{save_folder}u.npy',values)
+            elif variable == 'p_dyn':
+                np.save(f'{save_folder}p_dyn.npy',values)
+            elif variable == 'q_i_par':
+                np.save(f'{save_folder}q_i_par.npy',values)
+            elif variable == 'q_i_par_conv':
+                np.save(f'{save_folder}q_i_par_conv.npy',values)
+            elif variable == 'q_i_par_cond':
+                np.save(f'{save_folder}q_i_par_cond.npy',values)
+            elif variable == 'q_e_par':
+                np.save(f'{save_folder}q_e_par.npy',values)
+            elif variable == 'q_e_par_conv':
+                np.save(f'{save_folder}q_e_par_conv.npy',values)
+            elif variable == 'q_e_par_cond':
+                np.save(f'{save_folder}q_e_par_cond.npy',values)
+            elif variable == 'gamma':
+                np.save(f'{save_folder}gamma.npy',values)
+            elif variable == 'u':
+                np.save(f'{save_folder}u.npy',values)
+            else:
+                raise KeyError(f'{variable} is not in the list of posible variables')
+
+        return values_on_line
+
+    
+
+
+
+    def calculate_ohmic_source(self, which='simple'):
+        """
+            calculate the ionization rate
+        """
+
+        if 'ohmic_coeff' not in  self.parameters['physics'].keys():
+            raise KeyError('Please, provide ohmic heating adimensionalized coefficient')
+        
+        if which=="simple":
+            self.calculate_ohmic_source(which="full")
+
+            self._ohmic_source_simple_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._ohmic_source_simple_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ohmic_source.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+        elif which == 'full':
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._ohmic_source = calculate_ohmic_source_cons(self.solution_glob,self.jtor_glob,
+                                                            self.parameters['physics']['Mref'],
+                                                            self.parameters['adimensionalization']['mass_scale'],
+                                                            self.parameters['adimensionalization']['density_scale'],
+                                                            self.parameters['adimensionalization']['length_scale'],
+                                                            self.parameters['adimensionalization']['time_scale'],
+                                                            self.parameters['physics']['ohmic_coeff'])
+        elif which == 'gauss':
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            if self._jtor_gauss is None:
+                print('Calculating on gauss points first')
+                self.calculate_in_gauss_points()
+            self._ohmic_source_gauss = calculate_ohmic_source_cons(self.solution_gauss,self.jtor_gauss,
+                                                            self.parameters['physics']['Mref'],
+                                                            self.parameters['adimensionalization']['mass_scale'],
+                                                            self.parameters['adimensionalization']['density_scale'],
+                                                            self.parameters['adimensionalization']['length_scale'],
+                                                            self.parameters['adimensionalization']['time_scale'],
+                                                            self.parameters['physics']['ohmic_coeff'])
+            
+            
+
+
+        
+
+
 
     def calculate_ionization_rate(self,which="simple"):
         """
@@ -789,6 +1066,7 @@ class HDGsolution:
             simple: for simple mesh solution
             full: on full mesh solution
             coordinates: on a line with provided coordinates (to be done)
+            gauss_points: on gauss points (to be done)
         """    
 
         if which=="simple":
@@ -805,7 +1083,7 @@ class HDGsolution:
             self._ionization_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
             self._ionization_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ionization_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
             
-        if which =="full":
+        elif which =="full":
             if not self._combined_to_full:
                 self.recombine_full_solution()
             self._ionization_rate = calculate_iz_rate_cons(self.solution_glob,self.atomic_parameters['iz'],
@@ -915,9 +1193,13 @@ class HDGsolution:
                 self.init_phys_variables('full')
             if self._dnn is None:
                 self.calculate_dnn('full')
-            ti = self.solution_glob_phys[:,:,6].copy()
-            ti = softplus(ti, self.dnn_parameters['ti_min'],self.dnn_parameters['ti_w'],self.dnn_parameters['ti_width'])
-            self._mfp = 2*self._dnn/np.sqrt(self._e*ti/self.parameters['adimensionalization']['mass_scale'])
+            self._mfp = calculate_mfp_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
+                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['length_scale'],
+                                                                self.parameters['adimensionalization']['time_scale'])
 
 
     def calculate_ionization_source(self,which="simple"):
@@ -926,13 +1208,14 @@ class HDGsolution:
             simple: for simple mesh solution
             full: on full mesh solution (to be done)
             coordinates: on a line with provided coordinates (to be done)
+            gauss: on gauss points
         """    
-
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide ionization atomic settings for the simulation")
         if which=="simple":
-            if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-            if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            
             if not self._simple_phys_initialized:
                 print('Initializing physical solution first')
                 self.init_phys_variables('simple')
@@ -950,6 +1233,15 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'])
 
+        if which == 'gauss':
+            if self.solution_gauss is None:
+                print('Initializing values in gauss points first')
+                self.calculate_in_gauss_points()
+            self._ionization_source_gauss = calculate_iz_source_cons(self.solution_gauss,self.atomic_parameters['iz'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'])
+
     def define_interpolators(self):
         """
         defines interpolators for full solutions and gradients based on shape functions
@@ -962,16 +1254,17 @@ class HDGsolution:
             print('Comibining first big connectivity')
             self.mesh.create_connectivity_big()
         
-        if self.reference_element is None:
+        if self.mesh.reference_element is None:
             raise ValueError("Please, provide reference element")
-        if self._element_number_mask is None:
+        if self.mesh._element_number_mask is None:
             print('Defining an element number mask')
             el_numbers = np.repeat(np.arange(len(self.mesh.connectivity_glob)),self.mesh.connectivity_big.shape[0]/self.mesh.connectivity_glob.shape[0])
         
-            self._element_number_mask = Discrete2DMesh(self.mesh.vertices_glob, self.mesh.connectivity_big,
+            self.mesh._element_number_mask = Discrete2DMesh(self.mesh.vertices_glob, self.mesh.connectivity_big,
                       el_numbers,limit=False,default_value = -1)
-        self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
-            self.element_number_mask,self.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
+        if self._sample_interpolator is None:
+            self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
+                self.mesh.element_number_mask,self.mesh.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
         self._solution_interpolators = []
         self._gradient_interpolators = []
         for i in range(self.neq):
@@ -980,6 +1273,11 @@ class HDGsolution:
             grad.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.gradient_glob[:,:,i,0]))
             grad.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.gradient_glob[:,:,i,1]))
             self._gradient_interpolators.append(grad)
+
+        # magnetic field
+        self._field_interpolators = []
+        for i in range(3):
+            self._field_interpolators.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.magnetic_field_glob[:,:,i]))
 
     def n(self,r,z):
         """
@@ -1200,6 +1498,9 @@ class HDGsolution:
                 raise ValueError("Please, provide charge exchange atomic settings for the simulation")
         if "iz" not in self.atomic_parameters.keys():
                 raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
         solution = np.zeros([1,self.neq])
         for i in range(self.neq):
             solution[0,i] = self._solution_interpolators[i](r,z)
@@ -1208,3 +1509,211 @@ class HDGsolution:
         diff_nn = self.dnn(r,z)
         ti = self.ti(r,z)
         return (2*diff_nn)/np.sqrt(self._e*ti/self.parameters['adimensionalization']['mass_scale'])
+
+    def p_dyn(self,r,z):
+        """
+        returns value of dynamic pressure kb(Ti+Te)+mD*u**2 in given point (r,z)
+        """
+
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        pressure = self.n(r,z)*self.e*(self.ti(r,z)+self.te(r,z))+self.parameters['adimensionalization']['mass_scale']*self.n(r,z)*self.u(r,z)
+        return pressure
+
+    def grad_ti(self,r,z,coordinate):
+        """
+        returns value of derivative of ion temperature over chosen direction in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        #gradTi = 2/3/Mref*(Q1*(U2**2/U1**3-U3/U1**2)+Q2*(-U2/U1**2)+Q3*(1/U1))
+        if coordinate == 'x':
+            idx = 0
+        elif coordinate == 'y':
+            idx = 1
+        else:
+            raise ValueError(f'{coordinate} is not a coordinate of the problem')
+        q1 = self._gradient_interpolators[0][idx](r,z)
+        q2 = self._gradient_interpolators[1][idx](r,z)
+        q3 = self._gradient_interpolators[2][idx](r,z)
+        u1 = self._solution_interpolators[0](r,z)
+        u2 = self._solution_interpolators[1](r,z)
+        u3 = self._solution_interpolators[2](r,z)
+        #print(r,z)
+        #print(u1,u2,u3)
+
+        ti_grad = q1*(u2**2/u1**3-u3/u1**2)+q2*(-1*u2/u1**2)+q3/u1
+        ti_grad *= ((2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['temperature_scale']/
+                    self.parameters['adimensionalization']['length_scale'])
+        return ti_grad
+
+    def grad_ti_par(self,r,z):
+        """
+        returns value of derivative of ion temperature over parallel direction (r) in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        #dTi/dl = gradTi*b
+        
+        Br = self.field_interpolators[0](r,z)
+        Bz = self.field_interpolators[1](r,z)
+        Bt = self.field_interpolators[2](r,z)
+        br = Br/np.sqrt(Br**2+Bz**2+Bt**2)
+        bz = Bz/np.sqrt(Br**2+Bz**2+Bt**2)
+       
+        return self.grad_ti(r,z,'x')*br+self.grad_ti(r,z,'y')*bz
+
+    def grad_te(self,r,z,coordinate):
+        """
+        returns value of derivative of electron temperature over x direction (r) in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        #gradTi = 2/3/Mref*(Q1*(-U4/U1**2)+Q4*(1/U1))
+        if coordinate == 'x':
+            idx = 0
+        elif coordinate == 'y':
+            idx = 1
+        else:
+            raise ValueError(f'{coordinate} is not a coordinate of the problem')
+        q1 = self._gradient_interpolators[0][idx](r,z)
+
+        q4 = self._gradient_interpolators[3][idx](r,z)
+        u1 = self._solution_interpolators[0](r,z)
+
+        u4 = self._solution_interpolators[3](r,z)
+
+        te_grad = q1*(-1*u4/u1**2)+q4/u1
+        te_grad *= ((2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['temperature_scale']/
+                    self.parameters['adimensionalization']['length_scale'])
+        return te_grad
+
+    def grad_te_par(self,r,z):
+        """
+        returns value of derivative of electron temperature over parallel direction (r) in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        #dTi/dl = gradTi*b
+        
+        Br = self._field_interpolators[0](r,z)
+        Bz = self._field_interpolators[1](r,z)
+        Bt = self._field_interpolators[2](r,z)
+        br = Br/np.sqrt(Br**2+Bz**2+Bt**2)
+        bz = Bz/np.sqrt(Br**2+Bz**2+Bt**2)
+       
+        return self.grad_te(r,z,'x')*br+self.grad_te(r,z,'y')*bz
+
+    def particle_flux_par(self,r,z):
+        """
+        returns value of parallel particle flux in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        # Gamma = n0*u0*U2
+
+        return self.parameters['adimensionalization']['density_scale']* \
+               self.parameters['adimensionalization']['speed_scale']*self._solution_interpolators[1](r,z)
+    
+    def ion_heat_flux_par_conv(self,r,z):
+        """
+        returns value of parallel convective ion heat flux in given point (r,z)
+        """
+        # q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u
+        u = self.u(r,z)
+        ti = self.ti(r,z)
+        
+        q_ipar_conv =  self.n(r,z)*(5/2*self.e*ti+ \
+                 0.5*self.parameters['adimensionalization']['mass_scale']*u**2)*u
+        return q_ipar_conv
+
+    def ion_heat_flux_par_cond(self,r,z):
+        """
+        returns value of parallel conductive ion heat flux in given point (r,z)
+        """
+        # q_ipar = - kappa_par_i*Ti**(5/2)*dTi/dl
+        ti = min(50,self.ti(r,z))
+        
+        q_ipar_cond = -1*ti**(5/2)*self.grad_ti_par(r,z)
+        q_ipar_cond *=self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale'])
+        return q_ipar_cond
+
+    
+    def ion_heat_flux_par(self,r,z):
+        """
+        returns value of parallel ion heat flux in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        # q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u - kappa_par_i*Ti**(5/2)*dTi/dl
+
+        #conductive part
+        q_ipar = self.ion_heat_flux_par_cond(r,z)
+
+        #convective part
+        
+        q_ipar += self.ion_heat_flux_par_conv(r,z)
+
+        return q_ipar
+
+    def electron_heat_flux_par_conv(self,r,z):
+        """
+        returns value of parallel convective electron heat flux in given point (r,z)
+        """
+        # q_ipar = (5/2*kb*n*Te)u
+        u = self.u(r,z)
+        te = self.te(r,z)
+        
+        q_epar_conv =  self.n(r,z)*(5/2*self.e*te)*u
+        return q_epar_conv
+
+    def electron_heat_flux_par_cond(self,r,z):
+        """
+        returns value of parallel conductive electron heat flux in given point (r,z)
+        """
+        # q_ipar = - kappa_par_i*Ti**(5/2)*dTi/dl
+        te = min(50,self.te(r,z))
+        
+        q_epar_cond = -1*te**(5/2)*self.grad_te_par(r,z)
+        q_epar_cond *= self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale'])
+        return q_epar_cond
+
+    def electron_heat_flux_par(self,r,z):
+        """
+        returns value of parallel electron heat flux in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        # q_epar = (5/2*kb*n*Te) - kappa_par_e*Te**(5/2)*dTe/dl
+
+        #conductive part
+        q_epar = self.electron_heat_flux_par_cond(r,z)
+        #convective part        
+        q_epar += self.electron_heat_flux_par_conv(r,z)
+
+        return q_epar
+        
+    
+        
+
+    

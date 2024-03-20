@@ -1,5 +1,19 @@
 import numpy as np
 from .tools import softplus,double_softplus
+
+def compute_iz_rate_NRL(te,te_min):
+
+    Ery=13.6
+    te = np.maximum(te,te_min)
+    E0 = te/Ery
+    return 1e-11*np.sqrt(E0)/(Ery**1.5)/(6+E0)*np.exp(-1/E0)
+
+def compute_rec_rate_NRL(te,te_min):
+    Ery = 13.6
+    E0 = np.minimum(Ery/te,Ery/0.1)
+    sigmavrec = 5.2e-20*np.sqrt(E0)*(0.43 + 0.5*np.log(E0) + 0.469*(E0**(-1./3)))
+    return sigmavrec
+
 def eirene_fit_1D_log(te,params):
     """
     This routine calculates AMJUEL 1D rate (typically on temperature) in loglog space
@@ -135,13 +149,75 @@ def calculate_iz_rate(te,ne,iz_parameters):
     calculates iz rate for given te,ne
     """
     database = iz_parameters['database']
-    alpha = iz_parameters['alpha']
-    te_min = iz_parameters['te_min']
-    te_max = iz_parameters['te_max']
-    ne_min = iz_parameters['ne_min']
-    ne_max = iz_parameters['ne_max']
+    
     if database == "AMJUEL 2.1.5JH":
+        alpha = iz_parameters['alpha']
+        te_min = iz_parameters['te_min']
+        te_max = iz_parameters['te_max']
+        ne_min = iz_parameters['ne_min']
+        ne_max = iz_parameters['ne_max']
         return eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
+    elif database == "NRL":
+        te_min = iz_parameters['te_min']
+        return(compute_iz_rate_NRL(te,te_min))
+
+def calculate_rec_rate(te,ne,parameters):
+    """
+    calculates rec rate for given te,ne
+    """
+    database = parameters['database']
+    
+    if (database == "AMJUEL 2.1.8JH") or (database == "AMJUEL 2.1.8a"):
+        alpha = parameters['alpha']
+        te_min = parameters['te_min']
+        te_max = parameters['te_max']
+        ne_min = parameters['ne_min']
+        ne_max = parameters['ne_max']
+        return eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
+    elif database == "NRL":
+        te_min = parameters['te_min']
+        return(compute_rec_rate_NRL(te,te_min))
+
+def calculate_rec_rate_cons(solutions,parameters,T0,n0,Mref,tol=1e-20):
+    """
+    calculates iz rate for given te,ne
+    """
+    database = parameters['database']
+    
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape     
+        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    if (database == "AMJUEL 2.1.8JH") or (database == "AMJUEL 2.1.8a"):
+        alpha = parameters['alpha']
+        te_min = parameters['te_min']
+        te_max = parameters['te_max']
+        ne_min = parameters['ne_min']
+        ne_max = parameters['ne_max']
+        te = np.zeros_like(solutions[:,0])
+        ne = np.zeros_like(solutions[:,0])
+        #good U1 and U4
+        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
+
+        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
+        ne[good_idx] = n0*solutions[good_idx,0]
+        te[~good_idx] = 1e-10
+        ne[~good_idx] = n0*1e-20
+        res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
+        
+    elif database == "NRL":
+        te_min = parameters['te_min']
+        te = np.zeros_like(solutions[:,0])
+        solutions_corrected = solutions.copy()
+        solutions_corrected[:,0]= np.maximum(solutions_corrected[:,0],1e-20)
+        solutions_corrected[:,3]= np.maximum(solutions_corrected[:,3],1e-20)
+        te =  T0*2/3/Mref*solutions[:,3]/solutions[:,0]
+
+        res = compute_rec_rate_NRL(te,te_min)
+        
+    if dimensions is not None:
+            res = res.reshape(dimensions[0],dimensions[1])
+    return res  
 
 def calculate_cx_rate(te,parameters):
     """

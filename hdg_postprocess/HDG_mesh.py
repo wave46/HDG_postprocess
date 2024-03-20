@@ -55,6 +55,10 @@ class HDGmesh:
         self._nvertices_glob = None
         self._connectivity_big = None
         self._element_number = None
+        self._reference_element = None
+        self._element_number_mask = None
+        self._vertices_gauss = None
+        self._volumes_gauss = None
      
     @property
     def raw_vertices(self):
@@ -70,6 +74,15 @@ class HDGmesh:
     def vertices_glob(self):
         """vertices in global mesh"""
         return self._vertices_glob
+
+    @property
+    def vertices_gauss(self):
+        """coordinates of gauss points in global mesh"""
+        return self._vertices_gauss
+    @property
+    def volumes_gauss(self):
+        """volumes in gauss points in global mesh"""
+        return self._volumes_gauss
 
     @property
     def connectivity_glob(self):
@@ -160,6 +173,22 @@ class HDGmesh:
         Outside of the mesh gives -1
         """
         return self._element_number
+
+    @property
+    def reference_element(self):
+        """Dictionary with atomic parameters"""
+        return self._reference_element
+    @reference_element.setter
+    def reference_element(self,value):
+        self._reference_element = value
+
+    @property
+    def element_number_mask(self):
+        """Mask which gives a number of element for a given (R,Z)"""
+        return self._element_number_mask
+    @element_number_mask.setter
+    def element_number_mask(self,value):
+        self._element_number_mask = value
 
     def plot_raw_meshes(self, data=None, ax=None):
         """
@@ -302,4 +331,23 @@ class HDGmesh:
         element_numbers = np.repeat(np.arange(len(self.connectivity_glob)),self.connectivity_big.shape[0]/self.connectivity_glob.shape[0])
         self._element_number = Discrete2DMesh(self.vertices_glob, self.connectivity_big,
                                  element_numbers,limit=False,default_value = -1)
+
+    def calculate_gauss_volumes(self):
+        """
+        calculates volumes for each gauss point in the full mesh
+        this is neede for volume integration later
+        """
+        if self.reference_element is None:
+            raise ValueError("Please, provide reference element")
+        if not self._combined_to_full:
+            self.recombine_full_mesh()
+
+        self._vertices_gauss = np.einsum('ij,kjh->kih', self.reference_element['N'],self.vertices_glob[self.connectivity_glob,:])
+        J11_loc = np.einsum('ij,kj->ki',self.reference_element['Nxi'],self.vertices_glob[self.connectivity_glob,0])
+        J12_loc = np.einsum('ij,kj->ki',self.reference_element['Nxi'],self.vertices_glob[self.connectivity_glob,1])
+        J21_loc = np.einsum('ij,kj->ki',self.reference_element['Neta'],self.vertices_glob[self.connectivity_glob,0])
+        J22_loc = np.einsum('ij,kj->ki',self.reference_element['Neta'],self.vertices_glob[self.connectivity_glob,1])
+        detJ_loc = J11_loc*J22_loc-J12_loc*J21_loc
+
+        self._volumes_gauss = 2*np.pi*self.reference_element['IPweights'][None,:]*detJ_loc[:,:]*self._vertices_gauss[:,:,0]
         
