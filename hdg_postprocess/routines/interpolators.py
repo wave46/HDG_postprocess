@@ -22,27 +22,27 @@ class SoledgeHDG2DInterpolator():
         self._limit = limit
         self._default_value =  default_value
         self._p_order = p_order
-        #self._cached_points = []
-        self._cached_shape_functions = {}
-        self._cached_element = {}
+        #self._hashed_points = []
+        self._hashed_shape_functions = {}
+        self._hashed_element = {}
 
 
     def evaluate(self,x,y):
         result = 0
 
-        if (x,y) in self._cached_shape_functions.keys():
-            if self._cached_element[(x,y)]==-1:
+        if (x,y) in self._hashed_shape_functions.keys():
+            if self._hashed_element[(x,y)]==-1:
                 return self._default_value
             else: 
-                shape_functions = self._cached_shape_functions[(x,y)]
-                element_data = self._vertex_data[self._cached_element[(x,y)],:]
+                shape_functions = self._hashed_shape_functions[(x,y)]
+                element_data = self._vertex_data[self._hashed_element[(x,y)],:]
                 result = np.dot(shape_functions,element_data)
             return result
         else:
             element_number = int(self._element_number(x,y))
-            self._cached_element[(x,y)] = element_number
+            self._hashed_element[(x,y)] = element_number
             if (element_number==-1):
-                self._cached_shape_functions.append([0])                
+                self._hashed_shape_functions.append([0])                
                 if self._limit:            
                     raise ValueError("Requested value outside mesh bounds.")
                 else:
@@ -54,7 +54,7 @@ class SoledgeHDG2DInterpolator():
                 xieta = xieta_element_precise(x, y, element_vertices,self._p_order,self._inv_vandermonde)
                 #calculating shape functions
                 shape_functions = orthopoly2D(xieta[0], xieta[1], self._p_order) @ self._inv_vandermonde
-                self._cached_shape_functions[(x,y)] =shape_functions
+                self._hashed_shape_functions[(x,y)] =shape_functions
                 #get data in element vertices
                 element_data = self._vertex_data[element_number,:]
 
@@ -89,8 +89,8 @@ class SoledgeHDG2DInterpolator():
         m._inv_vandermonde = instance._inv_vandermonde
         m._p_order = instance._p_order
 
-        m._cached_shape_functions = instance._cached_shape_functions
-        m._cached_element = instance._cached_element
+        m._hashed_shape_functions = instance._hashed_shape_functions
+        m._hashed_element = instance._hashed_element
 
         # do we have replacement vertex data?
         if vertex_data is None:

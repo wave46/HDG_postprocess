@@ -50,15 +50,23 @@ class HDGmesh:
 
         self._combined_to_full = False
         self._connectivity_glob = None
+        self._connectivity_b_glob = None
+        self._boundary_flags = None
+        self._face_element_number = None
+        self._face_local_number = None
+        self._face_ghost = None
         self._vertices_glob = None
         self._nelems_glob = None
         self._nvertices_glob = None
+        self._nfaces_glob = None
         self._connectivity_big = None
         self._element_number = None
         self._reference_element = None
         self._element_number_mask = None
         self._vertices_gauss = None
         self._volumes_gauss = None
+        self._filled = None
+        self._indices = None
      
     @property
     def raw_vertices(self):
@@ -90,6 +98,42 @@ class HDGmesh:
         return self._connectivity_glob
 
     @property
+    def connectivity_b_glob(self):
+        """connectivity of faces on global mesh. filled only with boundary faces"""
+        return self._connectivity_b_glob
+    
+    @property
+    def boundary_flags(self):
+        """
+            faces flags on a full mesh.
+            -1 means that it is inside boundary, not filled int
+            0 boundary between two partitions
+            to be done: fill other flags
+        """
+        return self._boundary_flags
+
+    @property
+    def face_element_number(self):
+        """
+        for each face gives a number of the corresponding element
+        """
+        return self._face_element_number
+
+    @property
+    def face_local_number(self):
+        """
+        for each face gives a local number of the face in corresponding element
+        """
+        return self._face_local_number
+
+    @property
+    def face_ghost(self):
+        """
+        If face corresponds to ghost element
+        """
+        return self._face_ghost
+
+    @property
     def connectivity_big(self):
         """big connectivity of a global mesh for plots
         (each element is triangulated)
@@ -105,6 +149,11 @@ class HDGmesh:
     def nvertices_glob(self):
         """nubmer of vertices in global mesh"""
         return self._nvertices_glob
+
+    @property
+    def nfaces_glob(self):
+        """number of faces in global mesh"""
+        return self._nfaces_glob
 
     @property
     def combined_to_full(self):
@@ -276,6 +325,61 @@ class HDGmesh:
                 self.raw_rest_mesh_data[i]['loc2glob_no'][self.raw_connectivity[i][~self.raw_ghost_elements[i].astype(bool).flatten(),:]]
             self._vertices_glob[self.raw_rest_mesh_data[i]['loc2glob_no'],:] = self.raw_vertices[i][:,:]
         self._combined_to_full = True
+    
+    def recombine_full_boundary(self,raw_boundary_info):
+        """
+        Recombines full boundary connectivity with all needed information to calculate fluxes at the wall
+        """
+        self._nfaces_glob = 0
+        for i in range(self.n_partitions):
+            self._nfaces_glob = max(self._nfaces_glob,self.raw_rest_mesh_data[i]['loc2glob_fa'].max())
+        
+        connectivity_b_glob = -1*np.ones((self._nfaces_glob+1,self.mesh_parameters['nodes_per_face']),dtype=int)
+        boundary_flags = -1*np.ones((self._nfaces_glob+1),dtype=int)
+        face_element_number = np.zeros((self._nfaces_glob+1,1),dtype=int)
+        face_local_number = np.zeros((self._nfaces_glob+1),dtype=int)
+
+        for i in range(self.n_partitions):
+            non_ghost = (~self.raw_ghost_faces[i].flatten())[-self.raw_mesh_numbers[i]['Nextfaces']:]
+
+            connectivity_b_glob[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost],:] = \
+                self.raw_rest_mesh_data[i]['loc2glob_no'][self.raw_connectivity_boundary[i][:,:]][non_ghost]
+            boundary_flags[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
+                raw_boundary_info[i]['boundary_flags'][non_ghost]
+            face_element_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
+                self.raw_rest_mesh_data[i]['loc2glob_el'][raw_boundary_info[i]['exterior_faces'][:,0][non_ghost]][None].T
+            face_local_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
+                raw_boundary_info[i]['exterior_faces'][:,1][non_ghost]
+
+        # we filled in only exterior faces info
+        # excluding empty entrances
+        filled = (connectivity_b_glob!=-1).all(axis=1)
+        connectivity_b_glob = connectivity_b_glob[filled,:]
+        boundary_flags = boundary_flags[filled]
+        face_element_number = face_element_number[filled]
+        face_local_number = face_local_number[filled]
+
+        #save to make easier skeleton solution rebuilding
+        self._filled = filled
+
+        # this boundary is not ordered, so now we reorder it
+        indices = [0]
+        i = 0
+        while(len(indices)!=len(connectivity_b_glob)):
+            i = np.where(connectivity_b_glob[i,-1]==connectivity_b_glob[:,0])[0][0]
+            indices.append(i)
+        self._connectivity_b_glob = connectivity_b_glob[indices,:]
+        self._boundary_flags = boundary_flags[indices]
+        self._face_element_number = face_element_number[indices]
+        self._face_local_number = face_local_number[indices]
+
+        #save to make easier skeleton solution rebuilding
+        self._indices = indices
+
+
+        
+
+
 
 
     def create_connectivity_big(self):

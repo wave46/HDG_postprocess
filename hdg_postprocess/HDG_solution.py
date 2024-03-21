@@ -69,6 +69,10 @@ class HDGsolution:
         self._solution_simple_phys = None
         self._gradient_simple_phys = None
 
+        self._solution_boundary = None
+        self._solution_skeleton_boundary = None
+        self._gradient_boundary = None
+
         self._solution_glob_phys = None
         self._gradient_glob_phys = None
         self._atomic_parameters = None
@@ -215,6 +219,21 @@ class HDGsolution:
     def magnetic_field_simple(self):
         """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
         return self._magnetic_field_simple
+    
+    @property
+    def solution_boundary(self):
+        """conservative solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
+        return self._solution_boundary
+
+    @property
+    def solution_skeleton_boundary(self):
+        """conservative skeleton solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
+        return self._solution_skeleton_boundary
+    
+    @property
+    def gradient_boundary(self):
+        """phisical gradient simply united on a single mesh (means not taking into account repeating points) [Nextfaces x n_nodes_per_face x nphys x neq]"""
+        return self._gradient_boundary
 
     @property
     def combined_to_full(self):
@@ -439,6 +458,35 @@ class HDGsolution:
         self._magnetic_field_simple = np.zeros([self.mesh.vertices_glob.shape[0],3])
         self._magnetic_field_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.magnetic_field_glob.reshape(self.magnetic_field_glob.shape[0]*self.magnetic_field_glob.shape[1],3)
         self._combined_simple_solution = True
+    
+    def recombine_boundary_solution(self):
+        """
+        ectracts solutions and its gradients on the boundary
+        """
+        if not self.combined_to_full:
+            print('Comibining first solution full')
+            self.recombine_full_solution()
+        if self.mesh.connectivity_b_glob is None:
+            print('Comibining first boundary connectivity and info')
+            self.mesh.recombine_full_boundary(self.raw_solution_boundary_infos)
+        if self.mesh.reference_element is None:
+            raise ValueError("Please, provide reference element to the mesh")
+        
+        self._solution_boundary = self.solution_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:]
+        self._gradient_boundary = self.gradient_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:,:]
+
+        #re building skeleton solution
+
+        solution_skeleton_boundary = np.ones((self.mesh._nfaces_glob+1,self.mesh.mesh_parameters['nodes_per_face'],self.neq))
+        for i in range(self.n_partitions):
+            non_ghost = (~self.mesh.raw_ghost_faces[i].flatten())
+            raw_solution = self.raw_solutions_skeleton[i].reshape(self.raw_solutions_skeleton[i].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
+            solution_skeleton_boundary[self.mesh.raw_rest_mesh_data[i]['loc2glob_fa'][:][non_ghost],:] = \
+                raw_solution[non_ghost]
+        solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._filled,:,:]
+        solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._indices]
+        self._solution_skeleton_boundary = solution_skeleton_boundary
+        
     
     def calculate_in_gauss_points(self):
         if not self.combined_to_full:
