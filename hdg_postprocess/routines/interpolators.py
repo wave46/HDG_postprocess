@@ -42,7 +42,7 @@ class SoledgeHDG2DInterpolator():
             element_number = int(self._element_number(x,y))
             self._hashed_element[(x,y)] = element_number
             if (element_number==-1):
-                self._hashed_shape_functions.append([0])                
+                self._hashed_shape_functions[(x,y)] = [0]              
                 if self._limit:            
                     raise ValueError("Requested value outside mesh bounds.")
                 else:

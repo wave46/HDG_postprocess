@@ -41,12 +41,14 @@ class HDGsolution:
 
         self._combined_to_full = False
         self._combined_simple_solution = False
+        self._combined_boundary = False
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
 
         self._solution_glob = None
         self._gradient_glob = None
         self._magnetic_field_glob = None
+        self._magnetic_field_unit_glob = None
         self._jtor_glob = None
 
         self._solution_simple = None
@@ -232,13 +234,53 @@ class HDGsolution:
     
     @property
     def gradient_boundary(self):
-        """phisical gradient simply united on a single mesh (means not taking into account repeating points) [Nextfaces x n_nodes_per_face x nphys x neq]"""
+        """ gradient  on a boundary [Nextfaces x n_nodes_per_face x neq x ndim]"""
         return self._gradient_boundary
+    
+    @property
+    def magnetic_field_boundary(self):
+        """magnetic field recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
+        return self._magnetic_field_boundary
+
+    @property
+    def magnetic_field_unit_boundary(self):
+        """magnetic field unit vector recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
+        return self._magnetic_field_unit_boundary
+
+    @property
+    def solution_boundary_gauss(self):
+        """conservative solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
+        return self._solution_boundary_gauss
+
+    @property
+    def solution_skeleton_boundary_gauss(self):
+        """conservative skeleton solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
+        return self._solution_skeleton_boundary_gauss
+    
+    @property
+    def gradient_boundary_gauss(self):
+        """gradient united on gauss points of faces of the boundary (means not taking into account repeating points) [Nextfaces x n_gauss_points_per_face x neq x ndim]"""
+        return self._gradient_boundary_gauss
+    
+    @property
+    def magnetic_field_boundary_gauss(self):
+        """magnetic field recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face x 3]"""
+        return self._magnetic_field_boundary_gauss
+
+    @property
+    def magnetic_field_unit_boundary_gauss(self):
+        """magnetic field unit vector recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
+        return self._magnetic_field_unit_boundary_gauss
 
     @property
     def combined_to_full(self):
         """Flag which tells if the solution has been combined to full"""
         return self._combined_to_full
+    
+    @property
+    def combined_boundary(self):
+        """Flag which tells if the solution has been combined on a boundary of mesh"""
+        return self._combined_boundary
 
     @property
     def combined_simple_solution(self):
@@ -270,6 +312,11 @@ class HDGsolution:
         return self._magnetic_field_glob
 
     @property
+    def magnetic_field_unit_glob(self):
+        """magnetic field unit vector recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
+        return self._magnetic_field_unit_glob
+
+    @property
     def jtor_glob(self):
         """plassma current recombined on a full mesh. This one has shape [Nelems x nodes_per_elem]"""
         return self._jtor_glob
@@ -288,6 +335,11 @@ class HDGsolution:
     def magnetic_field_gauss(self):
         """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
         return self._magnetic_field_gauss
+
+    @property
+    def magnetic_field_unit_gauss(self):
+        """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
+        return self._magnetic_field_unit_gauss
 
     @property
     def jtor_gauss(self):
@@ -434,7 +486,7 @@ class HDGsolution:
             raw_jtor = raw_jtor[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
             self._jtor_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_jtor
 
-
+        self._magnetic_field_unit_glob = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2)).sum(axis=2)[:,:,None]
         self._combined_to_full = True
 
     def recombine_simple_full_solution(self):
@@ -475,6 +527,9 @@ class HDGsolution:
         self._solution_boundary = self.solution_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:]
         self._gradient_boundary = self.gradient_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:,:]
 
+        self._magnetic_field_boundary = self.magnetic_field_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:]
+        self._magnetic_field_unit_boundary = self.magnetic_field_unit_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:]
+
         #re building skeleton solution
 
         solution_skeleton_boundary = np.ones((self.mesh._nfaces_glob+1,self.mesh.mesh_parameters['nodes_per_face'],self.neq))
@@ -486,6 +541,7 @@ class HDGsolution:
         solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._filled,:,:]
         solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._indices]
         self._solution_skeleton_boundary = solution_skeleton_boundary
+        self._combined_boundary = True
         
     
     def calculate_in_gauss_points(self):
@@ -498,7 +554,47 @@ class HDGsolution:
         self._solution_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.solution_glob)
         self._gradient_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N'],self.gradient_glob)
         self._magnetic_field_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_glob)
+        self._magnetic_field_unit_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_unit_glob)
         self._jtor_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.jtor_glob)
+    
+    def calculate_in_boundary_gauss_points(self):
+        if self.mesh.reference_element is None:
+            raise ValueError("Please, provide reference element to the mesh")
+        if not self.combined_boundary:
+            print('Comibining first values on boundary')
+            self.recombine_boundary_solution()
+
+        self._solution_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self.solution_boundary)
+        self._solution_skeleton_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self.solution_skeleton_boundary)
+        self._gradient_boundary_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N1d'],self._gradient_boundary)
+        self._magnetic_field_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self._magnetic_field_boundary)
+        self._magnetic_field_unit_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self._magnetic_field_unit_boundary)
+
+    def summary_along_the_wall(self):
+        """
+        calculates values in gauss points along the wall
+        """
+
+        if self._solution_boundary_gauss is None:
+            print('Comibining first values on boundary gauss points')
+            self.calculate_in_boundary_gauss_points()
+
+        variables = ['n','u','te','ti','M','p_dyn','gamma_dep','q_dep','recycling','gamma_neut','dl','ds']
+
+        result = {}
+        for variable in variables:
+            if variable == 'dl':
+                res = self.mesh.segment_length_gauss
+            elif variable == 'ds':
+                res = self.mesh.segment_surface_gauss
+
+            #back-reordering on faces
+            result[variable] = res[:,::-1]
+
+
+
+        
+
         
 
 
@@ -686,6 +782,7 @@ class HDGsolution:
                 phys_variable =self.parameters['physics']['physical_variable_names'][i]
                 if (phys_variable == b'rho'):
                     # n = n_0*U1 (indexing for U in this comments as in fortran)
+                    #solution_phys[:,i] = calculate_variable_cons(data_loc,'n',self.parameters['adimensionalization'],self.cons_idx)
                     solution_phys[:,i] = rho_conserv*self.parameters['adimensionalization']['density_scale']
                 elif (phys_variable == b'u'):
                     # u = u_0*U2/U1

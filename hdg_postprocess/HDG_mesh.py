@@ -64,9 +64,16 @@ class HDGmesh:
         self._reference_element = None
         self._element_number_mask = None
         self._vertices_gauss = None
+        self._vertices_boundary_gauss = None
         self._volumes_gauss = None
         self._filled = None
         self._indices = None
+        self._boundary_combined = False
+
+        self._tangentials_gauss = None
+        self._normal_guass = None
+        self._segment_length_gauss = None
+        self._segment_surface_gauss = None
      
     @property
     def raw_vertices(self):
@@ -87,6 +94,30 @@ class HDGmesh:
     def vertices_gauss(self):
         """coordinates of gauss points in global mesh"""
         return self._vertices_gauss
+    
+    @property
+    def vertices_boundary_gauss(self):
+        """coordinates of gauss points in global mesh"""
+        return self._vertices_boundary_gauss
+    
+    @property
+    def tangentials_gauss(self):
+        """tangentials to mesh boundary at gauss points in global mesh"""
+        return self._tangentials_gauss
+    @property
+    def normals_gauss(self):
+        """normals to mesh boundary at gauss points in global mesh"""
+        return self._normals_gauss
+
+    @property
+    def segment_length_gauss(self):
+        """segment length corresponding to each gauss point on the boundary"""
+        return self._segment_length_gauss
+    @property
+    def segment_surface_gauss(self):
+        """segment length corresponding to each gauss point on the boundary"""
+        return self._segment_surface_gauss
+
     @property
     def volumes_gauss(self):
         """volumes in gauss points in global mesh"""
@@ -224,6 +255,11 @@ class HDGmesh:
         return self._element_number
 
     @property
+    def boundary_combined(self):
+        """Flag which tells if the mesh has been combined on the boundary"""
+        return self._boundary_combined
+
+    @property
     def reference_element(self):
         """Dictionary with atomic parameters"""
         return self._reference_element
@@ -281,26 +317,104 @@ class HDGmesh:
         colors = 'b'
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
-
+        if connectivity is None:
+            connectivity = self.connectivity_glob[:,:3]
         if data is None:            
-            verts = self.vertices_glob[self.connectivity_glob[:,:3]]
+            verts = self.vertices_glob[connectivity]
             collection = PolyCollection(verts, facecolor="none", edgecolor=colors, linewidth=0.05)
             ax.add_collection(collection) 
         else:
-            if connectivity is None:
-                connectivity = self.connectivity_glob[:,:3]
-            if log:
-                im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], np.log10(data),levels=n_levels
-                    , extend='both',triangles = connectivity, cmap='jet'
-                    ,extendrect = True)
-                ax.set_title(f'log10({label})')      
+            if data.shape[0] == connectivity.shape[0]:
+                verts = self.vertices_glob[connectivity]
+                collection = PolyCollection(verts)
+                collection.set_array(data)
+                ax.add_collection(collection)
             else:
-                im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=n_levels
-                    , extend='both',triangles = connectivity, cmap='jet'
-                    ,extendrect = True)
-                ax.set_title(f'{label}')     
-            cbar = plt.colorbar(im, ax=ax,extendrect = True)
+                
+                if log:
+                    im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], np.log10(data),levels=n_levels
+                        , extend='both',triangles = connectivity, cmap='jet'
+                        ,extendrect = True)
+                    ax.set_title(f'log10({label})')      
+                else:
+                    im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=n_levels
+                        , extend='both',triangles = connectivity, cmap='jet'
+                        ,extendrect = True)
+                    ax.set_title(f'{label}')     
+                cbar = plt.colorbar(im, ax=ax,extendrect = True)
                
+        ax.set_aspect(1)
+        ax.set_xlim(self.mesh_extent["minr"], self.mesh_extent["maxr"])
+        ax.set_ylim(self.mesh_extent["minz"], self.mesh_extent["maxz"])
+        ax.set_xlabel("R [m]")
+        ax.set_ylabel("Z [m]")
+        return ax
+
+    def plot_mesh_outline(self,raw_boundary_info=None, ax=None):
+        """
+        Plot mesh outline
+        :param raw_boundary_info: is the list of dictio naries with additional boundary info which is saved in solution
+        :param ax: ax where to plot 
+        """
+        if (not self._combined_to_full):
+            
+            print('Comibining to full mesh')
+            self.recombine_full_mesh()
+        if not self._boundary_combined:
+            if raw_boundary_info is None:
+                raise ValueError('Please, provide raw boundary info as input to this method')
+            print('Comibining boundary')
+            self.recombine_full_boundary(raw_boundary_info)
+        vertices_boundary =  self.vertices_glob[self.connectivity_b_glob]
+        r = vertices_boundary[:,:,0].flatten()
+        z = vertices_boundary[:,:,1].flatten()
+        if ax is None:
+            _, ax = plt.subplots(constrained_layout=True)
+        ax.plot(r,z)
+        ax.set_aspect(1)
+        ax.set_xlim(self.mesh_extent["minr"], self.mesh_extent["maxr"])
+        ax.set_ylim(self.mesh_extent["minz"], self.mesh_extent["maxz"])
+        ax.set_xlabel("R [m]")
+        ax.set_ylabel("Z [m]")
+        return ax
+
+    def plot_mesh_normals_tangentials(self,raw_boundary_info=None, ax=None,scale=None,scale_units=None):
+        """
+        Plots quiver plot of tangent and normal vectors to the mesh boundary at the gauss points
+        :param raw_boundary_info: is the list of dictio naries with additional boundary info which is saved in solution
+        :param ax: ax where to plot
+        :param scale: same meaning as in plt.quiver
+        :param scale_units: same meaning as in plt.quiver
+        by default the size of tangential and normal vectors is normalized to 1 mm on the plot
+        It may be adjusted using scale and scale_units settings
+        """
+        if (not self._combined_to_full):
+            
+            print('Comibining to full mesh')
+            self.recombine_full_mesh()
+        if self._vertices_boundary_gauss is None:
+            if raw_boundary_info is None:
+                raise ValueError('Please, provide raw boundary info as input to this method')
+            print('Calculating at gauss points')
+            self.calculate_gauss_boundary(raw_boundary_info)
+        # important to inverse second axis,because gauss points are in reverse order
+        r = self.vertices_boundary_gauss[:,::-1,0].flatten() 
+        z = self.vertices_boundary_gauss[:,::-1,1].flatten() 
+        #normals
+        n_r = self.normals_gauss[:,::-1,0].flatten()
+        n_z = self.normals_gauss[:,::-1,1].flatten()
+        #tangents
+        t_r = self.tangentials_gauss[:,::-1,0].flatten()
+        t_z = self.tangentials_gauss[:,::-1,1].flatten()
+        if ax is None:
+            _, ax = plt.subplots(constrained_layout=True)
+
+        if scale is None:
+            scale = 1000
+        if scale_units is None:
+            scale_units = 'xy'
+        ax.quiver(r,z,n_r,n_z,scale = scale,scale_units=scale_units)
+        ax.quiver(r,z,t_r,t_z,scale = scale,scale_units=scale_units,color='r')
         ax.set_aspect(1)
         ax.set_xlim(self.mesh_extent["minr"], self.mesh_extent["maxr"])
         ax.set_ylim(self.mesh_extent["minz"], self.mesh_extent["maxz"])
@@ -375,8 +489,7 @@ class HDGmesh:
 
         #save to make easier skeleton solution rebuilding
         self._indices = indices
-
-
+        self._boundary_combined = True
         
 
 
@@ -454,4 +567,52 @@ class HDGmesh:
         detJ_loc = J11_loc*J22_loc-J12_loc*J21_loc
 
         self._volumes_gauss = 2*np.pi*self.reference_element['IPweights'][None,:]*detJ_loc[:,:]*self._vertices_gauss[:,:,0]
+
+    def calculate_gauss_boundary(self,raw_boundary_info=None):
+        """
+        calculates:
+        vertices in gauss points for boundary faces
+        tangential and normal vectors in each point
+        segment lengths corresponding to the points
+        """
+        if self.reference_element is None:
+            raise ValueError("Please, provide reference element")
+        if not self._combined_to_full:
+            self.recombine_full_mesh()
+        if not self._boundary_combined:
+            if raw_boundary_info is None:
+                raise ValueError('Please, provide raw boundary info as input to this method')
+            self.recombine_full_boundary(raw_boundary_info)
         
+        self._vertices_boundary_gauss = np.einsum('ij,kjh->kih', self.reference_element['N1d'],
+                                                self.vertices_glob[self.connectivity_b_glob,:])
+
+        #shape functions derivative at gauss points
+        derivative_gauss = np.einsum('ij,kjh->kih', self.reference_element['N1dxi'],
+                                                self.vertices_glob[self.connectivity_b_glob,:])
+        derivative_norm = np.sqrt(((derivative_gauss**2).sum(axis=2)))[:,:,None]
+        self._tangentials_gauss = derivative_gauss/derivative_norm
+        self._normals_gauss = np.zeros_like(self._tangentials_gauss)
+        self._normals_gauss[:,:,0]= self._tangentials_gauss[:,:,1]
+        self._normals_gauss[:,:,1]= -1*self._tangentials_gauss[:,:,0]
+        # todo: if non axy-symmetric
+        self._segment_length_gauss = derivative_norm*self.reference_element['IPweights1d'][None,:,:]
+        self._segment_surface_gauss = self._segment_length_gauss*2*np.pi*self._vertices_boundary_gauss[:,:,0]
+        
+    def find_adjacent_elements(self,element_number):
+        """ 
+        finds numbers of adjacent elements
+        """
+        if (not self._combined_to_full):            
+            print('Comibining to full mesh')
+            self.recombine_full_mesh()
+        vertices_numbers = self.connectivity_glob[element_number]
+
+        adjacent_numbers = []
+        for number in vertices_numbers:
+            idx= np.where(number == self.connectivity_glob)
+            for i in idx[0]:
+                if (i!=element_number) and (i not in adjacent_numbers):
+                    adjacent_numbers.append(i)
+        return adjacent_numbers 
+
