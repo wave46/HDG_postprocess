@@ -38,27 +38,51 @@ class HDGsolution:
         self._initial_setup()
 
     def _initial_setup(self):
-
-        self._combined_to_full = False
+        # simple representation of a solution
         self._combined_simple_solution = False
-        self._combined_boundary = False
-        self._full_phys_initialized = False
-        self._simple_phys_initialized = False
-
-        self._solution_glob = None
-        self._gradient_glob = None
-        self._magnetic_field_glob = None
-        self._magnetic_field_unit_glob = None
-        self._jtor_glob = None
-
         self._solution_simple = None
         self._gradient_simple = None
         self._magnetic_field_simple= None
-        if 'charge_scale' in self.parameters['adimensionalization'].keys():
-            self._e = self.parameters['adimensionalization']['charge_scale']
-        else: 
-            self._e = 1.60217662e-19
-            self.parameters['adimensionalization']['charge_scale'] = self.e
+        #physical solution flags
+        self._full_phys_initialized = False
+        self._simple_phys_initialized = False
+
+        self._solution_simple_phys = None
+        self._gradient_simple_phys = None
+
+        self._solution_glob_phys = None
+        self._gradient_glob_phys = None
+
+        #boundary solutions
+        self._solution_boundary = None
+        self._solution_skeleton_boundary = None
+        self._gradient_boundary = None
+        
+        # neutral parameters
+        self._atomic_parameters = None
+        self._dnn_parameters = None
+        self._ionization_source_simple = None
+        self._ionization_rate_simple = None        
+        self._cx_rate_simple = None
+        self._dnn_simple = None
+        self._mfp_simple = None
+
+        #plasma parameters
+        self._ohmic_source_simple = None
+
+        #interpolators
+        self._sample_interpolator = None
+        self._solution_interpolators= None
+        self._gradient_interpolators= None
+
+        #values in gauss points
+
+        self._solution_gauss = None
+        self._gradient_gauss = None
+        self._magnetic_field_gauss = None
+        self._jtor_gauss = None
+        self._ohmic_source_gauss = None
+        self._ionization_source_gauss = None
 
         # defining the indexes of conservative variables
         self._cons_idx = {}
@@ -67,47 +91,34 @@ class HDGsolution:
         self._phys_idx = {}
         for i,label in enumerate(self.parameters['physics']['physical_variable_names']):
             self._phys_idx[label] = i
-        
-        self._solution_simple_phys = None
-        self._gradient_simple_phys = None
 
-        self._solution_boundary = None
-        self._solution_skeleton_boundary = None
-        self._gradient_boundary = None
+        if 'charge_scale' in self.parameters['adimensionalization'].keys():
+            self._e = self.parameters['adimensionalization']['charge_scale']
+        else: 
+            self._e = 1.60217662e-19
+            self.parameters['adimensionalization']['charge_scale'] = self.e
 
-        self._solution_glob_phys = None
-        self._gradient_glob_phys = None
-        self._atomic_parameters = None
-        self._dnn_parameters = None
+        if self._n_partitions == 1:
+            #no need to recombine meshes
+            self._combined_to_full = True
+            self._combined_boundary = False
+            self._simple_phys_initialized = self.raw_solutions[0]
+            self._gradient_glob = self.raw_gradients[0]
+            self._magnetic_field_glob = self.raw_equilibriums[0]['magnetic_field']
+            self._magnetic_field_glob_unit = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2).sum(axis=1))[:,None]
+            self._jtor_glob = self.raw_equilibriums[0]['plasma_current']
+            
 
-
-        self._ionization_source_simple = None
-        self._ionization_rate_simple = None
-        self._ohmic_source_simple = None
-        self._cx_rate_simple = None
-        self._dnn_simple = None
-        self._mfp_simple = None
-
-        self._ionization_source = None
-        self._ohmic_source = None
-        self._ionization_rate = None
-        self._cx_rate = None
-        self._dnn = None
-        self._mfp = None
 
         
-        self._sample_interpolator = None
-
-        self._solution_interpolators= None
-        self._gradient_interpolators= None
-
-        self._solution_gauss = None
-        self._gradient_gauss = None
-        self._magnetic_field_gauss = None
-        self._jtor_gauss = None
-        self._ohmic_source_gauss = None
-        self._ionization_source_gauss = None
-        
+        else:
+            self._combined_to_full = False            
+            self._combined_boundary = False
+            self._solution_glob = None
+            self._gradient_glob = None
+            self._magnetic_field_glob = None
+            self._magnetic_field_unit_glob = None
+            self._jtor_glob = None    
 
         
         
@@ -513,7 +524,7 @@ class HDGsolution:
     
     def recombine_boundary_solution(self):
         """
-        ectracts solutions and its gradients on the boundary
+        extracts solutions and its gradients on the boundary
         """
         if not self.combined_to_full:
             print('Comibining first solution full')
@@ -523,24 +534,44 @@ class HDGsolution:
             self.mesh.recombine_full_boundary(self.raw_solution_boundary_infos)
         if self.mesh.reference_element is None:
             raise ValueError("Please, provide reference element to the mesh")
-        
-        self._solution_boundary = self.solution_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:]
-        self._gradient_boundary = self.gradient_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:,:]
 
-        self._magnetic_field_boundary = self.magnetic_field_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:]
-        self._magnetic_field_unit_boundary = self.magnetic_field_unit_glob[self.mesh.face_element_number,self.mesh.reference_element['faceNodes'][self.mesh.face_local_number,:],:]
+        self._solution_boundary = {}
+        self._gradient_boundary = {}
+        self._magnetic_field_boundary = {}
+        self._magnetic_field_unit_boundary = {}
+        self._solution_skeleton_boundary = {}
+
+        for key in self.mesh._connectivity_b_glob.keys():
+            self._solution_boundary[key] = []
+            self._gradient_boundary[key] = []
+
+            self._magnetic_field_boundary[key] = []
+            self._magnetic_field_unit_boundary[key] = []
+            for face_element_number,face_local_number in zip(self.mesh.face_element_number[key],self.mesh.face_local_number[key]):
+                self._solution_boundary[key].append(self.solution_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
+                self._gradient_boundary[key].append(self.gradient_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:,:])
+
+                self._magnetic_field_boundary[key].append(self.magnetic_field_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
+                self._magnetic_field_unit_boundary[key].append(self.magnetic_field_unit_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
 
         #re building skeleton solution
+        if self.n_partitions>1:
+            solution_skeleton_boundary = np.ones((self.mesh._nfaces_glob,self.mesh.mesh_parameters['nodes_per_face'],self.neq))
+            for i in range(self.n_partitions):
+                non_ghost = (~self.mesh.raw_ghost_faces[i].flatten())
+                raw_solution = self.raw_solutions_skeleton[i].reshape(self.raw_solutions_skeleton[i].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
+                solution_skeleton_boundary[self.mesh.raw_rest_mesh_data[i]['loc2glob_fa'][:][non_ghost],:] = \
+                    raw_solution[non_ghost]
+            solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._filled,:,:]
+        else:
+            solution_skeleton_boundary = self.raw_solutions_skeleton[0].reshape(self.raw_solutions_skeleton[0].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
+        
+        self._solution_skeleton_boundary = {}
+        for key,indices in self.mesh._indices.items:
+            self._solution_skeleton_boundary = []
+            for ind in indices:
+                self._solution_skeleton_boundary[key].append(solution_skeleton_boundary[self.mesh._indices])
 
-        solution_skeleton_boundary = np.ones((self.mesh._nfaces_glob,self.mesh.mesh_parameters['nodes_per_face'],self.neq))
-        for i in range(self.n_partitions):
-            non_ghost = (~self.mesh.raw_ghost_faces[i].flatten())
-            raw_solution = self.raw_solutions_skeleton[i].reshape(self.raw_solutions_skeleton[i].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
-            solution_skeleton_boundary[self.mesh.raw_rest_mesh_data[i]['loc2glob_fa'][:][non_ghost],:] = \
-                raw_solution[non_ghost]
-        solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._filled,:,:]
-        solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._indices]
-        self._solution_skeleton_boundary = solution_skeleton_boundary
         self._combined_boundary = True
         
     

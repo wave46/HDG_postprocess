@@ -20,28 +20,19 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_pa
     raw_gradients = []                                  #raw gradients "q" for every node for every element as it comes from HDG
     raw_equilibriums = []                                #list with dictionaries with plasma current, magnetic field, poloidal flux
     raw_solution_boundary_infos= []                     #list with dictionaries with info about boundary flags and exterior faces (not sure if it will be needed later)
-    meshpaths,solpaths = [],[]
+
     parameters = {}                                     #parameters of the simulation which do not change between partitions
     
-    #lists for the mesh data
-    mesh_parameters = {}                                #parameters of the mesh which do not change between partitions
-    raw_vertices = []
-    raw_connectivity = []
-    raw_connectivity_boundary = []
-    raw_mesh_numbers = []                               #list containing dictionaries with number of elements, external faces, faces, nodes in the given mesh
-    raw_boundary_flags = []                             #list with boundary flags to_add: boundary flags description
-    raw_ghost_elements = []                             #list with flag if ghost element, then True, if not ghost then False
-    raw_ghost_faces = []                                #list with flag if ghost face, then True, if not ghost then False
-    raw_rest_mesh_data = []                             #list with the rest mesh data not well understood and used so far
+
     for n_partition in range(1,n_partitions+1): 
         # define the name of what is going to be read
         if n_partitions == 1:
             #if there is 1 partition used, no 1_8 ending in the filename        
             solfile_name = f'{solpath}{solname_base}.h5'
-            meshfile_name = f'{meshpath}{meshname_base}.h5'
+
         else:
             solfile_name = f'{solpath}{solname_base}_{n_partition}_{n_partitions}.h5'
-            meshfile_name = f'{meshpath}{meshname_base}_{n_partition}_{n_partitions}.h5'
+
         
         #reading solution file
         solution_file = h5todict(solfile_name)
@@ -73,48 +64,9 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_pa
         solution_boundary_data['exterior_faces'] = solution_file['exterior_faces'].T.astype(int) -1
         raw_solution_boundary_infos.append(solution_boundary_data)
 
-        #reading mesh file
-        mesh_file = h5todict(meshfile_name)
-        if n_partition == 1:
-            mesh_parameters['Ndim'] = int(mesh_file['Ndim'][0])
-            mesh_parameters['nodes_per_element'] = int(mesh_file['Nnodesperelem'][0])
-            mesh_parameters['nodes_per_face'] = int(mesh_file['Nnodesperface'][0])
-            if mesh_file['elemType'][0] == 0:
-                mesh_parameters['element_type'] = 'triangle'
-            else:
-                mesh_parameters['element_type'] = 'quadrangle'
 
-        raw_vertices.append((mesh_file['X'].T).copy(order='C'))
-        raw_connectivity.append(mesh_file['T'].T.astype(int) -1)
-        raw_connectivity_boundary.append(mesh_file['Tb'].T.astype(int) -1)
-
-        mesh_numbers = {}
-        mesh_numbers['Nelems'] = int(mesh_file['Nelems'][0])
-        mesh_numbers['Nextfaces'] = int(mesh_file['Nextfaces'][0])
-        mesh_numbers['Nfaces'] = int(mesh_file['Nfaces'][0])
-        mesh_numbers['Nnodes'] = int(mesh_file['Nnodes'][0])
-        raw_mesh_numbers.append(mesh_numbers)
-
-        raw_boundary_flags.append(mesh_file['boundaryFlag'].T.astype(int))
-        raw_ghost_elements.append(mesh_file['ghostElems'][:,None].astype(bool))
-        raw_ghost_faces.append(mesh_file['ghostFaces'][:,None].astype(bool))
-
-        meshpaths.append(meshfile_name)
-        solpaths.append(solfile_name)
-
-        rest_mesh_data = {}
-        rest_mesh_data['ghelsLoc'] = mesh_file['ghelsLoc']
-        rest_mesh_data['ghelsPro'] = mesh_file['ghelsPro']
-        rest_mesh_data['ghostFlp'] = mesh_file['ghostFlp']
-        rest_mesh_data['ghostLoc'] = mesh_file['ghostLoc']
-        rest_mesh_data['ghostPro'] = mesh_file['ghostPro']
-        rest_mesh_data['loc2glob_el'] = mesh_file['loc2glob_el'].T.astype(int) -1
-        rest_mesh_data['loc2glob_fa'] = mesh_file['loc2glob_fa'].T.astype(int) -1
-        rest_mesh_data['loc2glob_no'] = mesh_file['loc2glob_no'].T.astype(int) -1
-        raw_rest_mesh_data.append(rest_mesh_data)
-    mesh = HDGmesh(raw_vertices,raw_connectivity,raw_connectivity_boundary,
-                raw_mesh_numbers,raw_boundary_flags,raw_ghost_elements,
-                raw_ghost_faces,mesh_parameters,n_partitions,raw_rest_mesh_data)
+    mesh = load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions)
+    
     sol = HDGsolution(raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters, 
                  n_partitions, mesh)
@@ -158,7 +110,7 @@ def load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions):
             if mesh_file['elemType'][0] == 0:
                 mesh_parameters['element_type'] = 'triangle'
             else:
-                mesh_parameters['element_type'] = 'quadrangle'
+                mesh_parameters['element_type'] = 'quadrilateral'
 
         raw_vertices.append((mesh_file['X'].T).copy(order='C'))
         raw_connectivity.append(mesh_file['T'].T.astype(int) -1)
@@ -167,15 +119,13 @@ def load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions):
         mesh_numbers = {}
         mesh_numbers['Nelems'] = int(mesh_file['Nelems'][0])
         mesh_numbers['Nextfaces'] = int(mesh_file['Nextfaces'][0])
-        mesh_numbers['Nfaces'] = int(mesh_file['Nfaces'][0])
         mesh_numbers['Nnodes'] = int(mesh_file['Nnodes'][0])
-        raw_mesh_numbers.append(mesh_numbers)
+        
 
-        raw_boundary_flags.append(mesh_file['boundaryFlag'].T.astype(int))
-        raw_ghost_elements.append(mesh_file['ghostElems'][:,None].astype(bool))
-        raw_ghost_faces.append(mesh_file['ghostFaces'][:,None].astype(bool))
+        
         if n_partitions>1:
             #this info for parallel version
+            mesh_numbers['Nfaces'] = int(mesh_file['Nfaces'][0])
             rest_mesh_data = {}
             rest_mesh_data['ghelsLoc'] = mesh_file['ghelsLoc']
             rest_mesh_data['ghelsPro'] = mesh_file['ghelsPro']
@@ -186,7 +136,10 @@ def load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions):
             rest_mesh_data['loc2glob_fa'] = mesh_file['loc2glob_fa'].T.astype(int) -1
             rest_mesh_data['loc2glob_no'] = mesh_file['loc2glob_no'].T.astype(int) -1
             raw_rest_mesh_data.append(rest_mesh_data)
-
+            raw_boundary_flags.append(mesh_file['boundaryFlag'].T.astype(int))
+            raw_ghost_elements.append(mesh_file['ghostElems'][:,None].astype(bool))
+            raw_ghost_faces.append(mesh_file['ghostFaces'][:,None].astype(bool))
+        raw_mesh_numbers.append(mesh_numbers)
     mesh = HDGmesh(raw_vertices,raw_connectivity,raw_connectivity_boundary,
                 raw_mesh_numbers,raw_boundary_flags,raw_ghost_elements,
                 raw_ghost_faces,mesh_parameters,n_partitions,raw_rest_mesh_data)

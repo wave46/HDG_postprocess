@@ -5,6 +5,8 @@ from matplotlib import cm
 from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator
 from raysect.core.math.function.float import Discrete2DMesh
+from pathlib import Path
+import os
 class HDGmesh:
     """
     SOLEDGE-HDG mesh object  
@@ -41,6 +43,9 @@ class HDGmesh:
         if self.mesh_parameters['element_type'] == 'triangle':
             if self.mesh_parameters['nodes_per_element']==15:
                 self._p_order = 4
+        elif self.mesh_parameters['element_type'] == 'quadrilateral':
+            if self.mesh_parameters['nodes_per_element']==49:
+                self._p_order = 6
 
         minr,maxr,minz,maxz = 1e5,-1e5,1e5,-1e5
         for vertices in self.raw_vertices:
@@ -71,14 +76,12 @@ class HDGmesh:
             #no need to combine meshes
             self._combined_to_full = True
             self._connectivity_glob = self.raw_connectivity[0]
-            self._connectivity_b_glob = self.raw_connectivity[0]
+            self._connectivity_b_glob = None
             self._vertices_glob = self.raw_vertices[0]
             self._nelems_glob = self._connectivity_glob.shape[0]
             self._nvertices_glob = self._vertices_glob.shape[0]
-            self._nfaces_glob = self._connectivity_b_glob.shape[0]
-            self._boundary_combined = True
-            
-            # not sure if this will be used for serial version
+            self._nfaces_glob = None
+            self._boundary_combined = False
             
 
         
@@ -300,12 +303,21 @@ class HDGmesh:
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
         for i,(vertices, connectivity) in enumerate(zip(self.raw_vertices,self.raw_connectivity)):
-            if data is None:            
-                verts = vertices[connectivity[:,:3]]
+            if self.reference_element is None:
+                print("No reference element, the mesh is plotted assuming straight edges")
+                if self.mesh_parameters['element_type'] == 'triangle':            
+                    verts = vertices[connectivity[:,:3]]
+                else:
+                    verts = vertices[connectivity[:,:4]]
+            else:
+                print('Full mesh is plotted includin curved edges')
+                verts =  vertices[connectivity[:,self.reference_element['faceNodes'].flatten()]]
+                    
+            if data is None:
+                
                 collection = PolyCollection(verts, facecolor="none", edgecolor=colors(i), linewidth=0.05)
 
             else:
-                verts = vertices[connectivity[:,:3]]
                 collection= PolyCollection(verts)
                 collection.set_array(data[i][connectivity[:,:3]].mean(axis = 1))            
             ax.add_collection(collection)        
@@ -335,6 +347,16 @@ class HDGmesh:
             _, ax = plt.subplots(constrained_layout=True)
         if connectivity is None:
             connectivity = self.connectivity_glob[:,:3]
+            if self.reference_element is None:
+                print("No reference element, the mesh is plotted assuming straight edges")
+                if self.mesh_parameters['element_type'] == 'triangle':            
+                    connectivity = self.connectivity_glob[:,:3]
+                else:
+                    connectivity = self.connectivity_glob[:,:4]
+            else:
+                print('Full mesh is plotted includin curved edges')
+                connectivity = self.connectivity_glob[:,self.reference_element['faceNodes'].flatten()]
+
         if data is None:            
             verts = self.vertices_glob[connectivity]
             collection = PolyCollection(verts, facecolor="none", edgecolor=colors, linewidth=0.05)
@@ -372,8 +394,7 @@ class HDGmesh:
         :param raw_boundary_info: is the list of dictio naries with additional boundary info which is saved in solution
         :param ax: ax where to plot 
         """
-        if (not self._combined_to_full):
-            
+        if (not self._combined_to_full):            
             print('Comibining to full mesh')
             self.recombine_full_mesh()
         if not self._boundary_combined:
@@ -381,17 +402,24 @@ class HDGmesh:
                 raise ValueError('Please, provide raw boundary info as input to this method')
             print('Comibining boundary')
             self.recombine_full_boundary(raw_boundary_info)
-        vertices_boundary =  self.vertices_glob[self.connectivity_b_glob]
-        r = vertices_boundary[:,:,0].flatten()
-        z = vertices_boundary[:,:,1].flatten()
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
-        ax.plot(r,z)
+        colors = ['r','g','b']
+        for i,(key,bound_connect) in enumerate(self.connectivity_b_glob.items()):
+            for k,single_connect in enumerate(bound_connect):
+                vertices_boundary =  self.vertices_glob[single_connect]
+                r = vertices_boundary[:,:,0].flatten()
+                z = vertices_boundary[:,:,1].flatten()
+                if k==0:
+                    ax.plot(r,z,label=key,color=colors[i])
+                else:
+                    ax.plot(r,z,color=colors[i])
         ax.set_aspect(1)
         ax.set_xlim(self.mesh_extent["minr"], self.mesh_extent["maxr"])
         ax.set_ylim(self.mesh_extent["minz"], self.mesh_extent["maxz"])
         ax.set_xlabel("R [m]")
         ax.set_ylabel("Z [m]")
+        ax.legend()
         return ax
 
     def plot_mesh_normals_tangentials(self,raw_boundary_info=None, ax=None,scale=None,scale_units=None):
@@ -461,48 +489,113 @@ class HDGmesh:
         """
         Recombines full boundary connectivity with all needed information to calculate fluxes at the wall
         """
-        self._nfaces_glob = 0
-        for i in range(self.n_partitions):
-            self._nfaces_glob = max(self._nfaces_glob,self.raw_rest_mesh_data[i]['loc2glob_fa'].max())
-        self._nfaces_glob+=1
-        connectivity_b_glob = -1*np.ones((self._nfaces_glob,self.mesh_parameters['nodes_per_face']),dtype=int)
-        boundary_flags = -1*np.ones((self._nfaces_glob),dtype=int)
-        face_element_number = np.zeros((self._nfaces_glob,1),dtype=int)
-        face_local_number = np.zeros((self._nfaces_glob),dtype=int)
+        if self.n_partitions>1:
+            self._nfaces_glob = 0
+            for i in range(self.n_partitions):
+                self._nfaces_glob = max(self._nfaces_glob,self.raw_rest_mesh_data[i]['loc2glob_fa'].max())
+            self._nfaces_glob+=1
+            connectivity_b_glob = -1*np.ones((self._nfaces_glob,self.mesh_parameters['nodes_per_face']),dtype=int)
+            boundary_flags = -1*np.ones((self._nfaces_glob),dtype=int)
+            face_element_number = np.zeros((self._nfaces_glob,1),dtype=int)
+            face_local_number = np.zeros((self._nfaces_glob),dtype=int)
 
-        for i in range(self.n_partitions):
-            non_ghost = (~self.raw_ghost_faces[i].flatten())[-self.raw_mesh_numbers[i]['Nextfaces']:]
+            for i in range(self.n_partitions):
+                non_ghost = (~self.raw_ghost_faces[i].flatten())[-self.raw_mesh_numbers[i]['Nextfaces']:]
 
-            connectivity_b_glob[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost],:] = \
-                self.raw_rest_mesh_data[i]['loc2glob_no'][self.raw_connectivity_boundary[i][:,:]][non_ghost]
-            boundary_flags[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
-                raw_boundary_info[i]['boundary_flags'][non_ghost]
-            face_element_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
-                self.raw_rest_mesh_data[i]['loc2glob_el'][raw_boundary_info[i]['exterior_faces'][:,0][non_ghost]][None].T
-            face_local_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
-                raw_boundary_info[i]['exterior_faces'][:,1][non_ghost]
+                connectivity_b_glob[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost],:] = \
+                    self.raw_rest_mesh_data[i]['loc2glob_no'][self.raw_connectivity_boundary[i][:,:]][non_ghost]
+                boundary_flags[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
+                    raw_boundary_info[i]['boundary_flags'][non_ghost]
+                face_element_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
+                    self.raw_rest_mesh_data[i]['loc2glob_el'][raw_boundary_info[i]['exterior_faces'][:,0][non_ghost]][None].T
+                face_local_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
+                    raw_boundary_info[i]['exterior_faces'][:,1][non_ghost]
 
-        # we filled in only exterior faces info
-        # excluding empty entrances
-        filled = (connectivity_b_glob!=-1).all(axis=1)
-        connectivity_b_glob = connectivity_b_glob[filled,:]
-        boundary_flags = boundary_flags[filled]
-        face_element_number = face_element_number[filled]
-        face_local_number = face_local_number[filled]
+            # we filled in only exterior faces info
+            # excluding empty entrances
+            filled = (connectivity_b_glob!=-1).all(axis=1)
+            connectivity_b_glob = connectivity_b_glob[filled,:]
+            boundary_flags = boundary_flags[filled]
+            face_element_number = face_element_number[filled]
+            face_local_number = face_local_number[filled]
 
-        #save to make easier skeleton solution rebuilding
-        self._filled = filled
-
+            #save to make easier skeleton solution rebuilding
+            self._filled = filled
+        else:
+            self._nfaces_glob = self._raw_connectivity_boundary[0].shape[0]
+            connectivity_b_glob = self._raw_connectivity_boundary[0]
+            boundary_flags = raw_boundary_info[0]['boundary_flags']
+            face_element_number = raw_boundary_info[0]['exterior_faces'][:,0]
+            face_local_number = raw_boundary_info[0]['exterior_faces'][:,1]
         # this boundary is not ordered, so now we reorder it
-        indices = [0]
-        i = 0
-        while(len(indices)!=len(connectivity_b_glob)):
-            i = np.where(connectivity_b_glob[i,-1]==connectivity_b_glob[:,0])[0][0]
-            indices.append(i)
-        self._connectivity_b_glob = connectivity_b_glob[indices,:]
-        self._boundary_flags = boundary_flags[indices]
-        self._face_element_number = face_element_number[indices]
-        self._face_local_number = face_local_number[indices]
+        # also the boundary is splitted according to boundary flags and saved in dictionary
+        unique_boundaries = np.unique(boundary_flags)
+        indices = {}
+        self._connectivity_b_glob = {}
+        self._boundary_flags = {}
+        self._face_element_number = {}
+        self._face_local_number = {}
+        for boundary_type in unique_boundaries:
+            print(boundary_type)
+            #choosing this boundary
+            boundary_idx = np.where(boundary_type ==boundary_flags )[0]
+            bound_connectivity = connectivity_b_glob[boundary_idx,:]
+            bound_flags = boundary_flags[boundary_idx]
+            bound_face_element_number = face_element_number[boundary_idx]
+            bound_face_local_number = face_local_number[boundary_idx]
+            # now choosing the index to start mesh recombining
+            starting_indices = bound_connectivity[:,0]
+            print(bound_connectivity.shape)
+            ending_indices = bound_connectivity[:,-1]
+            difference = np.setdiff1d(starting_indices,ending_indices)
+            if len(difference)==0:
+                #this means that the border is closed and continous
+                all_ind = []
+                ind = [0]
+                i = 0
+                while(len(ind)!=len(bound_connectivity)):
+                    
+                    i = np.where(bound_connectivity[i,-1]==bound_connectivity[:,0])[0][0]
+                    ind.append(i)
+                all_ind.append(ind)
+
+                    
+            else:
+                #todo: check that this is always correct?
+                k=0
+                starting_ind = difference[k]
+
+                i = np.where(starting_ind == starting_indices)[0][0]
+                all_ind = []
+                ind = [i]
+                recorded_indexes = 1
+                while(recorded_indexes!=len(bound_connectivity)):
+                    i = np.where(bound_connectivity[i,-1]==bound_connectivity[:,0])[0]
+                    if len(i)!=0:
+                        i = i[0]
+                        ind.append(i)
+                    else:
+                        all_ind.append(ind)
+                        k+=1
+                        starting_ind = difference[k]
+                        i = np.where(starting_ind == starting_indices)[0][0]
+                        ind = [i]
+                        
+                    
+                    recorded_indexes+=1
+                all_ind.append(ind)
+            self._connectivity_b_glob[boundary_type] = []            
+            self._face_element_number[boundary_type] = []
+            self._face_local_number[boundary_type] = []
+            self._boundary_flags[boundary_type] = []
+            for ind in all_ind:
+
+                self._connectivity_b_glob[boundary_type].append(bound_connectivity[ind,:])
+                self._boundary_flags[boundary_type].append(bound_flags[ind])
+                self._face_element_number[boundary_type].append(bound_face_element_number[ind])
+                self._face_local_number[boundary_type].append(bound_face_local_number[ind])
+            indices[boundary_type] = all_ind
+        
 
         #save to make easier skeleton solution rebuilding
         self._indices = indices
@@ -518,30 +611,14 @@ class HDGmesh:
         if not self._combined_to_full:
             self.recombine_full_mesh()
         # defining triangulation order of each big triangle
-        if self.mesh_parameters["element_type"] == "triangle":
-            if self.p_order == 4:
-                triangle_indexes = np.array([[1,4,12],
-                        [4,5,13],
-                        [5,6,14],
-                        [6,2,7],
-                        [7,8,14],
-                        [8,9,15],
-                        [9,3,10],
-                        [10,11,15],
-                        [11,12,13],
-                        [12,4,13],
-                        [14,6,7],
-                        [13,5,14],
-                        [13,14,8],
-                        [13,8,15],
-                        [15,9,10],
-                        [11,13,15]])
-                triangle_indexes -=1
-            else:
-                raise KeyError(f'{self.p_order} splitting of each element is not defined yet')
-        else:
-            raise KeyError(f'{self.mesh_parameters["element_type"]} splitting of each element is not defined yet')
-                
+        base_path = Path(__file__).parent
+        rel_path = f'data/triangulations_element/{self.mesh_parameters["element_type"]}_P{self.p_order}.npy'
+        path =(base_path / rel_path).resolve()
+        if not os.path.isfile(path):
+            raise KeyError(f'{path} splitting of each element is not defined yet')
+
+        triangle_indexes = np.load(path)
+               
         connectivity_big = self.connectivity_glob[:,triangle_indexes]
         self._connectivity_big = connectivity_big.reshape(connectivity_big.shape[0]*connectivity_big.shape[1],3)
 
