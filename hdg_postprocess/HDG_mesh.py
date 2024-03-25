@@ -13,7 +13,7 @@ class HDGmesh:
 
     def __init__(self, raw_vertices,raw_connectivity,raw_connectivity_boundary,
                 raw_mesh_numbers,raw_boundary_flags,raw_ghost_elements,
-                raw_ghost_faces,raw_rest_mesh_data,mesh_parameters,n_partitions):
+                raw_ghost_faces,mesh_parameters,n_partitions,raw_rest_mesh_data=None):
         """
         Here we just store the raw data
         """
@@ -24,9 +24,13 @@ class HDGmesh:
         self._raw_boundary_flags = raw_boundary_flags
         self._raw_ghost_elements = raw_ghost_elements
         self._raw_ghost_faces = raw_ghost_faces
-        self._raw_rest_mesh_data = raw_rest_mesh_data
         self._mesh_parameters = mesh_parameters
         self._n_partitions = n_partitions
+        if n_partitions>1:
+            if raw_rest_mesh_data is None:
+                raise ValueError("communication info is not provided")
+
+            self._raw_rest_mesh_data = raw_rest_mesh_data
 
         self._initial_setup()
 
@@ -47,33 +51,50 @@ class HDGmesh:
             maxz = max(maxz,vertices[:,1].max())
         self._mesh_extent = {"minr": minr, "maxr":maxr, 
                              "minz": minz, "maxz":maxz}
-
-        self._combined_to_full = False
-        self._connectivity_glob = None
-        self._connectivity_b_glob = None
-        self._boundary_flags = None
-        self._face_element_number = None
-        self._face_local_number = None
-        self._face_ghost = None
-        self._vertices_glob = None
-        self._nelems_glob = None
-        self._nvertices_glob = None
-        self._nfaces_glob = None
         self._connectivity_big = None
         self._element_number = None
         self._reference_element = None
-        self._element_number_mask = None
         self._vertices_gauss = None
         self._vertices_boundary_gauss = None
         self._volumes_gauss = None
-        self._filled = None
-        self._indices = None
-        self._boundary_combined = False
-
         self._tangentials_gauss = None
         self._normal_guass = None
         self._segment_length_gauss = None
         self._segment_surface_gauss = None
+        # not sure if this will be used for serial version
+        self._filled = None
+        self._indices = None
+        self._face_element_number = None
+        self._face_local_number = None
+        self._face_ghost = None
+        if self._n_partitions == 1:
+            #no need to combine meshes
+            self._combined_to_full = True
+            self._connectivity_glob = self.raw_connectivity[0]
+            self._connectivity_b_glob = self.raw_connectivity[0]
+            self._vertices_glob = self.raw_vertices[0]
+            self._nelems_glob = self._connectivity_glob.shape[0]
+            self._nvertices_glob = self._vertices_glob.shape[0]
+            self._nfaces_glob = self._connectivity_b_glob.shape[0]
+            self._boundary_combined = True
+            
+            # not sure if this will be used for serial version
+            
+
+        
+        else:    
+            self._combined_to_full = False
+            self._connectivity_glob = None
+            self._connectivity_b_glob = None
+            self._boundary_flags = None
+            self._vertices_glob = None
+            self._nelems_glob = None
+            self._nvertices_glob = None
+            self._nfaces_glob = None
+            self._boundary_combined = False
+
+            
+            
      
     @property
     def raw_vertices(self):
@@ -253,6 +274,9 @@ class HDGmesh:
         Outside of the mesh gives -1
         """
         return self._element_number
+    @element_number.setter
+    def element_number(self,value):
+        self._element_number = value
 
     @property
     def boundary_combined(self):
@@ -266,14 +290,6 @@ class HDGmesh:
     @reference_element.setter
     def reference_element(self,value):
         self._reference_element = value
-
-    @property
-    def element_number_mask(self):
-        """Mask which gives a number of element for a given (R,Z)"""
-        return self._element_number_mask
-    @element_number_mask.setter
-    def element_number_mask(self,value):
-        self._element_number_mask = value
 
     def plot_raw_meshes(self, data=None, ax=None):
         """
@@ -430,9 +446,10 @@ class HDGmesh:
         for i in range(self.n_partitions):
             self._nelems_glob = max(self._nelems_glob, self.raw_rest_mesh_data[i]['loc2glob_el'].max())
             self._nvertices_glob = max(self._nvertices_glob, self.raw_rest_mesh_data[i]['loc2glob_no'].max())
-
-        self._connectivity_glob = np.zeros((self._nelems_glob+1,self.mesh_parameters['nodes_per_element']),dtype=int)
-        self._vertices_glob = np.zeros((self._nvertices_glob+1,self.mesh_parameters['Ndim']))
+        self._nelems_glob+=1
+        self._nvertices_glob+=1
+        self._connectivity_glob = np.zeros((self._nelems_glob,self.mesh_parameters['nodes_per_element']),dtype=int)
+        self._vertices_glob = np.zeros((self._nvertices_glob,self.mesh_parameters['Ndim']))
         for i in range(self.n_partitions):
             # removing ghost elements as well
             self._connectivity_glob[self.raw_rest_mesh_data[i]['loc2glob_el'][~self.raw_ghost_elements[i].astype(bool).flatten()]] = \
@@ -447,11 +464,11 @@ class HDGmesh:
         self._nfaces_glob = 0
         for i in range(self.n_partitions):
             self._nfaces_glob = max(self._nfaces_glob,self.raw_rest_mesh_data[i]['loc2glob_fa'].max())
-        
-        connectivity_b_glob = -1*np.ones((self._nfaces_glob+1,self.mesh_parameters['nodes_per_face']),dtype=int)
-        boundary_flags = -1*np.ones((self._nfaces_glob+1),dtype=int)
-        face_element_number = np.zeros((self._nfaces_glob+1,1),dtype=int)
-        face_local_number = np.zeros((self._nfaces_glob+1),dtype=int)
+        self._nfaces_glob+=1
+        connectivity_b_glob = -1*np.ones((self._nfaces_glob,self.mesh_parameters['nodes_per_face']),dtype=int)
+        boundary_flags = -1*np.ones((self._nfaces_glob),dtype=int)
+        face_element_number = np.zeros((self._nfaces_glob,1),dtype=int)
+        face_local_number = np.zeros((self._nfaces_glob),dtype=int)
 
         for i in range(self.n_partitions):
             non_ghost = (~self.raw_ghost_faces[i].flatten())[-self.raw_mesh_numbers[i]['Nextfaces']:]

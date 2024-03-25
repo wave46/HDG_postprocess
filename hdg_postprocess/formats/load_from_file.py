@@ -114,7 +114,7 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_pa
         raw_rest_mesh_data.append(rest_mesh_data)
     mesh = HDGmesh(raw_vertices,raw_connectivity,raw_connectivity_boundary,
                 raw_mesh_numbers,raw_boundary_flags,raw_ghost_elements,
-                raw_ghost_faces,raw_rest_mesh_data,mesh_parameters,n_partitions)
+                raw_ghost_faces,mesh_parameters,n_partitions,raw_rest_mesh_data)
     sol = HDGsolution(raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters, 
                  n_partitions, mesh)
@@ -174,19 +174,20 @@ def load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions):
         raw_boundary_flags.append(mesh_file['boundaryFlag'].T.astype(int))
         raw_ghost_elements.append(mesh_file['ghostElems'][:,None].astype(bool))
         raw_ghost_faces.append(mesh_file['ghostFaces'][:,None].astype(bool))
-
-        rest_mesh_data = {}
-        rest_mesh_data['ghelsLoc'] = mesh_file['ghelsLoc']
-        rest_mesh_data['ghelsPro'] = mesh_file['ghelsPro']
-        rest_mesh_data['ghostFlp'] = mesh_file['ghostFlp']
-        rest_mesh_data['ghostLoc'] = mesh_file['ghostLoc']
-        rest_mesh_data['ghostPro'] = mesh_file['ghostPro']
-        rest_mesh_data['loc2glob_el'] = mesh_file['loc2glob_el'].T.astype(int) -1
-        rest_mesh_data['loc2glob_fa'] = mesh_file['loc2glob_fa'].T.astype(int) -1
-        rest_mesh_data['loc2glob_no'] = mesh_file['loc2glob_no'].T.astype(int) -1
-        raw_rest_mesh_data.append(rest_mesh_data)
+        if n_partitions>1:
+            #this info for parallel version
+            rest_mesh_data = {}
+            rest_mesh_data['ghelsLoc'] = mesh_file['ghelsLoc']
+            rest_mesh_data['ghelsPro'] = mesh_file['ghelsPro']
+            rest_mesh_data['ghostFlp'] = mesh_file['ghostFlp']
+            rest_mesh_data['ghostLoc'] = mesh_file['ghostLoc']
+            rest_mesh_data['ghostPro'] = mesh_file['ghostPro']
+            rest_mesh_data['loc2glob_el'] = mesh_file['loc2glob_el'].T.astype(int) -1
+            rest_mesh_data['loc2glob_fa'] = mesh_file['loc2glob_fa'].T.astype(int) -1
+            rest_mesh_data['loc2glob_no'] = mesh_file['loc2glob_no'].T.astype(int) -1
+            raw_rest_mesh_data.append(rest_mesh_data)
 
     mesh = HDGmesh(raw_vertices,raw_connectivity,raw_connectivity_boundary,
                 raw_mesh_numbers,raw_boundary_flags,raw_ghost_elements,
-                raw_ghost_faces,raw_rest_mesh_data,mesh_parameters,n_partitions)
+                raw_ghost_faces,mesh_parameters,n_partitions,raw_rest_mesh_data)
     return mesh

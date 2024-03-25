@@ -455,14 +455,14 @@ class HDGsolution:
             self.mesh.recombine_full_mesh()
 
         self._solution_glob = \
-            np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element'],self.neq))
+            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],self.neq))
         self._gradient_glob = \
-            np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim))
+            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim))
         self._magnetic_field_glob = \
-            np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element'],3))
+            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],3))
         
         self._jtor_glob = \
-            np.zeros((self.mesh._nelems_glob+1,self.mesh.mesh_parameters['nodes_per_element']))
+            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
 
         for i in range(self.n_partitions):
             # reshape to the shape of elements
@@ -532,7 +532,7 @@ class HDGsolution:
 
         #re building skeleton solution
 
-        solution_skeleton_boundary = np.ones((self.mesh._nfaces_glob+1,self.mesh.mesh_parameters['nodes_per_face'],self.neq))
+        solution_skeleton_boundary = np.ones((self.mesh._nfaces_glob,self.mesh.mesh_parameters['nodes_per_face'],self.neq))
         for i in range(self.n_partitions):
             non_ghost = (~self.mesh.raw_ghost_faces[i].flatten())
             raw_solution = self.raw_solutions_skeleton[i].reshape(self.raw_solutions_skeleton[i].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
@@ -1401,15 +1401,12 @@ class HDGsolution:
         
         if self.mesh.reference_element is None:
             raise ValueError("Please, provide reference element")
-        if self.mesh._element_number_mask is None:
+        if self.mesh._element_number is None:
             print('Defining an element number mask')
-            el_numbers = np.repeat(np.arange(len(self.mesh.connectivity_glob)),self.mesh.connectivity_big.shape[0]/self.mesh.connectivity_glob.shape[0])
-        
-            self.mesh._element_number_mask = Discrete2DMesh(self.mesh.vertices_glob, self.mesh.connectivity_big,
-                      el_numbers,limit=False,default_value = -1)
+            self.mesh.make_element_number_funtion()
         if self._sample_interpolator is None:
             self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
-                self.mesh.element_number_mask,self.mesh.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
+                self.mesh.element_number,self.mesh.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
         self._solution_interpolators = []
         self._gradient_interpolators = []
         for i in range(self.neq):
