@@ -1450,8 +1450,13 @@ class HDGsolution:
             print('Defining an element number mask')
             self.mesh.make_element_number_funtion()
         if self._sample_interpolator is None:
-            self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
-                self.mesh.element_number,self.mesh.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
+            if self.mesh.mesh_parameters['element_type'] == 'triangle':
+                self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
+                    self.mesh.element_number,self.mesh.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
+            elif self.mesh.mesh_parameters['element_type'] == 'quadrilateral':
+                self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
+                    self.mesh.element_number,self.mesh.reference_element['NodesCoord1d'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
+            
         self._solution_interpolators = []
         self._gradient_interpolators = []
         for i in range(self.neq):
