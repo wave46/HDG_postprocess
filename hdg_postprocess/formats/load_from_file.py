@@ -53,7 +53,8 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_pa
 
         #define equilibrium dictionary
         equilibrium = {}
-        equilibrium['plasma_current'] = solution_file['Jtor'].T
+        if parameters['switches']['ohmicsrc'][0]==1:
+            equilibrium['plasma_current'] = solution_file['Jtor'].T
         equilibrium['magnetic_field'] = solution_file['magnetic_field'].T
         equilibrium['poloidal_flux'] = solution_file['magnetic_psi'].T   #this might be corrupted or normalized
         raw_equilibriums.append(equilibrium)

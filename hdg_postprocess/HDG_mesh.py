@@ -525,7 +525,7 @@ class HDGmesh:
             self._nfaces_glob = self._raw_connectivity_boundary[0].shape[0]
             connectivity_b_glob = self._raw_connectivity_boundary[0]
             boundary_flags = raw_boundary_info[0]['boundary_flags']
-            face_element_number = raw_boundary_info[0]['exterior_faces'][:,0]
+            face_element_number = raw_boundary_info[0]['exterior_faces'][:,0][None].T
             face_local_number = raw_boundary_info[0]['exterior_faces'][:,1]
         # this boundary is not ordered, so now we reorder it
         # also the boundary is splitted according to boundary flags and saved in dictionary
@@ -536,50 +536,44 @@ class HDGmesh:
         self._face_element_number = {}
         self._face_local_number = {}
         for boundary_type in unique_boundaries:
-            print(boundary_type)
             #choosing this boundary
             boundary_idx = np.where(boundary_type ==boundary_flags )[0]
             bound_connectivity = connectivity_b_glob[boundary_idx,:]
-            bound_flags = boundary_flags[boundary_idx]
-            bound_face_element_number = face_element_number[boundary_idx]
-            bound_face_local_number = face_local_number[boundary_idx]
             # now choosing the index to start mesh recombining
             starting_indices = bound_connectivity[:,0]
-            print(bound_connectivity.shape)
             ending_indices = bound_connectivity[:,-1]
             difference = np.setdiff1d(starting_indices,ending_indices)
             if len(difference)==0:
                 #this means that the border is closed and continous
                 all_ind = []
-                ind = [0]
+                ind = [boundary_idx[0]]
                 i = 0
                 while(len(ind)!=len(bound_connectivity)):
                     
                     i = np.where(bound_connectivity[i,-1]==bound_connectivity[:,0])[0][0]
-                    ind.append(i)
+                    ind.append(boundary_idx[i])
                 all_ind.append(ind)
 
                     
             else:
-                #todo: check that this is always correct?
+                #We start with first segment and if there are more, we take next index in difference
                 k=0
                 starting_ind = difference[k]
-
                 i = np.where(starting_ind == starting_indices)[0][0]
                 all_ind = []
-                ind = [i]
+                ind = [boundary_idx[i]]
                 recorded_indexes = 1
                 while(recorded_indexes!=len(bound_connectivity)):
                     i = np.where(bound_connectivity[i,-1]==bound_connectivity[:,0])[0]
                     if len(i)!=0:
                         i = i[0]
-                        ind.append(i)
+                        ind.append(boundary_idx[i])
                     else:
                         all_ind.append(ind)
                         k+=1
                         starting_ind = difference[k]
                         i = np.where(starting_ind == starting_indices)[0][0]
-                        ind = [i]
+                        ind = [boundary_idx[i]]
                         
                     
                     recorded_indexes+=1
@@ -590,10 +584,10 @@ class HDGmesh:
             self._boundary_flags[boundary_type] = []
             for ind in all_ind:
 
-                self._connectivity_b_glob[boundary_type].append(bound_connectivity[ind,:])
-                self._boundary_flags[boundary_type].append(bound_flags[ind])
-                self._face_element_number[boundary_type].append(bound_face_element_number[ind])
-                self._face_local_number[boundary_type].append(bound_face_local_number[ind])
+                self._connectivity_b_glob[boundary_type].append(connectivity_b_glob[ind,:])
+                self._boundary_flags[boundary_type].append(boundary_flags[ind])
+                self._face_element_number[boundary_type].append(face_element_number[ind])
+                self._face_local_number[boundary_type].append(face_local_number[ind])
             indices[boundary_type] = all_ind
         
 

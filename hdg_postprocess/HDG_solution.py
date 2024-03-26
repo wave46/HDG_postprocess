@@ -100,13 +100,13 @@ class HDGsolution:
 
         if self._n_partitions == 1:
             #no need to recombine meshes
-            self._combined_to_full = True
+            self._combined_to_full = False
             self._combined_boundary = False
-            self._simple_phys_initialized = self.raw_solutions[0]
-            self._gradient_glob = self.raw_gradients[0]
-            self._magnetic_field_glob = self.raw_equilibriums[0]['magnetic_field']
-            self._magnetic_field_glob_unit = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2).sum(axis=1))[:,None]
-            self._jtor_glob = self.raw_equilibriums[0]['plasma_current']
+            self._solution_glob = None
+            self._gradient_glob = None
+            self._magnetic_field_glob = None
+            self._magnetic_field_glob_unit = None
+            self._jtor_glob = None
             
 
 
@@ -471,31 +471,44 @@ class HDGsolution:
             np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim))
         self._magnetic_field_glob = \
             np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],3))
-        
-        self._jtor_glob = \
-            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
+        if self.parameters['switches']['ohmicsrc'][0]==1:
+            self._jtor_glob = \
+                np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
 
         for i in range(self.n_partitions):
             # reshape to the shape of elements
-            raw_solution = self.raw_solutions[i].reshape(self.raw_solutions[i].shape[0]//self.mesh.mesh_parameters['nodes_per_element'],self.mesh.mesh_parameters['nodes_per_element'],self.neq)
-            # removing ghost elements
-            raw_solution = raw_solution[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
-            self._solution_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]] = raw_solution
+            raw_solution = self.raw_solutions[i].reshape(self.raw_solutions[i].shape[0]//self.mesh.mesh_parameters['nodes_per_element'],self.mesh.mesh_parameters['nodes_per_element'],self.neq)            
 
             # reshape to the shape of the elements
-            raw_gradient = self.raw_gradients[i].reshape(self.raw_gradients[i].shape[0]//self.mesh.mesh_parameters['nodes_per_element'],self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim)
-            raw_gradient = raw_gradient[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:,:]
-            self._gradient_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]] = raw_gradient
+            raw_gradient = self.raw_gradients[i].reshape(self.raw_gradients[i].shape[0]//self.mesh.mesh_parameters['nodes_per_element'],self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim)            
 
             #magnetic field
-            raw_field = self.raw_equilibriums[i]['magnetic_field'][self.mesh.raw_connectivity[i]]
-            raw_field = raw_field[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
-            self._magnetic_field_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_field
+            raw_field = self.raw_equilibriums[i]['magnetic_field'][self.mesh.raw_connectivity[i]] 
 
-            #plasma current
-            raw_jtor = self.raw_equilibriums[i]['plasma_current'][self.mesh.raw_connectivity[i]]
-            raw_jtor = raw_jtor[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
-            self._jtor_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_jtor
+            if self.parameters['switches']['ohmicsrc'][0]==1:
+                #plasma current
+                raw_jtor = self.raw_equilibriums[i]['plasma_current'][self.mesh.raw_connectivity[i]]
+            
+            if self.n_partitions>1:
+                # removing ghost elements
+                raw_solution = raw_solution[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
+                self._solution_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]] = raw_solution
+
+                raw_gradient = raw_gradient[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:,:]
+                self._gradient_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]] = raw_gradient
+
+                raw_field = raw_field[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
+                self._magnetic_field_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_field
+
+                if self.parameters['switches']['ohmicsrc'][0]==1:
+                    raw_jtor = raw_jtor[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
+                    self._jtor_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_jtor
+            else:
+                self._solution_glob = raw_solution
+                self._gradient_glob = raw_gradient
+                self._magnetic_field_glob = raw_field
+                if self.parameters['switches']['ohmicsrc'][0]==1:
+                    self._jtor_glob = raw_jtor
 
         self._magnetic_field_unit_glob = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2)).sum(axis=2)[:,:,None]
         self._combined_to_full = True
@@ -565,12 +578,13 @@ class HDGsolution:
             solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._filled,:,:]
         else:
             solution_skeleton_boundary = self.raw_solutions_skeleton[0].reshape(self.raw_solutions_skeleton[0].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
-        
+            solution_skeleton_boundary = solution_skeleton_boundary[-self.mesh.raw_mesh_numbers[0]['Nextfaces']:,:,:]
         self._solution_skeleton_boundary = {}
-        for key,indices in self.mesh._indices.items:
-            self._solution_skeleton_boundary = []
+        print(solution_skeleton_boundary.shape)
+        for key,indices in self.mesh._indices.items():
+            self._solution_skeleton_boundary[key] = []
             for ind in indices:
-                self._solution_skeleton_boundary[key].append(solution_skeleton_boundary[self.mesh._indices])
+                self._solution_skeleton_boundary[key].append(solution_skeleton_boundary[ind,:,:])
 
         self._combined_boundary = True
         
