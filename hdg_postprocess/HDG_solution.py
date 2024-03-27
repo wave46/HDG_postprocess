@@ -678,6 +678,10 @@ class HDGsolution:
                 solutions_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']
                 colorbar_labels.append(r'$n_n$, m$^{-3}$')
                 solutions_dimensional[solutions_dimensional[:,i]<1e8,i] = 1e8
+            elif cons_variable == b'k':
+                solutions_dimensional[:,i]*=self.parameters['adimensionalization']['speed_scale']**2
+                colorbar_labels.append(r'$k$, m$^{-2}$/s$^{-2}$')
+                #solutions_dimensional[solutions_dimensional[:,i]<1e-5,i] = 1e-5
             else:
                 raise NameError('Unknown conservative varibale')
 
@@ -692,7 +696,7 @@ class HDGsolution:
 
         for i in range(self.neq):
             cons_variable =self.parameters['physics']['conservative_variable_names'][i]
-            if (cons_variable != b'Gamma') :
+            if (cons_variable != b'Gamma') and (cons_variable != b'k') :
                 axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_dimensional[:,i],ax=axes[i//2,i%2],
                                                           log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
             else:
@@ -734,6 +738,10 @@ class HDGsolution:
             elif cons_variable == b'rhon':
                 difference_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']
                 colorbar_labels.append(r'$n_n$, m$^{-3}$')
+            elif cons_variable == b'k':
+                difference_dimensional[:,i]*=self.parameters['adimensionalization']['speed_scale']**2
+                colorbar_labels.append(r'$k$, m$^{-2}$/s$^{-2}$')
+                #difference_dimensional[difference_dimensional[:,i]<1e-5,i] = 1e-5
             else:
                 raise NameError('Unknown conservative varibale')
 
@@ -820,9 +828,13 @@ class HDGsolution:
                 data_loc = data
             rho_conserv = data_loc[:,self.cons_idx[b'rho']]
             gamma_conserv = data_loc[:,self.cons_idx[b'Gamma']]
-            nEi_conserv = data_loc[:,self.cons_idx[b'nEi']]
-            nEe_conserv = data_loc[:,self.cons_idx[b'nEe']]
-            rhon_conserv = data_loc[:,self.cons_idx[b'rhon']]
+            if self.neq>2:
+                nEi_conserv = data_loc[:,self.cons_idx[b'nEi']]
+                nEe_conserv = data_loc[:,self.cons_idx[b'nEe']]
+            if self.neq>4:
+                rhon_conserv = data_loc[:,self.cons_idx[b'rhon']]
+            if self.neq>5:
+                k_conserv = data_loc[:,self.cons_idx[b'k']]
             for i in range(self.nphys):
                 phys_variable =self.parameters['physics']['physical_variable_names'][i]
                 if (phys_variable == b'rho'):
@@ -876,6 +888,9 @@ class HDGsolution:
                 elif (phys_variable == b'rhon'):
                     # n_n = n_0*U5
                     solution_phys[:,i] = rhon_conserv*self.parameters['adimensionalization']['density_scale']
+                elif (phys_variable == b'k'):
+                    # k = u_0**2*U6
+                    solution_phys[:,i] = k_conserv*self.parameters['adimensionalization']['speed_scale']**2
                 else:
                     raise KeyError('Unknown variable, go into the code and add this variable if you are sure')
 
@@ -901,13 +916,18 @@ class HDGsolution:
             rho_conserv = sol_loc[:,self.cons_idx[b'rho']][None].T
             rho_conserv_grad = data_loc[:,self.cons_idx[b'rho'],:]
             gamma_conserv = sol_loc[:,self.cons_idx[b'Gamma']][None].T
-            gamma_conserv_grad = data_loc[:,self.cons_idx[b'Gamma'],:]
-            nEi_conserv = sol_loc[:,self.cons_idx[b'nEi']][None].T
-            nEi_conserv_grad = data_loc[:,self.cons_idx[b'nEi'],:]
-            nEe_conserv = sol_loc[:,self.cons_idx[b'nEe']][None].T
-            nEe_conserv_grad = data_loc[:,self.cons_idx[b'nEe'],:]
-            rhon_conserv = sol_loc[:,self.cons_idx[b'rhon']][None].T
-            rhon_conserv_grad = data_loc[:,self.cons_idx[b'rhon'],:]
+            gamma_conserv_grad = data_loc[:,self.cons_idx[b'Gamma'],:]     
+            if self.neq>2:
+                nEi_conserv = sol_loc[:,self.cons_idx[b'nEi']][None].T
+                nEi_conserv_grad = data_loc[:,self.cons_idx[b'nEi'],:]
+                nEe_conserv = sol_loc[:,self.cons_idx[b'nEe']][None].T
+                nEe_conserv_grad = data_loc[:,self.cons_idx[b'nEe'],:]
+            if self.neq>4:
+                rhon_conserv = sol_loc[:,self.cons_idx[b'rhon']][None].T
+                rhon_conserv_grad = data_loc[:,self.cons_idx[b'rhon'],:]
+            if self.neq>5:
+                k_conserv = sol_loc[:,self.cons_idx[b'k']]
+                k_conserv_grad = data_loc[:,self.cons_idx[b'k'],:]
             for i in range(self.nphys):
                 phys_variable =self.parameters['physics']['physical_variable_names'][i]
                 if (phys_variable == b'rho'):
@@ -978,9 +998,12 @@ class HDGsolution:
                     grad_phys[:,i,:] = grad_u/cs+grad_cs*u/cs**2
                 elif (phys_variable == b'rhon'):
                     #grad(n_n) = n0/L0*grad(U5)
-                    rhon_conserv_grad = data_loc[:,self.cons_idx[b'rhon'],:]
                     grad_phys[:,i,:] = rhon_conserv_grad
                     grad_phys[:,i,:] *= self.parameters['adimensionalization']['density_scale']
+                elif (phys_variable == b'k'):
+                    #grad(k) = u0**2/L0*grad(U6)
+                    grad_phys[:,i,:] = k_conserv_grad
+                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['speed_scale']**2
                     
 
             grad_phys/=self.parameters['adimensionalization']['length_scale']
@@ -992,7 +1015,7 @@ class HDGsolution:
                                                     
     def plot_overview_physical(self,n_levels=100):
             """
-            Plot n, n_n, Ti, Te, M
+            Plot n, n_n, Ti, Te, M,k,....
             As a physical overview legacy
             """
 
@@ -1006,8 +1029,13 @@ class HDGsolution:
             solutions_plot = np.zeros_like(self.solution_simple)
             solutions_plot[:,0] = self.solution_simple_phys[:,0] #ne
             solutions_plot[:,1] = self.solution_simple_phys[:,-1] #n_n
-            solutions_plot[:,2] = self.solution_simple_phys[:,6] #Ti
-            solutions_plot[:,3] = self.solution_simple_phys[:,7] #Te
+            if self.neq>2:
+                solutions_plot[:,2] = self.solution_simple_phys[:,6] #Ti
+                solutions_plot[:,3] = self.solution_simple_phys[:,7] #Te
+            if self.neq>4:
+                solutions_plot[:,1] = self.solution_simple_phys[:,10] #n_n
+            if self.neq>5:
+                solutions_plot[:,5] = self.solution_simple_phys[:,11] #k
             solutions_plot[:,4] = self.solution_simple_phys[:,9] #M
 
 
@@ -1023,7 +1051,7 @@ class HDGsolution:
             fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
 
             for i in range(self.neq):
-                if ((i!=3)and(i!=4)and(i!=2)) :
+                if ((i!=3)and(i!=4)and(i!=2)and(i!=5)) :
                     axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
                                                               log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
                 else:
@@ -1051,10 +1079,15 @@ class HDGsolution:
             colorbar_labels = [r'n, m$^{-3}$',r'$n_n$, m$^{-3}$',r'$T_i$',r'$T_e$',r'M']
             solutions_plot = np.zeros_like(self.solution_simple)
             solutions_plot[:,0] = self.solution_simple_phys[:,0]-second_solution.solution_simple_phys[:,0] #ne
-            solutions_plot[:,1] = self.solution_simple_phys[:,-1]-second_solution.solution_simple_phys[:,-1] #n_n
-            solutions_plot[:,2] = self.solution_simple_phys[:,6]-second_solution.solution_simple_phys[:,6] #Ti
-            solutions_plot[:,3] = self.solution_simple_phys[:,7]-second_solution.solution_simple_phys[:,7] #Te
+           
             solutions_plot[:,4] = self.solution_simple_phys[:,9]-second_solution.solution_simple_phys[:,9] #M
+            if self.neq>2:
+                solutions_plot[:,2] = self.solution_simple_phys[:,6]-second_solution.solution_simple_phys[:,6] #Ti
+                solutions_plot[:,3] = self.solution_simple_phys[:,7]-second_solution.solution_simple_phys[:,7] #Te
+            if self.neq>4:
+                solutions_plot[:,1] = self.solution_simple_phys[:,10]-second_solution.solution_simple_phys[:,10] #n_n
+            if self.neq>5:
+                solutions_plot[:,5] = self.solution_simple_phys[:,11]-second_solution.solution_simple_phys[:,11] #k
 
 
 
