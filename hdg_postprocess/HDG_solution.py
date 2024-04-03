@@ -510,7 +510,7 @@ class HDGsolution:
                 if self.parameters['switches']['ohmicsrc'][0]==1:
                     self._jtor_glob = raw_jtor
 
-        self._magnetic_field_unit_glob = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2)).sum(axis=2)[:,:,None]
+        self._magnetic_field_unit_glob = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2).sum(axis=-1))[:,:,None]
         self._combined_to_full = True
 
     def recombine_simple_full_solution(self):
