@@ -848,71 +848,51 @@ class HDGsolution:
                 #this means that this is simple solution
                 solution_phys = np.zeros((data.shape[0],self.nphys))
                 data_loc = data
-            rho_conserv = data_loc[:,self.cons_idx[b'rho']]
-            gamma_conserv = data_loc[:,self.cons_idx[b'Gamma']]
-            if self.neq>2:
-                nEi_conserv = data_loc[:,self.cons_idx[b'nEi']]
-                nEe_conserv = data_loc[:,self.cons_idx[b'nEe']]
-            if self.neq>4:
-                rhon_conserv = data_loc[:,self.cons_idx[b'rhon']]
-            if self.neq>5:
-                k_conserv = data_loc[:,self.cons_idx[b'k']]
             for i in range(self.nphys):
                 phys_variable =self.parameters['physics']['physical_variable_names'][i]
                 if (phys_variable == b'rho'):
                     # n = n_0*U1 (indexing for U in this comments as in fortran)
                     #solution_phys[:,i] = calculate_variable_cons(data_loc,'n',self.parameters['adimensionalization'],self.cons_idx)
-                    solution_phys[:,i] = rho_conserv*self.parameters['adimensionalization']['density_scale']
+                    solution_phys[:,i] = calculate_n_cons(data_loc,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
                 elif (phys_variable == b'u'):
                     # u = u_0*U2/U1
-                    solution_phys[:,i] = gamma_conserv/rho_conserv*self.parameters['adimensionalization']['speed_scale']
+                    solution_phys[:,i] = calculate_u_cons(data_loc,self.parameters['adimensionalization']['speed_scale'],self.cons_idx)
                 elif (phys_variable == b'Ei'):
                     # Ei = m_0*u_0**2*U3/U1
-                    solution_phys[:,i] = nEi_conserv/rho_conserv*self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale']
+                    solution_phys[:,i] = calculate_Ei_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],self.cons_idx)
                 elif (phys_variable == b'Ee'):
                     # Ee = m_0*u_0**2*U4/U1
-                    solution_phys[:,i] = nEe_conserv/rho_conserv*self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale']
+                    solution_phys[:,i] = calculate_Ee_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],self.cons_idx)
                 elif (phys_variable == b'pi'):
                     # pi = 2/3/Mref*e*T0*(U3-1/2*U2**2/U1)
-                    solution_phys[:,i] = nEi_conserv - 0.5*gamma_conserv**2/rho_conserv
-                    solution_phys[:,i] *= (2/3/self.parameters['physics']['Mref'])
-                    solution_phys[:,i] *= self.parameters['adimensionalization']['density_scale']* \
-                                          self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+                    solution_phys[:,i] = calculate_pi_cons(data_loc,(2/3/self.parameters['physics']['Mref'])* \
+                                                          self.parameters['adimensionalization']['density_scale']* \
+                                                          self.parameters['adimensionalization']['temperature_scale']* \
+                                                          self.parameters['adimensionalization']['charge_scale'] ,self.cons_idx)
                 elif (phys_variable == b'pe'):
                     # pe = 2/3/Mref*e*T0*U4
-                    solution_phys[:,i] = nEe_conserv
-                    solution_phys[:,i] *= (2/3/self.parameters['physics']['Mref'])
-                    solution_phys[:,i] *= self.parameters['adimensionalization']['density_scale']* \
-                                                       self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+                    solution_phys[:,i] = calculate_pe_cons(data_loc,(2/3/self.parameters['physics']['Mref'])* \
+                                                          self.parameters['adimensionalization']['density_scale']* \
+                                                          self.parameters['adimensionalization']['temperature_scale']* \
+                                                          self.parameters['adimensionalization']['charge_scale'] ,self.cons_idx)
                 elif (phys_variable == b'Ti'):
                     # Ti = 2/3/Mref*e*T0*(U3-1/2*U2**2/U1)/U1
-                    solution_phys[:,i] = (nEi_conserv - 0.5*gamma_conserv**2/rho_conserv)/rho_conserv
-                    solution_phys[:,i] *= (2/3/self.parameters['physics']['Mref'])
-                    solution_phys[:,i] *= self.parameters['adimensionalization']['temperature_scale']
+                    solution_phys[:,i] = calculate_Ti_cons(data_loc,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
                 elif (phys_variable == b'Te'):
                     # Te = 2/3/Mref*e*T0*U4/U1
-                    solution_phys[:,i] = nEe_conserv/rho_conserv
-                    solution_phys[:,i] *= (2/3/self.parameters['physics']['Mref'])
-                    solution_phys[:,i] *= self.parameters['adimensionalization']['temperature_scale']
+                    solution_phys[:,i] = calculate_Te_cons(data_loc,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
                 elif (phys_variable == b'Csi'):
                     # cs = u0*(2/3*(U3+U4-1/2*U2**2/U1)/U1)**0.5
-                    ti = (nEi_conserv - 0.5*gamma_conserv**2/rho_conserv)/rho_conserv*(2/3)
-                    te = nEe_conserv/rho_conserv*(2/3)
-                    solution_phys[:,i] = np.sqrt((ti+te))
-                    solution_phys[:,i] *= self.parameters['adimensionalization']['speed_scale']
+                    solution_phys[:,i] = calculate_cs_cons(data_loc,self.parameters['adimensionalization']['speed_scale'],self.cons_idx)
                 elif (phys_variable == b'M'):
                     # M = u/cs
-                    ti = (nEi_conserv - 0.5*gamma_conserv**2/rho_conserv)/rho_conserv*(2/3)
-                    te = nEe_conserv/rho_conserv*(2/3)
-                    u = gamma_conserv/rho_conserv
-                    cs = np.sqrt((ti+te))
-                    solution_phys[:,i] = u/cs
+                    solution_phys[:,i] = calculate_M_cons(data_loc,self.cons_idx)
                 elif (phys_variable == b'rhon'):
                     # n_n = n_0*U5
-                    solution_phys[:,i] = rhon_conserv*self.parameters['adimensionalization']['density_scale']
+                    solution_phys[:,i] = calculate_nn_cons(data_loc,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
                 elif (phys_variable == b'k'):
                     # k = u_0**2*U6
-                    solution_phys[:,i] = k_conserv*self.parameters['adimensionalization']['speed_scale']**2
+                    solution_phys[:,i] = calculate_k_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2,self.cons_idx)
                 else:
                     raise KeyError('Unknown variable, go into the code and add this variable if you are sure')
 
@@ -935,100 +915,74 @@ class HDGsolution:
                 grad_phys = np.zeros((data.shape[0],self.nphys,self.ndim))
                 data_loc = data
                 sol_loc = self.solution_simple
-            rho_conserv = sol_loc[:,self.cons_idx[b'rho']][None].T
-            rho_conserv_grad = data_loc[:,self.cons_idx[b'rho'],:]
-            gamma_conserv = sol_loc[:,self.cons_idx[b'Gamma']][None].T
-            gamma_conserv_grad = data_loc[:,self.cons_idx[b'Gamma'],:]     
-            if self.neq>2:
-                nEi_conserv = sol_loc[:,self.cons_idx[b'nEi']][None].T
-                nEi_conserv_grad = data_loc[:,self.cons_idx[b'nEi'],:]
-                nEe_conserv = sol_loc[:,self.cons_idx[b'nEe']][None].T
-                nEe_conserv_grad = data_loc[:,self.cons_idx[b'nEe'],:]
-            if self.neq>4:
-                rhon_conserv = sol_loc[:,self.cons_idx[b'rhon']][None].T
-                rhon_conserv_grad = data_loc[:,self.cons_idx[b'rhon'],:]
-            if self.neq>5:
-                k_conserv = sol_loc[:,self.cons_idx[b'k']]
-                k_conserv_grad = data_loc[:,self.cons_idx[b'k'],:]
             for i in range(self.nphys):
                 phys_variable =self.parameters['physics']['physical_variable_names'][i]
                 if (phys_variable == b'rho'):
                     # grad(n) = n0/L0*grad(U1)
-                    grad_phys[:,i,:] = rho_conserv_grad*self.parameters['adimensionalization']['density_scale']
+                    grad_phys[:,i,:] = calculate_grad_n_cons(data_loc,self.parameters['adimensionalization']['density_scale'],
+                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'u'):
                     # grad(u) = u0/L0*(-1*grad(U1)*U2/U1**2+grad(U2)/(U1))
-                    grad_phys[:,i,:] = rho_conserv_grad*(-1.*gamma_conserv/rho_conserv**2)+gamma_conserv_grad*(1/rho_conserv)
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['speed_scale']
+                    grad_phys[:,i,:] = calculate_grad_u_cons(sol_loc,data_loc,self.parameters['adimensionalization']['speed_scale'],
+                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'Ei'):
                     # grad(Ei) = m_i*u0**2/L0*(-1*grad(U1)*U3/U1**2+grad(U3)/U1)
-                    grad_phys[:,i,:] = rho_conserv_grad*(-1.*nEi_conserv/rho_conserv**2)+nEi_conserv_grad*(1/rho_conserv)
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale']
+                    grad_phys[:,i,:] = calculate_grad_Ei_cons(sol_loc,data_loc,(self.parameters['adimensionalization']['speed_scale']**2*
+                                                                      self.parameters['adimensionalization']['mass_scale']),
+                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'Ee'):
                     # grad(Ee) = m_i*u0**2/L0*(-1*grad(U1)*U4/U1**2+grad(U4)/U1)
-                    grad_phys[:,i,:] = rho_conserv_grad*(-1.*nEe_conserv/rho_conserv**2)+nEe_conserv_grad*(1/rho_conserv)
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale']
+                    grad_phys[:,i,:] = calculate_grad_Ee_cons(sol_loc,data_loc,(self.parameters['adimensionalization']['speed_scale']**2*
+                                                                      self.parameters['adimensionalization']['mass_scale']),
+                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'pi'):
                     # grad(pi) = 2/3/Mref*e*T0/L0*(grad(U3)-grad(U2)*U2/U1+1/2*grad(U1)*U2**2/U1**2)
-                    grad_phys[:,i,:] = nEi_conserv_grad - gamma_conserv_grad*gamma_conserv**2/rho_conserv+\
-                                        0.5*rho_conserv_grad*gamma_conserv**2/rho_conserv**2
-                    grad_phys[:,i,:] *= (2/3/self.parameters['physics']['Mref'])
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['density_scale']* \
-                                          self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+                    p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
+                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+
+                    grad_phys[:,i,:] = calculate_grad_pi_cons(sol_loc,data_loc,p0,
+                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'pe'):
                     # grad(pe) = 2/3/Mref*e*T0/L0*(grad(U4))
-                    grad_phys[:,i,:] = nEe_conserv_grad
-                    grad_phys[:,i,:] *= (2/3/self.parameters['physics']['Mref'])
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['density_scale']* \
-                                                       self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+                    p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
+                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+
+                    grad_phys[:,i,:] = calculate_grad_pe_cons(data_loc,p0,
+                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'Ti'):
                     # assuming that Ei and u already calculated
                     # grad(Ti) = T0/L0*2/3/Mref*(grad(Ei)/m_i/u0**2-grad(u)*u/u0**2)
-                    Ei_grad = grad_phys[:,self.phys_idx[b'Ei'],:]/self.parameters['adimensionalization']['speed_scale']**2/self.parameters['adimensionalization']['mass_scale']
-                    u_grad = grad_phys[:,self.phys_idx[b'u'],:]/self.parameters['adimensionalization']['speed_scale']
-                    u = gamma_conserv/rho_conserv
-                    grad_phys[:,i,:] = Ei_grad-u_grad*u
-                    grad_phys[:,i,:] *= (2/3/self.parameters['physics']['Mref'])
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['temperature_scale']
+                    grad_phys[:,i,:] = calculate_grad_Ti_cons(sol_loc,data_loc,self.parameters['adimensionalization']['temperature_scale'],
+                                                              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'Te'):
                     # assuming that Ee already calculated
                     # grad(Te) = T0/L0*2/3/Mref*(grad(Ee)/m_i/u0**2)
-                    Ee_grad = grad_phys[:,self.phys_idx[b'Ee'],:]/self.parameters['adimensionalization']['speed_scale']**2/self.parameters['adimensionalization']['mass_scale']
-                    grad_phys[:,i,:] = Ee_grad
-                    grad_phys[:,i,:] *= (2/3/self.parameters['physics']['Mref'])
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['temperature_scale']
+                    grad_phys[:,i,:] = calculate_grad_Te_cons(sol_loc,data_loc,self.parameters['adimensionalization']['temperature_scale'],
+                                                              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'Csi'):
                     # assuming cs already calculated
                     #cs = u0*(2/3*(U3+U4-1/2*U2**2/U1)/U1)**0.5
                     # grad(cs) = u0/L0/2/(cs/u0)*(2/3)*(grad(U1)*(-U3/U1**2-U4/U1**2+U2**2/U1**3)+
                     #                                   grad(U2)*(-U2/U1**2)+grad(U3)/U1+grad(U4)/U1)
-                    ti = (nEi_conserv - 0.5*gamma_conserv**2/rho_conserv)/rho_conserv*(2/3)
-                    te = nEe_conserv/rho_conserv*(2/3)
-                    cs = np.sqrt((ti+te))
-                    grad_phys[:,i,:] = 1/2/cs*(2/3)*(rho_conserv_grad*((-1*nEi_conserv-nEe_conserv+gamma_conserv**2/rho_conserv)/rho_conserv**2)+
-                                               gamma_conserv_grad*(-1*gamma_conserv/rho_conserv**2)+nEi_conserv_grad/rho_conserv+nEe_conserv_grad/rho_conserv)
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['speed_scale']
+                    grad_phys[:,i,:] = calculate_grad_cs_cons(sol_loc,data_loc,self.parameters['adimensionalization']['speed_scale'],
+                                                              self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'M'):
                     # assuming cs and u already calculated
                     # M = u/cs
                     # grad(M) = grad(u)/cs-grad(cs)*u/cs**2
-                    u = gamma_conserv/rho_conserv
-                    grad_u = grad_phys[:,self.phys_idx[b'u'],:]
-                    ti = (nEi_conserv - 0.5*gamma_conserv**2/rho_conserv)/rho_conserv*(2/3)
-                    te = nEe_conserv/rho_conserv*(2/3)
-                    cs = np.sqrt((ti+te))
-                    grad_cs = grad_phys[:,self.phys_idx[b'Csi'],:]
-                    grad_phys[:,i,:] = grad_u/cs+grad_cs*u/cs**2
+
+                    grad_phys[:,i,:] = calculate_grad_M_cons(sol_loc,data_loc,self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                 elif (phys_variable == b'rhon'):
                     #grad(n_n) = n0/L0*grad(U5)
-                    grad_phys[:,i,:] = rhon_conserv_grad
+                    grad_phys[:,i,:] = calculate_grad_nn_cons(data_loc,self.parameters['adimensionalization']['density_scale'],
+                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                     grad_phys[:,i,:] *= self.parameters['adimensionalization']['density_scale']
                 elif (phys_variable == b'k'):
                     #grad(k) = u0**2/L0*grad(U6)
-                    grad_phys[:,i,:] = k_conserv_grad
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['speed_scale']**2
+                    grad_phys[:,i,:] = calculate_grad_k_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2,
+                                                              self.parameters['adimensionalization']['length_scale'],self.cons_idx)
                     
 
-            grad_phys/=self.parameters['adimensionalization']['length_scale']
 
             if len(data.shape) == 4:
                     self._gradient_glob_phys = grad_phys.reshape((data.shape[0],data.shape[1],self.nphys,self.ndim))
@@ -1777,7 +1731,7 @@ class HDGsolution:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
 
-        pressure = self.n(r,z)*self.e*(self.ti(r,z)+self.te(r,z))+self.parameters['adimensionalization']['mass_scale']*self.n(r,z)*self.u(r,z)
+        pressure = self.n(r,z)*self.e*(self.ti(r,z)+self.te(r,z))+self.parameters['adimensionalization']['mass_scale']*self.n(r,z)*self.u(r,z)**2
         return pressure
 
     def grad_ti(self,r,z,coordinate):
