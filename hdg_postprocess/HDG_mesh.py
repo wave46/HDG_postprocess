@@ -6,6 +6,7 @@ from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator
 from raysect.core.math.function.float import Discrete2DMesh
 from pathlib import Path
+from matplotlib.colors import LogNorm
 import os
 class HDGmesh:
     """
@@ -328,7 +329,7 @@ class HDGmesh:
         ax.set_ylabel("Z [m]")
         return ax
 
-    def plot_full_mesh(self, data=None, ax=None, log=False, label=None, connectivity=None, n_levels=100):
+    def plot_full_mesh(self, data=None, ax=None, log=False, label=None, connectivity=None, n_levels=100,limits = None):
         """
         Plot all raw meshes to a matplotlib figure.
         :param data: Data array defined on the soledgehdg mesh
@@ -370,13 +371,24 @@ class HDGmesh:
             else:
                 
                 if log:
-                    im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], np.log10(data),levels=n_levels
+                    if limits == None:
+                        im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], np.log10(data),levels=n_levels
                         , extend='both',triangles = connectivity, cmap='jet'
                         ,extendrect = True)
-                    ax.set_title(f'log10({label})')      
+                        ax.set_title(f'log10({label})')  
+                    else:
+                        im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=np.logspace(limits[0],limits[1],n_levels)
+                        , extend='both',triangles = connectivity, cmap='jet', vmin = np.power(10,limits[0]),vmax = np.power(10,limits[1]),norm=LogNorm(vmin=np.power(10,limits[0]),vmax=np.power(10,limits[1]))
+                        ,extendrect = True)
+                    ax.set_title(f'{label}')      
                 else:
-                    im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=n_levels
+                    if limits == None:
+                        im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=n_levels
                         , extend='both',triangles = connectivity, cmap='jet'
+                        ,extendrect = True)
+                    else:
+                        im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=np.linspace(limits[0],limits[1],n_levels)
+                        , extend='both',triangles = connectivity, cmap='jet',vmin = limits[0],vmax = limits[1]
                         ,extendrect = True)
                     ax.set_title(f'{label}')     
                 cbar = plt.colorbar(im, ax=ax,extendrect = True)
