@@ -232,6 +232,11 @@ class HDGsolution:
     def magnetic_field_simple(self):
         """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
         return self._magnetic_field_simple
+
+    @property
+    def poloidal_flux_simple(self):
+        """poloidal flux recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
+        return self._poloidal_flux_simple
     
     @property
     def solution_boundary(self):
@@ -321,6 +326,11 @@ class HDGsolution:
     def magnetic_field_glob(self):
         """magnetic field recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
         return self._magnetic_field_glob
+
+    @property
+    def poloidal_flux_glob(self):
+        """poloidal flux recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
+        return self._poloidal_flux_glob
 
     @property
     def magnetic_field_unit_glob(self):
@@ -471,6 +481,8 @@ class HDGsolution:
             np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim))
         self._magnetic_field_glob = \
             np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],3))
+        self._poloidal_flux_glob = \
+            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
         if self.parameters['switches']['ohmicsrc'][0]==1:
             self._jtor_glob = \
                 np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
@@ -484,6 +496,9 @@ class HDGsolution:
 
             #magnetic field
             raw_field = self.raw_equilibriums[i]['magnetic_field'][self.mesh.raw_connectivity[i]] 
+
+            #poloidal flux
+            raw_poloidal_flux = self.raw_equilibriums[i]['poloidal_flux'][self.mesh.raw_connectivity[i]] 
 
             if self.parameters['switches']['ohmicsrc'][0]==1:
                 #plasma current
@@ -500,6 +515,9 @@ class HDGsolution:
                 raw_field = raw_field[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
                 self._magnetic_field_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_field
 
+                raw_poloidal_flux = raw_poloidal_flux[~self.mesh.raw_ghost_elements[i].astype(bool).flatten()]
+                self._poloidal_flux_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_poloidal_flux
+
                 if self.parameters['switches']['ohmicsrc'][0]==1:
                     raw_jtor = raw_jtor[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
                     self._jtor_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_jtor
@@ -507,6 +525,7 @@ class HDGsolution:
                 self._solution_glob = raw_solution
                 self._gradient_glob = raw_gradient
                 self._magnetic_field_glob = raw_field
+                self._poloidal_flux_glob = raw_poloidal_flux
                 if self.parameters['switches']['ohmicsrc'][0]==1:
                     self._jtor_glob = raw_jtor
 
@@ -533,6 +552,9 @@ class HDGsolution:
 
         self._magnetic_field_simple = np.zeros([self.mesh.vertices_glob.shape[0],3])
         self._magnetic_field_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.magnetic_field_glob.reshape(self.magnetic_field_glob.shape[0]*self.magnetic_field_glob.shape[1],3)
+
+        self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
+        self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
         self._combined_simple_solution = True
     
     def recombine_boundary_solution(self):
@@ -1013,7 +1035,7 @@ class HDGsolution:
             elif len(data.shape) == 3:
                 self._gradient_simple_phys = grad_phys
                                                     
-    def plot_overview_physical(self,n_levels=100):
+    def plot_overview_physical(self,n_levels=100, limits=None):
             """
             Plot n, n_n, Ti, Te, M,k,....
             As a physical overview legacy
@@ -1025,7 +1047,7 @@ class HDGsolution:
 
 
 
-            colorbar_labels = [r'n, m$^{-3}$',r'$n_n$, m$^{-3}$',r'$T_i$',r'$T_e$',r'M']
+            colorbar_labels = [r'n, m$^{-3}$',r'$n_n$, m$^{-3}$',r'$T_i$',r'$T_e$',r'M', r'k']
             solutions_plot = np.zeros_like(self.solution_simple)
             solutions_plot[:,0] = self.solution_simple_phys[:,0] #ne
             solutions_plot[:,1] = self.solution_simple_phys[:,-1] #n_n
@@ -1051,12 +1073,23 @@ class HDGsolution:
             fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
 
             for i in range(self.neq):
-                if ((i!=3)and(i!=4)and(i!=2)and(i!=5)) :
-                    axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
-                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
+                if limits == None:
+                    limit = None
                 else:
-                    axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
-                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
+                    limit = limits[i]
+                if ((i!=4)and(i!=5)) :
+                    data = solutions_plot[:,i].copy()
+                    if (i == 0) or (i == 1):
+                        data[data<0] = 1e8
+                    else:
+                        data[data<0] = 1e-3
+                    axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
+                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit)
+                else:
+                    data = solutions_plot[:,i].copy()
+                    data[np.where(np.isnan(data))] = 0
+                    axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
+                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit)
     
 
             return fig,axes, solutions_plot    
@@ -1076,7 +1109,7 @@ class HDGsolution:
                 second_solution.init_phys_variables('simple')
 
 
-            colorbar_labels = [r'n, m$^{-3}$',r'$n_n$, m$^{-3}$',r'$T_i$',r'$T_e$',r'M']
+            colorbar_labels = [r'n, m$^{-3}$',r'$n_n$, m$^{-3}$',r'$T_i$',r'$T_e$',r'M', r'k']
             solutions_plot = np.zeros_like(self.solution_simple)
             solutions_plot[:,0] = self.solution_simple_phys[:,0]-second_solution.solution_simple_phys[:,0] #ne
            
