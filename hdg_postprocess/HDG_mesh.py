@@ -329,7 +329,8 @@ class HDGmesh:
         ax.set_ylabel("Z [m]")
         return ax
 
-    def plot_full_mesh(self, data=None, ax=None, log=False, label=None, connectivity=None, n_levels=100,limits = None):
+    def plot_full_mesh(self, data=None, ax=None, log=False, label=None, connectivity=None, 
+                        n_levels=100,limits = None,ticks=None,tick_labels=None):
         """
         Plot all raw meshes to a matplotlib figure.
         :param data: Data array defined on the soledgehdg mesh
@@ -378,8 +379,10 @@ class HDGmesh:
                         ax.set_title(f'log10({label})')  
                     else:
                         im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=np.logspace(limits[0],limits[1],n_levels)
-                        , extend='both',triangles = connectivity, cmap='jet', vmin = np.power(10,limits[0]),vmax = np.power(10,limits[1]),norm=LogNorm(vmin=np.power(10,limits[0]),vmax=np.power(10,limits[1]))
-                        ,extendrect = True)
+                        ,triangles = connectivity, cmap='jet', vmin = 10.**limits[0],vmax = 10.**limits[1],norm=LogNorm(vmin=10.**limits[0],vmax=10.**limits[1])
+                        , extend='both',extendrect = True)
+                    
+
                     ax.set_title(f'{label}')      
                 else:
                     if limits == None:
@@ -392,6 +395,10 @@ class HDGmesh:
                         ,extendrect = True)
                     ax.set_title(f'{label}')     
                 cbar = plt.colorbar(im, ax=ax,extendrect = True)
+                if ticks is not None:
+
+                    cbar.set_ticks(ticks)
+                    cbar.set_ticklabels(tick_labels)
                
         ax.set_aspect(1)
         ax.set_xlim(self.mesh_extent["minr"], self.mesh_extent["maxr"])

@@ -70,6 +70,19 @@ class HDGsolution:
         #plasma parameters
         self._ohmic_source_simple = None
 
+        #magentic field parameters
+        self._r_axis = None
+        self._z_axis = None
+        self._a_simple = None
+        self._a_glob = None
+        self._qcyl_simple = None
+        self._qcyl_glob = None
+
+        #turbulent model parameters
+        self._dk_parameters = None
+        self._dk_simple = None
+
+
         #interpolators
         self._sample_interpolator = None
         self._solution_interpolators= None
@@ -152,7 +165,20 @@ class HDGsolution:
             self._dnn_parameters['dnn_min_adim']=(self._dnn_parameters['dnn_min']/
                                               self.parameters['adimensionalization']['length_scale']**2*
                                               self.parameters['adimensionalization']['time_scale'])
-    
+    @property
+    def dk_parameters(self):
+        """Dictionary with atomic parameters"""
+        return self._dk_parameters
+    @dk_parameters.setter
+    def dk_parameters(self,value):
+        self._dk_parameters = value
+        self._dk_parameters['dk_max_adim']=(self._dk_parameters['dk_max']/
+                                              self.parameters['adimensionalization']['length_scale']**2*
+                                              self.parameters['adimensionalization']['time_scale'])
+        
+        self._dk_parameters['dk_min_adim']=(self._dk_parameters['dk_min']/
+                                              self.parameters['adimensionalization']['length_scale']**2*
+                                              self.parameters['adimensionalization']['time_scale'])
     @property
     def neq(self):
         """number of equations"""
@@ -435,6 +461,11 @@ class HDGsolution:
     def dnn_simple(self):
         """Neutral diffusion on a simple solution mesh"""
         return self._dnn_simple
+
+    @property
+    def dk_simple(self):
+        """Turbulent diffusion on a simple solution mesh"""
+        return self._dk_simple
     
     @property
     def mfp_simple(self):
@@ -463,6 +494,36 @@ class HDGsolution:
     def field_interpolators(self):
         """A list of interpolators of magnetic field"""
         return self._field_interpolators
+
+    @property
+    def r_axis(self):
+        """R coordinate of magnetic axis"""
+        return self._r_axis
+    
+    @property
+    def z_axis(self):
+        """Z coordinate of magnetic axis"""
+        return self._z_axis
+
+    @property
+    def a_glob(self):
+        """minor radii on global mesh"""
+        return self._a_glob
+    
+    @property
+    def a_simple(self):
+        """minor radii on simple mesh"""
+        return self._a_simple
+
+    @property
+    def qcyl_glob(self):
+        """Cylindrical safety factor on global mesh"""
+        return self._qcyl_glob
+    
+    @property
+    def qcyl_simple(self):
+        """Cylindrical safety factor on simple mesh"""
+        return self._qcyl_simple
     
 
 
@@ -847,7 +908,7 @@ class HDGsolution:
             elif len(data.shape) == 2:
                 #this means that this is simple solution
                 solution_phys = np.zeros((data.shape[0],self.nphys))
-                data_loc = data
+                data_loc = data.copy()
             for i in range(self.nphys):
                 phys_variable =self.parameters['physics']['physical_variable_names'][i]
                 if (phys_variable == b'rho'):
@@ -913,8 +974,8 @@ class HDGsolution:
             elif len(data.shape) == 3:
             #    # this means that this is simple gradients
                 grad_phys = np.zeros((data.shape[0],self.nphys,self.ndim))
-                data_loc = data
-                sol_loc = self.solution_simple
+                data_loc = data.copy()
+                sol_loc = self.solution_simple.copy()
             for i in range(self.nphys):
                 phys_variable =self.parameters['physics']['physical_variable_names'][i]
                 if (phys_variable == b'rho'):
@@ -1095,7 +1156,132 @@ class HDGsolution:
     
 
             return fig,axes,solutions_plot
+
+    def plot_variables_overview(self,variable_list,labels,limits,n_levels,ticks,tick_lables,logs,title=None):
+        """
+        plots 2D plots of desired varibales
+        """
+        defined_variables = ['n','nn','te','ti','M','dnn','k','dk']
+        for variable in variable_list:
+            if variable not in defined_variables:
+                raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
+        #additional triangulaton: since we have more than 3 points in each element, we can triangulate it
+        #take any triangle from the mesh
+        if self.mesh.connectivity_big is None:
+            self.mesh.create_connectivity_big()
+
+        if not self._combined_simple_solution:
+            print('Comibining first simple solution full')
+            self.recombine_simple_full_solution()
+
+        #collect dictionary to plot
+        var_to_plot = len(variable_list)
+        if var_to_plot == 1:
+            fig, axes = plt.subplots(1,1, figsize = (7.5,7.5))
+        else:
+            n_lines = int(np.floor(var_to_plot/2+0.5))
+            fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
+        if title is not None:
+            fig.suptitle(title)
+        res = {}
+        for i,(variable,label,limit,tick,tick_label,log) \
+            in enumerate(zip(variable_list,labels,limits,ticks,tick_lables,logs)):
+            if variable == 'n':
+                data = calculate_n_cons(self.solution_simple,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
+            elif variable == 'nn':
+                data = calculate_nn_cons(self.solution_simple,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
+            elif variable == 'te':
+                data = calculate_Te_cons(self.solution_simple,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
+            elif variable == 'ti':
+                data = calculate_Ti_cons(self.solution_simple,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
+            elif variable == 'M':
+                data = calculate_M_cons(self.solution_simple,self.cons_idx)
+            elif variable == 'dnn':
+                data = calculate_dnn_cons(self.solution_simple,self.dnn_parameters,self.atomic_parameters,
+                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['length_scale'],
+                                                                self.parameters['adimensionalization']['time_scale'])
+            elif variable == 'k':
+                data = calculate_k_cons(self.solution_simple,self.parameters['adimensionalization']['speed_scale']**2,self.cons_idx)  
+            elif variable == 'dk':
+                if self.dk_parameters is None:
+                    raise ValueError("Please, provide turbulent diffusion settings for the simulation")
+
+                if (self.r_axis is None) or (self.z_axis is None):
+                    self.define_magnetic_axis()
+                if (self.a_simple is None):
+                    self.define_minor_radii(which='simple')
+                if (self.qcyl_simple is None):
+                    self.define_qcyl(which='simple')
+                data = calculate_dk_cons(self.solution_simple,self.dk_parameters,self.qcyl_simple,self.mesh.vertices_glob[:,0]/self.parameters['adimensionalization']['length_scale'],
+                                         self.parameters['adimensionalization']['length_scale']**2/self.parameters['adimensionalization']['time_scale'],
+                                         self.cons_idx)                               
+            data[np.isnan(data)] = limit[0]
+            if log:
+                data[data<0] = 10.**limit[0]
+            res[variable] = data
+            if var_to_plot>2:
+                axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
+                             log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
+                             ticks=tick,tick_labels=tick_label,limits=limit)
+            elif var_to_plot==2:
+                axes[i%2] = self.mesh.plot_full_mesh(data,ax=axes[i%2],
+                             log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
+                             ticks=tick,tick_labels=tick_label,limits=limit)
+            else:
+                axes = self.mesh.plot_full_mesh(data,ax=axes,
+                             log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
+                             ticks=tick,tick_labels=tick_label,limits=limit)
+        
+        return fig,axes,res
+
+
+    def define_magnetic_axis(self):
+        """
+        defines magnetic axis as minimum of psi
+        """
+        if not self.combined_simple_solution:
+            print('Comibining first simple solution full')
+            self.recombine_simple_full_solution()
+
+        self._r_axis, self._z_axis = self.mesh.vertices_glob[np.where(self.poloidal_flux_simple == self.poloidal_flux_simple.min())][0]
     
+    def define_minor_radii(self,which='simple'):
+        """
+        TODO add global
+        calculates minor radii either with given magnetic axis
+        """
+        if which == 'simple':
+            if (not self.mesh._combined_to_full):
+            
+                print('Comibining to full mesh')
+                self.mesh.recombine_full_mesh()
+            self._a_simple = calculate_a(self.mesh.vertices_glob,self.r_axis,self.z_axis)
+
+    def define_qcyl(self,which='simple'):
+        """
+        TODO add global
+        calculates cylindrical safety factor radii either with given magnetic axis
+        """
+        if which == 'simple':
+            if (not self.mesh._combined_to_full):
+            
+                print('Comibining to full mesh')
+                self.mesh.recombine_full_mesh()
+            if not self.combined_simple_solution:
+                print('Comibining first simple solution full')
+                self.recombine_simple_full_solution()
+            self._qcyl_simple = calculate_q_cyl(self.mesh.vertices_glob[:,0],self.magnetic_field_simple[:,0],
+                                             self.magnetic_field_simple[:,1],self.magnetic_field_simple[:,2],
+                                             self.a_simple)
+
+
+
+        
+
     def calculate_variables_along_line(self,r_line,z_line,variable_list):
         """
         calculates plasma parameters noted in variables list on a given line
@@ -1366,6 +1552,47 @@ class HDGsolution:
                                                                 self.parameters['physics']['Mref'],
                                                                 self.parameters['adimensionalization']['length_scale'],
                                                                 self.parameters['adimensionalization']['time_scale'])
+
+    def calculate_dk(self,which="simple"):
+        """
+            calculate neutral diffusion
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+            TODO full
+        """    
+
+        if which=="simple":
+            if self.dk_parameters is None:
+                raise ValueError("Please, provide neutral diffusion settings for the simulation")
+
+            if not self._combined_simple_solution:
+                print('Initializing physical solution first')
+                self.recombine_simple_full_solution()
+            if (self.r_axis is None) or (self.z_axis is None):
+                    self.define_magnetic_axis()
+            if (self.a_simple is None):
+                self.define_minor_radii(which='simple')
+            if (self.qcyl_simple is None):
+                self.define_qcyl(which='simple')
+            
+            self._dk_simple = calculate_dk_cons(self.solution_simple,self.dk_parameters,self.qcyl_simple,self.mesh.vertices_glob[:,0]/self.parameters['adimensionalization']['length_scale'],
+                                                self.parameters['adimensionalization']['length_scale']**2/self.parameters['adimensionalization']['time_scale'],
+                                                self.cons_idx)
+
+            #self._dnn_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            #self._dnn_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        #if which =="full":
+        #    if not self._combined_to_full:
+        #        self.recombine_full_solution()
+        #    self._dnn = calculate_dnn_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
+        #                                                        self._e,self.parameters['adimensionalization']['mass_scale'],
+        #                                                        self.parameters['adimensionalization']['temperature_scale'],
+        #                                                        self.parameters['adimensionalization']['density_scale'],
+        #                                                        self.parameters['physics']['Mref'],
+        #                                                        self.parameters['adimensionalization']['length_scale'],
+        #                                                        self.parameters['adimensionalization']['time_scale'])
     
     def calculate_mfp(self,which="simple"):
         """

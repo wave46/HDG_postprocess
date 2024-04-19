@@ -482,3 +482,45 @@ def calculate_grad_k_cons(gradients,k0,L0,cons_idx):
     if dimensions is not None:
         res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
     return res
+
+def calculate_dk_cons(solutions,dk_params,q_cyl,R,D0,cons_idx):
+    """
+    calculates turbulent energy diffusion value based on conservatives values
+    R adimensional
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    else:
+        sol = solutions.copy()
+
+    cs = calculate_cs_cons(sol,1,cons_idx)
+    k = calculate_k_cons(sol,1,cons_idx)
+
+    res = 2*np.pi*R*q_cyl*k/cs
+    res[np.isnan(cs)] = dk_params['dk_min']
+    res[cs<1e-20] = dk_params['dk_min']
+    res[res<dk_params['dk_min_adim']] = dk_params['dk_min_adim']
+    res[res>dk_params['dk_max_adim']] = dk_params['dk_max_adim']
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res*D0
+
+def calculate_q_cyl(R,Br,Bz,Bt,a):
+    """
+    calculates q_cyl for points with given major radii R, magnetic filed and minor radii a
+    """
+
+    q_cyl = np.abs(Bt)*a/np.sqrt(Br**2+Bz**2)/R
+    q_cyl[q_cyl<1] = 1
+    q_cyl[q_cyl>1e4] = 1e4
+    
+    return q_cyl
+
+def calculate_a(vertices,r_axis,z_axis):
+    """
+    calculates q_cyl for given verices
+    """   
+    
+    return np.sqrt((vertices[:,0]-r_axis)**2+(vertices[:,1]-z_axis)**2)
