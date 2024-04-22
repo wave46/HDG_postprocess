@@ -1283,16 +1283,31 @@ class HDGsolution:
         calculates cylindrical safety factor radii either with given magnetic axis
         """
         if which == 'simple':
-            if (not self.mesh._combined_to_full):
-            
+            if (not self.mesh._combined_to_full):            
                 print('Comibining to full mesh')
                 self.mesh.recombine_full_mesh()
             if not self.combined_simple_solution:
                 print('Comibining first simple solution full')
                 self.recombine_simple_full_solution()
-            self._qcyl_simple = calculate_q_cyl(self.mesh.vertices_glob[:,0],self.magnetic_field_simple[:,0],
-                                             self.magnetic_field_simple[:,1],self.magnetic_field_simple[:,2],
-                                             self.a_simple)
+            if self.a_simple is None:
+                self.define_minor_radii()
+            self.define_qcyl(which='full')
+
+            self._qcyl_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._qcyl_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._qcyl_glob.reshape(self._qcyl_glob.shape[0]*self._qcyl_glob.shape[1])
+
+        elif which == 'full':
+            if (not self.mesh._combined_to_full):
+            
+                print('Comibining to full mesh')
+                self.mesh.recombine_full_mesh()
+            if self.a_glob is None:
+                self.define_minor_radii('full')
+
+            self._qcyl_glob = calculate_q_cyl(self.mesh.vertices_glob[self.mesh.connectivity_glob][:,:,0],self.magnetic_field_glob[:,:,0],
+                                             self.magnetic_field_glob[:,:,1],self.magnetic_field_glob[:,:,2],
+                                             self.a_glob)
+
 
 
 
