@@ -522,5 +522,13 @@ def calculate_a(vertices,r_axis,z_axis):
     """
     calculates q_cyl for given verices
     """   
-    
-    return np.sqrt((vertices[:,0]-r_axis)**2+(vertices[:,1]-z_axis)**2)
+    dimensions = None
+    if len(vertices.shape)>2:
+        dimensions = vertices.shape
+        vert = vertices.reshape(vertices.shape[0]*vertices.shape[1],vertices.shape[2])
+    else:
+        vert = vertices.copy()
+    res =  np.sqrt((vert[:,0]-r_axis)**2+(vert[:,1]-z_axis)**2)
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res

@@ -1251,15 +1251,31 @@ class HDGsolution:
     
     def define_minor_radii(self,which='simple'):
         """
-        TODO add global
         calculates minor radii either with given magnetic axis
         """
         if which == 'simple':
+            if (self._r_axis is None) or (self._z_axis is None):
+                self.define_magnetic_axis()
             if (not self.mesh._combined_to_full):
             
                 print('Comibining to full mesh')
                 self.mesh.recombine_full_mesh()
-            self._a_simple = calculate_a(self.mesh.vertices_glob,self.r_axis,self.z_axis)
+            self.define_minor_radii(which="full")
+
+            self._a_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._a_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._a_glob.reshape(self._a_glob.shape[0]*self._a_glob.shape[1])
+
+        if which == 'full':
+            if (self._r_axis is None) or (self._z_axis is None):
+                self.define_magnetic_axis()
+            if (not self.mesh._combined_to_full):
+            
+                print('Comibining to full mesh')
+                self.mesh.recombine_full_mesh()
+
+            #here we should set coordinates of all nodes of all elements
+            self._a_glob = calculate_a(self.mesh.vertices_glob[self.mesh.connectivity_glob],self.r_axis,self.z_axis)
+
 
     def define_qcyl(self,which='simple'):
         """
