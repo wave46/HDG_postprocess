@@ -1778,8 +1778,11 @@ class HDGsolution:
         if self._solution_interpolators is None:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
-        # n0*U1
-        return self.parameters['adimensionalization']['density_scale']*self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+
+        return calculate_n_cons(solution,self.parameters['adimensionalization']['density_scale'],self._cons_idx)
 
     def ti(self,r,z):
         """
@@ -1792,12 +1795,15 @@ class HDGsolution:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
         # Ti = T0*2/3/Mref*(U3/U1-1/2*U2**2/U1**2)
-        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if u1 == 0:
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if solution[:,self._cons_idx[b'rho']] == 0:
             return 0
-        u2 = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        u3 = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
-        return self.parameters['adimensionalization']['temperature_scale']*2/3/self.parameters['physics']['Mref']*(u3/u1-1/2*u2**2/u1**2)
+        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        solution[:,self._cons_idx[b'nEi']] = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
+        return calculate_Ti_cons(solution,self.parameters['adimensionalization']['temperature_scale'],
+                                 self.parameters['physics']['Mref'],self._cons_idx)
 
     def te(self,r,z):
         """
@@ -1810,12 +1816,15 @@ class HDGsolution:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
         # Te = T0*2/3/Mref*(U4/U1)
-        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if u1 == 0:
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if solution[:,self._cons_idx[b'rho']] == 0:
             return 0
 
-        u4 = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
-        return self.parameters['adimensionalization']['temperature_scale']*2/3/self.parameters['physics']['Mref']*(u4/u1)
+        solution[:,self._cons_idx[b'nEe']] = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
+        return calculate_Te_cons(solution,self.parameters['adimensionalization']['temperature_scale'],
+                                 self.parameters['physics']['Mref'],self._cons_idx)
     
     def u(self,r,z):
         """
@@ -1828,11 +1837,13 @@ class HDGsolution:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
         # u = u0*U2/U1
-        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if u1 == 0:
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if solution[:,self._cons_idx[b'rho']] == 0:
             return 0
-        u2 = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        return self.parameters['adimensionalization']['speed_scale']*(u2/u1)
+        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        return calculate_u_cons(solution,self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
     
     def cs(self,r,z):
         """
@@ -1845,13 +1856,15 @@ class HDGsolution:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
         # cs = u0*(2/3*(U3+U4-1/2*U2**2/U1)/U1)**0.5
-        u1 = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if u1 == 0:
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if solution[:,self._cons_idx[b'rho']] == 0:
             return 0
-        u2 = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        u3 = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
-        u4 = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
-        return self.parameters['adimensionalization']['speed_scale']*np.sqrt((u3+u4-1/2*u2**2/u1)/u1)
+        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        solution[:,self._cons_idx[b'nEi']] = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
+        solution[:,self._cons_idx[b'nEe']] = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
+        return calculate_cs_cons(solution,self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
     
     def M(self,r,z):
         """
@@ -1864,10 +1877,16 @@ class HDGsolution:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
         # M = u/cs
-        cs = self.cs(r,z)
-        if cs == 0:
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
+        if solution[:,self._cons_idx[b'rho']] == 0:
             return 0
-        return self.u(r,z)/cs
+        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        solution[:,self._cons_idx[b'nEi']] = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
+        solution[:,self._cons_idx[b'nEe']] = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
+        return calculate_M_cons(solution,self._cons_idx)
+
     def nn(self,r,z):
         """
         returns value of neutral density in given point (r,z)
@@ -1879,8 +1898,10 @@ class HDGsolution:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
         # nn=n0*U5
-
-        return self.parameters['adimensionalization']['density_scale']*self._solution_interpolators[self._cons_idx[b'rhon']](r,z)
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'rhon']] = self._solution_interpolators[self._cons_idx[b'rhon']](r,z)
+        return calculate_nn_cons(solution,self.parameters['adimensionalization']['density_scale'],self._cons_idx)
 
     def ionization_source_interp(self,r,z):
         """
@@ -1995,9 +2016,13 @@ class HDGsolution:
             solution[0,i] = self._solution_interpolators[i](r,z)
         if solution[0,0] ==0:
             return 0
-        diff_nn = self.dnn(r,z)
-        ti = self.ti(r,z)
-        return (2*diff_nn)/np.sqrt(self._e*ti/self.parameters['adimensionalization']['mass_scale'])
+        return calculate_mfp_cons(solution,self.dnn_parameters,self.atomic_parameters,
+                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                self.parameters['adimensionalization']['density_scale'],
+                                                self.parameters['physics']['Mref'],
+                                                self.parameters['adimensionalization']['length_scale'],
+                                                self.parameters['adimensionalization']['time_scale'])
 
     def p_dyn(self,r,z):
         """
@@ -2007,9 +2032,20 @@ class HDGsolution:
         if self._solution_interpolators is None:
             print('Definition of interpolators will take some time for the initialization')
             self.define_interpolators()
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
 
-        pressure = self.n(r,z)*self.e*(self.ti(r,z)+self.te(r,z))+self.parameters['adimensionalization']['mass_scale']*self.n(r,z)*self.u(r,z)**2
-        return pressure
+        return calculate_pdyn_cons(solution,(2/3/self.parameters['physics']['Mref'])* \
+                                          self.parameters['adimensionalization']['density_scale']* \
+                                          self.parameters['adimensionalization']['temperature_scale']* \
+                                          self.parameters['adimensionalization']['charge_scale'],
+                                          self.parameters['adimensionalization']['speed_scale']**2* \
+                                          self.parameters['adimensionalization']['mass_scale']* \
+                                          self.parameters['adimensionalization']['density_scale'],
+                                          self.cons_idx)
 
     def grad_ti(self,r,z,coordinate):
         """
@@ -2026,19 +2062,17 @@ class HDGsolution:
             idx = 1
         else:
             raise ValueError(f'{coordinate} is not a coordinate of the problem')
-        q1 = self._gradient_interpolators[0][idx](r,z)
-        q2 = self._gradient_interpolators[1][idx](r,z)
-        q3 = self._gradient_interpolators[2][idx](r,z)
-        u1 = self._solution_interpolators[0](r,z)
-        u2 = self._solution_interpolators[1](r,z)
-        u3 = self._solution_interpolators[2](r,z)
-        #print(r,z)
-        #print(u1,u2,u3)
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
 
-        ti_grad = q1*(u2**2/u1**3-u3/u1**2)+q2*(-1*u2/u1**2)+q3/u1
-        ti_grad *= ((2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['temperature_scale']/
-                    self.parameters['adimensionalization']['length_scale'])
-        return ti_grad
+        return calculate_grad_Ti_cons(solution,gradient,self.parameters['adimensionalization']['temperature_scale'],
+                                      self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)[0][idx]
 
     def grad_ti_par(self,r,z):
         """
@@ -2049,14 +2083,20 @@ class HDGsolution:
             self.define_interpolators()
         
         #dTi/dl = gradTi*b
-        
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
         Br = self.field_interpolators[0](r,z)
         Bz = self.field_interpolators[1](r,z)
         Bt = self.field_interpolators[2](r,z)
-        br = Br/np.sqrt(Br**2+Bz**2+Bt**2)
-        bz = Bz/np.sqrt(Br**2+Bz**2+Bt**2)
-       
-        return self.grad_ti(r,z,'x')*br+self.grad_ti(r,z,'y')*bz
+
+        return calculate_grad_Ti_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['temperature_scale'],
+              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)
 
     def grad_te(self,r,z,coordinate):
         """
@@ -2073,17 +2113,18 @@ class HDGsolution:
             idx = 1
         else:
             raise ValueError(f'{coordinate} is not a coordinate of the problem')
-        q1 = self._gradient_interpolators[0][idx](r,z)
 
-        q4 = self._gradient_interpolators[3][idx](r,z)
-        u1 = self._solution_interpolators[0](r,z)
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
 
-        u4 = self._solution_interpolators[3](r,z)
-
-        te_grad = q1*(-1*u4/u1**2)+q4/u1
-        te_grad *= ((2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['temperature_scale']/
-                    self.parameters['adimensionalization']['length_scale'])
-        return te_grad
+        return calculate_grad_Te_cons(solution,gradient,self.parameters['adimensionalization']['temperature_scale'],
+                                      self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)[0][idx]
 
     def grad_te_par(self,r,z):
         """
@@ -2094,14 +2135,21 @@ class HDGsolution:
             self.define_interpolators()
         
         #dTi/dl = gradTi*b
-        
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
         Br = self._field_interpolators[0](r,z)
         Bz = self._field_interpolators[1](r,z)
         Bt = self._field_interpolators[2](r,z)
-        br = Br/np.sqrt(Br**2+Bz**2+Bt**2)
-        bz = Bz/np.sqrt(Br**2+Bz**2+Bt**2)
-       
-        return self.grad_te(r,z,'x')*br+self.grad_te(r,z,'y')*bz
+
+        
+        return calculate_grad_Te_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['temperature_scale'],
+              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)
 
     def particle_flux_par(self,r,z):
         """
@@ -2112,34 +2160,58 @@ class HDGsolution:
             self.define_interpolators()
 
         # Gamma = n0*u0*U2
-
-        return self.parameters['adimensionalization']['density_scale']* \
-               self.parameters['adimensionalization']['speed_scale']*self._solution_interpolators[1](r,z)
+        # u = u0*U2/U1
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
+        return calculate_parallel_flux_cons(solution,self.parameters['adimensionalization']['density_scale']* \
+                                                     self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
     
     def ion_heat_flux_par_conv(self,r,z):
         """
         returns value of parallel convective ion heat flux in given point (r,z)
         """
         # q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u
-        u = self.u(r,z)
-        ti = self.ti(r,z)
-        
-        q_ipar_conv =  self.n(r,z)*(5/2*self.e*ti+ \
-                 0.5*self.parameters['adimensionalization']['mass_scale']*u**2)*u
-        return q_ipar_conv
+
+        solution = np.zeros([1,self.neq])
+
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+
+        return calculate_parallel_ion_heat_flux_par_conv_cons(solution,self.parameters['adimensionalization']['density_scale'],
+                                                                  self.parameters['adimensionalization']['temperature_scale'],
+                                                                  self.parameters['physics']['Mref'],
+                                                                  self.parameters['adimensionalization']['charge_scale'],
+                                                                  self.parameters['adimensionalization']['mass_scale'],
+                                                                  self.parameters['adimensionalization']['speed_scale'],
+                                                                  self._cons_idx)
+
 
     def ion_heat_flux_par_cond(self,r,z):
         """
         returns value of parallel conductive ion heat flux in given point (r,z)
         """
         # q_ipar = - kappa_par_i*Ti**(5/2)*dTi/dl
-        ti = min(50,self.ti(r,z))
-        
-        q_ipar_cond = -1*ti**(5/2)*self.grad_ti_par(r,z)
-        q_ipar_cond *=self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
+
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
+        Br = self._field_interpolators[0](r,z)
+        Bz = self._field_interpolators[1](r,z)
+        Bt = self._field_interpolators[2](r,z)
+        return calculate_parallel_ion_heat_flux_par_cond_cons(solution,gradient,Br,Bz,Bt,self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
                         self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
-                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale'])
-        return q_ipar_cond
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+
 
     
     def ion_heat_flux_par(self,r,z):
@@ -2152,38 +2224,72 @@ class HDGsolution:
 
         # q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u - kappa_par_i*Ti**(5/2)*dTi/dl
 
-        #conductive part
-        q_ipar = self.ion_heat_flux_par_cond(r,z)
 
-        #convective part
-        
-        q_ipar += self.ion_heat_flux_par_conv(r,z)
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
 
-        return q_ipar
+        Br = self._field_interpolators[0](r,z)
+        Bz = self._field_interpolators[1](r,z)
+        Bt = self._field_interpolators[2](r,z)
+
+        return calculate_parallel_ion_heat_flux_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],self.parameters['adimensionalization']['mass_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
 
     def electron_heat_flux_par_conv(self,r,z):
         """
         returns value of parallel convective electron heat flux in given point (r,z)
         """
-        # q_ipar = (5/2*kb*n*Te)u
-        u = self.u(r,z)
-        te = self.te(r,z)
-        
-        q_epar_conv =  self.n(r,z)*(5/2*self.e*te)*u
-        return q_epar_conv
+        # q_epar = (5/2*kb*n*Te)u
+
+
+        solution = np.zeros([1,self.neq])
+
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+
+        return calculate_parallel_electron_heat_flux_par_conv_cons(solution,self.parameters['adimensionalization']['density_scale'],
+                                                                  self.parameters['adimensionalization']['temperature_scale'],
+                                                                  self.parameters['physics']['Mref'],
+                                                                  self.parameters['adimensionalization']['charge_scale'],
+                                                                  self.parameters['adimensionalization']['speed_scale'],
+                                                                  self._cons_idx)
 
     def electron_heat_flux_par_cond(self,r,z):
         """
         returns value of parallel conductive electron heat flux in given point (r,z)
         """
-        # q_ipar = - kappa_par_i*Ti**(5/2)*dTi/dl
-        te = min(50,self.te(r,z))
-        
-        q_epar_cond = -1*te**(5/2)*self.grad_te_par(r,z)
-        q_epar_cond *= self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
+        # q_epar = - kappa_par_e*Te**(5/2)*dTi/dl
+
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
+        Br = self._field_interpolators[0](r,z)
+        Bz = self._field_interpolators[1](r,z)
+        Bt = self._field_interpolators[2](r,z)
+        return calculate_parallel_electron_heat_flux_par_cond_cons(solution,gradient,Br,Bz,Bt,self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
                         self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
-                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale'])
-        return q_epar_cond
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx) 
+
 
     def electron_heat_flux_par(self,r,z):
         """
@@ -2195,12 +2301,29 @@ class HDGsolution:
 
         # q_epar = (5/2*kb*n*Te) - kappa_par_e*Te**(5/2)*dTe/dl
 
-        #conductive part
-        q_epar = self.electron_heat_flux_par_cond(r,z)
-        #convective part        
-        q_epar += self.electron_heat_flux_par_conv(r,z)
 
-        return q_epar
+
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
+
+        Br = self._field_interpolators[0](r,z)
+        Bz = self._field_interpolators[1](r,z)
+        Bt = self._field_interpolators[2](r,z)
+
+        return calculate_parallel_electron_heat_flux_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+
         
     
         

@@ -279,6 +279,26 @@ def calculate_grad_pe_cons(gradients,p0,L0,cons_idx):
         res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
     return res
 
+def calculate_pdyn_cons(solutions,p0,E0,cons_idx):
+    """
+    calculates dynamic pressure value based on conservatives values
+    kb(Ti+Te)+mD*u**2, first is dimensionalized by p0, second by m0*n0*u0**2
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    else:
+        sol = solutions.copy()
+    pe = calculate_pe_cons(sol,1,cons_idx)
+    pi = calculate_pi_cons(sol,1,cons_idx)
+    u = calculate_u_cons(sol,1,cons_idx)
+    n = calculate_n_cons(sol,1,cons_idx)
+    res = p0*(pe+pi)+E0*n*u**2
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
 def calculate_Ti_cons(solutions,T0,Mref,cons_idx):
     """
     calculates ion temperature value based on conservatives values
@@ -321,6 +341,36 @@ def calculate_grad_Ti_cons(solutions,gradients,T0,Mref,L0,cons_idx):
         res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
     return res
 
+def calculate_grad_Ti_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx):
+    """
+    calculates parallel gradient of ion temerature value based on conservatives values
+    """
+    dimensions = None
+    if len(gradients.shape)>3:
+        dimensions = gradients.shape
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        Br_res = Br.flatten()
+        Bz_res = Bz.flatten()
+        Bt_res = Bt.flatten()
+    else:
+        grad = gradients.copy()
+        sol = solutions.copy()
+        Br_res = Br.copy()
+        Bz_res = Bz.copy()
+        Bt_res = Bt.copy()
+    #grad(Ti)_par = (grad(Ti),b)
+
+    grad_ti = calculate_grad_Ti_cons(sol,grad,T0,Mref,L0,cons_idx)
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+
+    res = grad_ti[:,0]*br + grad_ti[:,1]*bz 
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
 def calculate_Te_cons(solutions,T0,Mref,cons_idx):
     """
     calculates electron temperature value based on conservatives values
@@ -356,6 +406,36 @@ def calculate_grad_Te_cons(solutions,gradients,T0,Mref,L0,cons_idx):
 
     if dimensions is not None:
         res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
+    return res
+
+def calculate_grad_Te_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx):
+    """
+    calculates parallel gradient of electron temerature value based on conservatives values
+    """
+    dimensions = None
+    if len(gradients.shape)>3:
+        dimensions = gradients.shape
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        Br_res = Br.flatten()
+        Bz_res = Bz.flatten()
+        Bt_res = Bt.flatten()
+    else:
+        grad = gradients.copy()
+        sol = solutions.copy()
+        Br_res = Br.copy()
+        Bz_res = Bz.copy()
+        Bt_res = Bt.copy()
+    #grad(Ti)_par = (grad(Ti),b)
+
+    grad_te = calculate_grad_Te_cons(sol,grad,T0,Mref,L0,cons_idx)
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+
+    res = grad_te[:,0]*br + grad_te[:,1]*bz 
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
     return res
 
 def calculate_cs_cons(solutions,u0,cons_idx):
@@ -533,4 +613,151 @@ def calculate_a(vertices,r_axis,z_axis):
     res =  np.sqrt((vert[:,0]-r_axis)**2+(vert[:,1]-z_axis)**2)
     if dimensions is not None:
         res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
+def calculate_parallel_flux_cons(solutions,gamma0,cons_idx):
+    """
+    calculates parallel velocity value based on conservatives values
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    else:
+        sol = solutions.copy()
+
+    res = gamma0*sol[:,cons_idx[b'Gamma']]
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
+def calculate_parallel_ion_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,mD,u0,cons_idx):
+    """
+    calculates parallel convective ion heat flux value based on conservatives values
+    q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    else:
+        sol = solutions.copy()
+
+    u = calculate_u_cons(sol,u0,cons_idx)
+    ti = calculate_Ti_cons(sol,T0,Mref,cons_idx)
+    n = calculate_n_cons(sol,n0,cons_idx)
+    res = n*u*(5/2*kb*ti+0.5*mD*u**2)
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
+def calculate_parallel_ion_heat_flux_par_cond_cons(solutions,gradients,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx):
+    """
+    calculates parallel conductive ion heat flux value based on conservatives values
+    q_ipar = - kappa_par_i*Ti**(5/2)*dTi/dl = q0*Ti**(5/2)*dTi/dl
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = gradients.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+
+    ti = calculate_Ti_cons(sol,T0,Mref,cons_idx)
+    ti = np.minimum(Tmax,ti)
+    grad_ti_par = calculate_grad_Ti_par_cons(sol,grad,Br,Bz,Bt,T0,Mref,L0,cons_idx)
+    res = -q0*ti**(5/2)*grad_ti_par
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
+
+def calculate_parallel_ion_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,n0,q0,T0,Mref,kb,mD,u0,L0,Tmax,cons_idx):
+    """
+    calculates parallel conductive ion heat flux value based on conservatives values
+    q_ipar = q_parcond+q_iparconv
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+
+    q_iconv = calculate_parallel_ion_heat_flux_par_conv_cons(sol,n0,T0,Mref,kb,mD,u0,cons_idx)
+    q_icond = calculate_parallel_ion_heat_flux_par_cond_cons(sol,grad,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx)
+
+    res = q_iconv+q_icond
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
+
+def calculate_parallel_electron_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,u0,cons_idx):
+    """
+    calculates parallel convective electron heat flux value based on conservatives values
+    q_epar = (5/2*kb*n*Te)u
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    else:
+        sol = solutions.copy()
+
+    u = calculate_u_cons(sol,u0,cons_idx)
+    te= calculate_Te_cons(sol,T0,Mref,cons_idx)
+    n = calculate_n_cons(sol,n0,cons_idx)
+    res = n*u*(5/2*kb*te)
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
+def calculate_parallel_electron_heat_flux_par_cond_cons(solutions,gradients,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx):
+    """
+    calculates parallel conductive electron heat flux value based on conservatives values
+    q_epar = - kappa_par_e*Te**(5/2)*dTe/dl= q0*Te**(5/2)*dTe/dl
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = gradients.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+
+    te = calculate_Te_cons(sol,T0,Mref,cons_idx)
+    te = np.minimum(Tmax,te)
+    grad_te_par = calculate_grad_Te_par_cons(sol,grad,Br,Bz,Bt,T0,Mref,L0,cons_idx)
+    res = -q0*te**(5/2)*grad_te_par
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+    return res
+
+
+def calculate_parallel_electron_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,n0,q0,T0,Mref,kb,u0,L0,Tmax,cons_idx):
+    """
+    calculates parallel conductive electron heat flux value based on conservatives values
+    q_epar = q_parcond+q_iparconv
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = gradients.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+
+    q_econv = calculate_parallel_electron_heat_flux_par_conv_cons(sol,n0,T0,Mref,kb,u0,cons_idx)
+    q_econd = calculate_parallel_electron_heat_flux_par_cond_cons(sol,grad,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx)
+
+    res = q_econv+q_econd
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
     return res
