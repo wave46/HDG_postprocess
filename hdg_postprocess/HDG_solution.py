@@ -1736,6 +1736,8 @@ class HDGsolution:
         if self.mesh._element_number is None:
             print('Defining an element number mask')
             self.mesh.make_element_number_funtion()
+        if self._qcyl_glob is None:
+            self.define_qcyl(which='full')
         if self._sample_interpolator is None:
             if self.mesh.mesh_parameters['element_type'] == 'triangle':
                 self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
@@ -1757,6 +1759,9 @@ class HDGsolution:
         self._field_interpolators = []
         for i in range(3):
             self._field_interpolators.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.magnetic_field_glob[:,:,i]))
+
+        # q_cylindrical
+        self._qcyl_interpolator = SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.qcyl_glob)
 
     def n(self,r,z):
         """
