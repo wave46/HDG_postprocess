@@ -81,6 +81,7 @@ class HDGsolution:
         #turbulent model parameters
         self._dk_parameters = None
         self._dk_simple = None
+        self._dk_glob = None
 
 
         #interpolators
@@ -466,6 +467,11 @@ class HDGsolution:
     def dk_simple(self):
         """Turbulent diffusion on a simple solution mesh"""
         return self._dk_simple
+    
+    @property
+    def dk_glob(self):
+        """Turbulent diffusion on a full solution mesh"""
+        return self._dk_glob
     
     @property
     def mfp_simple(self):
@@ -1279,7 +1285,6 @@ class HDGsolution:
 
     def define_qcyl(self,which='simple'):
         """
-        TODO add global
         calculates cylindrical safety factor radii either with given magnetic axis
         """
         if which == 'simple':
@@ -1590,7 +1595,7 @@ class HDGsolution:
             simple: for simple mesh solution
             full: on full mesh solution
             coordinates: on a line with provided coordinates (to be done)
-            TODO full
+
         """    
 
         if which=="simple":
@@ -1606,24 +1611,28 @@ class HDGsolution:
                 self.define_minor_radii(which='simple')
             if (self.qcyl_simple is None):
                 self.define_qcyl(which='simple')
+            self.calculate_dk(which='full')
+            self._dk_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._dk_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dk_glob.reshape(self._dk_glob.shape[0]*self._dk_glob.shape[1])
             
-            self._dk_simple = calculate_dk_cons(self.solution_simple,self.dk_parameters,self.qcyl_simple,self.mesh.vertices_glob[:,0]/self.parameters['adimensionalization']['length_scale'],
+        if which =="full":
+            if self.dk_parameters is None:
+                raise ValueError("Please, provide neutral diffusion settings for the simulation")
+
+            if not self._combined_simple_solution:
+                print('Initializing physical solution first')
+                self.recombine_simple_full_solution()
+            if (self.r_axis is None) or (self.z_axis is None):
+                    self.define_magnetic_axis()
+            if (self.a_glob is None):
+                self.define_minor_radii(which='full')
+            if (self.qcyl_glob is None):
+                self.define_qcyl(which='full')
+
+            self._dk_glob = calculate_dk_cons(self.solution_glob,self.dk_parameters,self.qcyl_glob,self.mesh.vertices_glob[self.mesh.connectivity_glob][:,:,0]/self.parameters['adimensionalization']['length_scale'],
                                                 self.parameters['adimensionalization']['length_scale']**2/self.parameters['adimensionalization']['time_scale'],
                                                 self.cons_idx)
 
-            #self._dnn_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            #self._dnn_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        #if which =="full":
-        #    if not self._combined_to_full:
-        #        self.recombine_full_solution()
-        #    self._dnn = calculate_dnn_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
-        #                                                        self._e,self.parameters['adimensionalization']['mass_scale'],
-        #                                                        self.parameters['adimensionalization']['temperature_scale'],
-        #                                                        self.parameters['adimensionalization']['density_scale'],
-        #                                                        self.parameters['physics']['Mref'],
-        #                                                        self.parameters['adimensionalization']['length_scale'],
-        #                                                        self.parameters['adimensionalization']['time_scale'])
     
     def calculate_mfp(self,which="simple"):
         """

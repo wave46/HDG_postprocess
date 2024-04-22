@@ -492,19 +492,21 @@ def calculate_dk_cons(solutions,dk_params,q_cyl,R,D0,cons_idx):
     if len(solutions.shape)>2:
         dimensions = solutions.shape
         sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        R_res = R.flatten()
+        q_res = q_cyl.flatten()
     else:
         sol = solutions.copy()
 
     cs = calculate_cs_cons(sol,1,cons_idx)
     k = calculate_k_cons(sol,1,cons_idx)
 
-    res = 2*np.pi*R*q_cyl*k/cs
+    res = 2*np.pi*R_res*q_res*k/cs
     res[np.isnan(cs)] = dk_params['dk_min']
     res[cs<1e-20] = dk_params['dk_min']
     res[res<dk_params['dk_min_adim']] = dk_params['dk_min_adim']
     res[res>dk_params['dk_max_adim']] = dk_params['dk_max_adim']
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res*D0
 
 def calculate_q_cyl(R,Br,Bz,Bt,a):
