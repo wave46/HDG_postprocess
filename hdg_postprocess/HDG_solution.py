@@ -500,6 +500,11 @@ class HDGsolution:
     def field_interpolators(self):
         """A list of interpolators of magnetic field"""
         return self._field_interpolators
+    
+    @property
+    def qcyl_interpolator(self):
+        """A list of interpolators of magnetic field"""
+        return self._qcyl_interpolator
 
     @property
     def r_axis(self):
