@@ -614,6 +614,41 @@ class HDGmesh:
         self._indices = indices
         self._boundary_combined = True
         
+    def boundary_ordering(self,raw_boundary_info,boundaries):
+        """
+        Recombines ordered boundary connectivity for given boundaries with all needed information to calculate fluxes at the wall
+        """
+
+        if not self._boundary_combined:
+            self.recombine_full_boundary(raw_boundary_info)
+
+        connected_boundaries = []
+        segments = 0
+        for boundary in boundaries:
+            connected_boundary = []
+            for sub_connectivity in self.connectivity_b_glob[boundary]:
+                connected_boundary.append(False)
+                segments+=1
+            connected_boundaries.append(connected_boundary)
+        boundary_ordering = [[0,0]]
+        connected_boundaries[0][0] = True
+        segments -=1
+        node_idx = self.connectivity_b_glob[boundaries[0]][0][-1,-1]
+        while segments>0:
+            for i,connected_boundary in enumerate(connected_boundaries):
+                for j,segment in enumerate(connected_boundary):
+                    if not segment:
+                        if node_idx == self.connectivity_b_glob[boundaries[i]][j][0,0]:
+                            connected_boundaries[i][j] == True
+                            segments -= 1
+                            boundary_ordering.append([i,j])
+                            node_idx = self.connectivity_b_glob[boundaries[i]][j][-1,-1]
+
+        connectivity_b_ordered = np.empty([0,self.connectivity_b_glob[boundaries[0]][0].shape[1]],dtype=int)
+        for bound_ordering in boundary_ordering:
+            connectivity_b_ordered = np.vstack([connectivity_b_ordered,self.connectivity_b_glob[boundaries[bound_ordering[0]]][bound_ordering[1]]])
+            
+        return boundary_ordering,connectivity_b_ordered
 
 
 
@@ -675,7 +710,7 @@ class HDGmesh:
 
         self._volumes_gauss = 2*np.pi*self.reference_element['IPweights'][None,:]*detJ_loc[:,:]*self._vertices_gauss[:,:,0]
 
-    def calculate_gauss_boundary(self,raw_boundary_info=None):
+    def calculate_gauss_boundary(self,boundaries,raw_boundary_info):
         """
         calculates:
         vertices in gauss points for boundary faces
@@ -690,13 +725,14 @@ class HDGmesh:
             if raw_boundary_info is None:
                 raise ValueError('Please, provide raw boundary info as input to this method')
             self.recombine_full_boundary(raw_boundary_info)
+        boundary_ordering,connectivity_ordered = self.boundary_ordering(raw_boundary_info,boundaries)
         
         self._vertices_boundary_gauss = np.einsum('ij,kjh->kih', self.reference_element['N1d'],
-                                                self.vertices_glob[self.connectivity_b_glob,:])
+                                                self.vertices_glob[connectivity_ordered,:])
 
         #shape functions derivative at gauss points
         derivative_gauss = np.einsum('ij,kjh->kih', self.reference_element['N1dxi'],
-                                                self.vertices_glob[self.connectivity_b_glob,:])
+                                                self.vertices_glob[connectivity_ordered,:])
         derivative_norm = np.sqrt(((derivative_gauss**2).sum(axis=2)))[:,:,None]
         self._tangentials_gauss = derivative_gauss/derivative_norm
         self._normals_gauss = np.zeros_like(self._tangentials_gauss)
@@ -704,7 +740,9 @@ class HDGmesh:
         self._normals_gauss[:,:,1]= -1*self._tangentials_gauss[:,:,0]
         # todo: if non axy-symmetric
         self._segment_length_gauss = derivative_norm*self.reference_element['IPweights1d'][None,:,:]
-        self._segment_surface_gauss = self._segment_length_gauss*2*np.pi*self._vertices_boundary_gauss[:,:,0]
+        self._segment_surface_gauss = self._segment_length_gauss*2*np.pi*self._vertices_boundary_gauss[:,:,0][:,:,None]
+
+        return boundary_ordering,connectivity_ordered
         
     def find_adjacent_elements(self,element_number):
         """ 

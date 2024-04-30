@@ -278,9 +278,13 @@ def calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref,tol=1e-20):
         te[~good_idx] = 1e-10
         ne[~good_idx] = n0*1e-20
         res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
-        if dimensions is not None:
-            res = res.reshape(dimensions[0],dimensions[1])
-        return res
+    elif database == "NRL":
+        te = np.zeros_like(solutions[:,0])
+        te = T0*2/3/Mref*solutions[:,3]/solutions[:,0]
+        res = compute_iz_rate_NRL (te, te_min)
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
 
 def calculate_iz_source(te,ne,nn,iz_parameters):
     """

@@ -696,18 +696,32 @@ class HDGsolution:
         self._magnetic_field_unit_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_unit_glob)
         self._jtor_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.jtor_glob)
     
-    def calculate_in_boundary_gauss_points(self):
+    def calculate_in_boundary_gauss_points(self,boundaries):
         if self.mesh.reference_element is None:
             raise ValueError("Please, provide reference element to the mesh")
         if not self.combined_boundary:
             print('Comibining first values on boundary')
             self.recombine_boundary_solution()
+        boundary_ordering,connectivity_ordered = self.mesh.calculate_gauss_boundary(boundaries,self.raw_solution_boundary_infos)
 
-        self._solution_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self.solution_boundary)
-        self._solution_skeleton_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self.solution_skeleton_boundary)
-        self._gradient_boundary_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N1d'],self._gradient_boundary)
-        self._magnetic_field_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self._magnetic_field_boundary)
-        self._magnetic_field_unit_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],self._magnetic_field_unit_boundary)
+        solution_boundary_ordered = np.empty([0,self.solution_boundary[boundaries[0]][0].shape[1],self.solution_boundary[boundaries[0]][0].shape[2]])
+        solution_skeleton_boundary_ordered = np.empty([0,self.solution_skeleton_boundary[boundaries[0]][0].shape[1],self.solution_skeleton_boundary[boundaries[0]][0].shape[2]])
+        gradient_boundary_ordered = np.empty([0,self._gradient_boundary[boundaries[0]][0].shape[1],self._gradient_boundary[boundaries[0]][0].shape[2],self._gradient_boundary[boundaries[0]][0].shape[3]])
+        magnetic_field_boundary_ordered = np.empty([0,self._magnetic_field_boundary[boundaries[0]][0].shape[1],self._magnetic_field_boundary[boundaries[0]][0].shape[2]])
+        magnetic_field_unit_boundary_ordered = np.empty([0,self._magnetic_field_unit_boundary[boundaries[0]][0].shape[1],self._magnetic_field_unit_boundary[boundaries[0]][0].shape[2]])
+        for bound_ordering in boundary_ordering:
+            solution_boundary_ordered = np.vstack([solution_boundary_ordered,self.solution_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
+            solution_skeleton_boundary_ordered = np.vstack([solution_skeleton_boundary_ordered,self.solution_skeleton_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
+            gradient_boundary_ordered = np.vstack([gradient_boundary_ordered,self._gradient_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
+            magnetic_field_boundary_ordered = np.vstack([magnetic_field_boundary_ordered,self._magnetic_field_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
+            magnetic_field_unit_boundary_ordered = np.vstack([magnetic_field_unit_boundary_ordered,self._magnetic_field_unit_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
+
+        self._solution_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],solution_boundary_ordered)
+        self._solution_skeleton_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],solution_skeleton_boundary_ordered)
+        self._gradient_boundary_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N1d'],gradient_boundary_ordered)
+        self._magnetic_field_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],magnetic_field_boundary_ordered)
+        self._magnetic_field_unit_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],magnetic_field_unit_boundary_ordered)
+        return boundary_ordering,connectivity_ordered
 
     def summary_along_the_wall(self):
         """
@@ -1258,7 +1272,7 @@ class HDGsolution:
             print('Comibining first simple solution full')
             self.recombine_simple_full_solution()
 
-        self._r_axis, self._z_axis = self.mesh.vertices_glob[np.where(self.poloidal_flux_simple == self.poloidal_flux_simple.min())][0]
+        self._r_axis, self._z_axis = self.mesh.vertices_glob[np.where(self.poloidal_flux_simple == self.poloidal_flux_simple.max())][0]
     
     def define_minor_radii(self,which='simple'):
         """
@@ -1331,7 +1345,7 @@ class HDGsolution:
         defined_variables = ['n','nn','te','ti','M','dnn','mfp','u',
                              'p_dyn','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond']
+                             'q_e_par_conv','q_e_par_cond','dk']
         for variable in variable_list:
             if variable not in defined_variables:
                 raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
@@ -1386,6 +1400,9 @@ class HDGsolution:
             elif variable == 'u':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.u(r,z)
+            elif variable == 'dk':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.dk(r,z)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
             result[variable] = temp
@@ -1738,7 +1755,7 @@ class HDGsolution:
         
         if self.mesh.reference_element is None:
             raise ValueError("Please, provide reference element")
-        if self.mesh._element_number is None:
+        if self.mesh.element_number is None:
             print('Defining an element number mask')
             self.mesh.make_element_number_funtion()
         if self._qcyl_glob is None:
@@ -1997,6 +2014,36 @@ class HDGsolution:
                                                                 self.parameters['physics']['Mref'],
                                                                 self.parameters['adimensionalization']['length_scale'],
                                                                 self.parameters['adimensionalization']['time_scale'])
+
+    def dk(self,r,z):
+        """
+        returns value of turbulent diffusion in given point (r,z)
+        """
+        if self.dk_parameters is None:
+                raise ValueError("Please, provide turbulent diffusion settings for the simulation")
+
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        if self.r_axis is None:
+            self.define_minor_radii()
+        
+        
+        solution = np.zeros([1,self.neq])
+
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+        a = np.sqrt((r-self.r_axis)**2+(z-self.z_axis)**2)
+        Br = self._field_interpolators[0](r,z)
+        Bz = self._field_interpolators[1](r,z)
+        Bt = self._field_interpolators[2](r,z)
+        q_cyl = calculate_q_cyl(r,Br,Bz,Bt,a)
+
+        return calculate_dk_cons(solution,self.dk_parameters, q_cyl,r,
+                                                                self.parameters['adimensionalization']['length_scale']**2/
+                                                                self.parameters['adimensionalization']['time_scale'],self.cons_idx)
     
     def mfp_nn(self,r,z):
         """

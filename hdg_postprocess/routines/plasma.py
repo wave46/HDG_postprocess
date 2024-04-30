@@ -116,7 +116,7 @@ def calculate_u_cons(solutions,u0,cons_idx):
 
     res = u0*sol[:,cons_idx[b'Gamma']]/sol[:,cons_idx[b'rho']]
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_grad_u_cons(solutions,gradients,u0,L0,cons_idx):
@@ -314,7 +314,7 @@ def calculate_Ti_cons(solutions,T0,Mref,cons_idx):
     res = 2/3/Mref*T0*(sol[:,cons_idx[b'nEi']]/sol[:,cons_idx[b'rho']]-
               0.5*sol[:,cons_idx[b'Gamma']]**2/sol[:,cons_idx[b'rho']]**2)
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_grad_Ti_cons(solutions,gradients,T0,Mref,L0,cons_idx):
@@ -338,7 +338,7 @@ def calculate_grad_Ti_cons(solutions,gradients,T0,Mref,L0,cons_idx):
     res *= 2/3/Mref*T0/L0
 
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
     return res
 
 def calculate_grad_Ti_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx):
@@ -368,7 +368,7 @@ def calculate_grad_Ti_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx)
     res = grad_ti[:,0]*br + grad_ti[:,1]*bz 
 
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_Te_cons(solutions,T0,Mref,cons_idx):
@@ -384,7 +384,7 @@ def calculate_Te_cons(solutions,T0,Mref,cons_idx):
 
     res = 2/3/Mref*T0*(sol[:,cons_idx[b'nEe']]/sol[:,cons_idx[b'rho']])
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_grad_Te_cons(solutions,gradients,T0,Mref,L0,cons_idx):
@@ -405,7 +405,7 @@ def calculate_grad_Te_cons(solutions,gradients,T0,Mref,L0,cons_idx):
 
 
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
     return res
 
 def calculate_grad_Te_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx):
@@ -435,7 +435,7 @@ def calculate_grad_Te_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx)
     res = grad_te[:,0]*br + grad_te[:,1]*bz 
 
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_cs_cons(solutions,u0,cons_idx):
@@ -576,6 +576,8 @@ def calculate_dk_cons(solutions,dk_params,q_cyl,R,D0,cons_idx):
         q_res = q_cyl.flatten()
     else:
         sol = solutions.copy()
+        R_res = R.copy()
+        q_res = q_cyl.copy()
 
     cs = calculate_cs_cons(sol,1,cons_idx)
     k = calculate_k_cons(sol,1,cons_idx)
@@ -628,7 +630,7 @@ def calculate_parallel_flux_cons(solutions,gamma0,cons_idx):
 
     res = gamma0*sol[:,cons_idx[b'Gamma']]
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_parallel_ion_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,mD,u0,cons_idx):
@@ -648,7 +650,7 @@ def calculate_parallel_ion_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,mD,u0
     n = calculate_n_cons(sol,n0,cons_idx)
     res = n*u*(5/2*kb*ti+0.5*mD*u**2)
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_parallel_ion_heat_flux_par_cond_cons(solutions,gradients,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx):
@@ -660,17 +662,23 @@ def calculate_parallel_ion_heat_flux_par_cond_cons(solutions,gradients,Br,Bz,Bt,
     if len(solutions.shape)>2:
         dimensions = gradients.shape
         sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
     else:
         sol = solutions.copy()
         grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
 
     ti = calculate_Ti_cons(sol,T0,Mref,cons_idx)
     ti = np.minimum(Tmax,ti)
-    grad_ti_par = calculate_grad_Ti_par_cons(sol,grad,Br,Bz,Bt,T0,Mref,L0,cons_idx)
+    grad_ti_par = calculate_grad_Ti_par_cons(sol,grad,Br_res,Bz_res,Bt_res,T0,Mref,L0,cons_idx)
     res = -q0*ti**(5/2)*grad_ti_par
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 
@@ -683,17 +691,23 @@ def calculate_parallel_ion_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,n0,q0
     if len(solutions.shape)>2:
         dimensions = solutions.shape
         sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
     else:
         sol = solutions.copy()
         grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
 
     q_iconv = calculate_parallel_ion_heat_flux_par_conv_cons(sol,n0,T0,Mref,kb,mD,u0,cons_idx)
-    q_icond = calculate_parallel_ion_heat_flux_par_cond_cons(sol,grad,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx)
+    q_icond = calculate_parallel_ion_heat_flux_par_cond_cons(sol,grad,Br_res,Bz_res,Bt_res,q0,T0,Mref,L0,Tmax,cons_idx)
 
     res = q_iconv+q_icond
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 
@@ -714,7 +728,7 @@ def calculate_parallel_electron_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,
     n = calculate_n_cons(sol,n0,cons_idx)
     res = n*u*(5/2*kb*te)
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_parallel_electron_heat_flux_par_cond_cons(solutions,gradients,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx):
@@ -726,17 +740,23 @@ def calculate_parallel_electron_heat_flux_par_cond_cons(solutions,gradients,Br,B
     if len(solutions.shape)>2:
         dimensions = gradients.shape
         sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
     else:
         sol = solutions.copy()
         grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
 
     te = calculate_Te_cons(sol,T0,Mref,cons_idx)
     te = np.minimum(Tmax,te)
-    grad_te_par = calculate_grad_Te_par_cons(sol,grad,Br,Bz,Bt,T0,Mref,L0,cons_idx)
+    grad_te_par = calculate_grad_Te_par_cons(sol,grad,Br_res,Bz_res,Bt_res,T0,Mref,L0,cons_idx)
     res = -q0*te**(5/2)*grad_te_par
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 
@@ -749,15 +769,132 @@ def calculate_parallel_electron_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,
     if len(solutions.shape)>2:
         dimensions = gradients.shape
         sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        gradients = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
     else:
         sol = solutions.copy()
         grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
 
     q_econv = calculate_parallel_electron_heat_flux_par_conv_cons(sol,n0,T0,Mref,kb,u0,cons_idx)
-    q_econd = calculate_parallel_electron_heat_flux_par_cond_cons(sol,grad,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx)
+    q_econd = calculate_parallel_electron_heat_flux_par_cond_cons(sol,grad,Br_res,Bz_res,Bt_res,q0,T0,Mref,L0,Tmax,cons_idx)
 
     res = q_econv+q_econd
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
+
+def calculate_particle_perp_flux_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,n0,L0,cons_idx):
+    """
+    calculates perpendicular particle flux on the wall with normal n value based on conservatives values
+    diffusion dimensional (assuming Dperp only)
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = gradients.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
+        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
+        diffusion_res = diffusion.reshape(diffusion.shape[0]*diffusion.shape[1])
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
+        n_res = n.copy()
+        diffusion_res = diffusion.copy()
+
+    grad_n = calculate_grad_n_cons(grad,n0,L0,cons_idx)
+
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bn = br*n_res[:,0]+bz*n_res[:,1]
+
+    res = -1*diffusion_res*(grad_n[:,0]*n_res[:,0]+grad_n[:,1]*n_res[:,1]-grad_n[:,0]*bn*br-grad_n[:,1]*bn*bz)
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
+def calculate_perp_ion_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,E0,L0,cons_idx):
+    """
+    calculates perpendicular ion heat flux on the wall with normal n value based on conservatives values
+    diffusion dimensional (assuming Dperp only)
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = gradients.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
+        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
+        diffusion_res = diffusion.reshape(diffusion.shape[0]*diffusion.shape[1])
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
+        n_res = n.copy()
+        diffusion_res = diffusion.copy()
+
+    
+
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bn = br*n_res[:,0]+bz*n_res[:,1]
+    grad_nEi = grad[:,cons_idx[b'nEi']]
+
+    res = -1*diffusion_res*(grad_nEi[:,0]*n_res[:,0]+grad_nEi[:,1]*n_res[:,1]-grad_nEi[:,0]*bn*br-grad_nEi[:,1]*bn*bz)*E0/L0
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
+def calculate_perp_electron_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,E0,L0,cons_idx):
+    """
+    calculates perpendicular ion heat flux on the wall with normal n value based on conservatives values
+    diffusion dimensional (assuming Dperp only)
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = gradients.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
+        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
+        diffusion_res = diffusion.reshape(diffusion.shape[0]*diffusion.shape[1])
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
+        n_res = n.copy()
+        diffusion_res = diffusion.copy()
+
+    
+
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bn = br*n_res[:,0]+bz*n_res[:,1]
+    grad_nEe = grad[:,cons_idx[b'nEe']]
+
+    res = -1*diffusion_res*(grad_nEe[:,0]*n_res[:,0]+grad_nEe[:,1]*n_res[:,1]-grad_nEe[:,0]*bn*br-grad_nEe[:,1]*bn*bz)*E0/L0
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
