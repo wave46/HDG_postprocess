@@ -308,3 +308,25 @@ def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref):
         res =n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz
     return res
 
+def calculate_cx_source(te,ne,nn,cx_parameters):
+    """
+    calculates charge-exchange source for given plasma density, electron temperature and neutral density
+    """
+
+    sigma_cx = calculate_cx_rate(te,cx_parameters)
+    return ne*nn*sigma_cx
+
+
+def calculate_cx_source_cons(solutions,cx_parameters,T0,n0,Mref):
+    """
+    calculates charge-exchange source for given conservative solutions
+    todo make indexing not hardcoded
+    """
+
+    sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
+    if len(solutions.shape)>2:
+        res = n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_cx
+    else:
+        res =n0**2*solutions[:,0]*solutions[:,-1]*sigma_cx
+    return res
+

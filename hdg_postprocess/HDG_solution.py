@@ -62,6 +62,7 @@ class HDGsolution:
         self._atomic_parameters = None
         self._dnn_parameters = None
         self._ionization_source_simple = None
+        self._cx_source_simple = None
         self._ionization_rate_simple = None        
         self._cx_rate_simple = None
         self._dnn_simple = None
@@ -97,6 +98,7 @@ class HDGsolution:
         self._jtor_gauss = None
         self._ohmic_source_gauss = None
         self._ionization_source_gauss = None
+        self._cx_source_gauss = None
 
         # defining the indexes of conservative variables
         self._cons_idx = {}
@@ -433,6 +435,21 @@ class HDGsolution:
     def ionization_source_gauss(self):
         """Ionization source on gauss points"""
         return self._ionization_source_gauss
+
+    @property
+    def cx_source(self):
+        """Charge-exchange source on a full solution mesh using conservative values as inputs"""
+        return self._cx_source
+
+    @property
+    def cx_source_simple(self):
+        """Charge-exchange source on a simple solution mesh"""
+        return self._cx_source_simple
+    
+    @property
+    def cx_source_gauss(self):
+        """Charge-exchange source on gauss points"""
+        return self._cx_source_gauss
     
     @property
     def ohmic_source(self):
@@ -1342,7 +1359,7 @@ class HDGsolution:
         calculates plasma parameters noted in variables list on a given line
         returns a dictionary with variables as keys and values along lines for them
         """
-        defined_variables = ['n','nn','te','ti','M','dnn','mfp','u',
+        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u',
                              'p_dyn','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
                              'q_e_par_conv','q_e_par_cond','dk']
@@ -1403,6 +1420,12 @@ class HDGsolution:
             elif variable == 'dk':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.dk(r,z)
+            elif variable == 'cx_rate':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.cx_rate(r,z)
+            elif variable == 'iz_rate':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.iz_rate(r,z)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
             result[variable] = temp
@@ -1413,7 +1436,7 @@ class HDGsolution:
     def save_summary_line(self,save_folder,r_line,z_line,variable_list):
 
 
-        defined_variables = ['n','nn','te','ti','M','dnn','mfp','u',
+        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u',
                              'p_dyn','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
                              'q_e_par_conv','q_e_par_cond']
@@ -1461,6 +1484,10 @@ class HDGsolution:
                 np.save(f'{save_folder}gamma.npy',values)
             elif variable == 'u':
                 np.save(f'{save_folder}u.npy',values)
+            elif variable == 'cx_rate':
+                np.save(f'{save_folder}cx_rate.npy',values)
+            elif variable == 'iz_rate':
+                np.save(f'{save_folder}iz_rate.npy',values)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables')
 
@@ -1741,6 +1768,45 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'])
 
+    def calculate_cx_source(self,which="simple"):
+        """
+            calculate the charge-exchange source
+            simple: for simple mesh solution
+            full: on full mesh solution (to be done)
+            coordinates: on a line with provided coordinates (to be done)
+            gauss: on gauss points
+        """    
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if which=="simple":
+            
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_cx_source(which="full")
+
+            self._cx_source_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._cx_source_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._cx_source.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._cx_source = calculate_cx_source_cons(self.solution_glob,self.atomic_parameters['cx'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'])
+
+        if which == 'gauss':
+            if self.solution_gauss is None:
+                print('Initializing values in gauss points first')
+                self.calculate_in_gauss_points()
+            self._cx_source_gauss = calculate_cx_source_cons(self.solution_gauss,self.atomic_parameters['cx'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'])
     def define_interpolators(self):
         """
         defines interpolators for full solutions and gradients based on shape functions

@@ -296,7 +296,7 @@ def calculate_pdyn_cons(solutions,p0,E0,cons_idx):
     n = calculate_n_cons(sol,1,cons_idx)
     res = p0*(pe+pi)+E0*n*u**2
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_Ti_cons(solutions,T0,Mref,cons_idx):
