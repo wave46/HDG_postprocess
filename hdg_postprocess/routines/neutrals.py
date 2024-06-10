@@ -98,7 +98,7 @@ def calculate_mfp_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L
         ti = ti.flatten()
         dnn = calculate_dnn_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L0,t0).flatten()
     else:
-        ti = T0*2/3/Mref*(solutions[:,:,2]/solutions[:,:,0]-1/2*solutions[:,:,1]**2/solutions[:,:,0]**2)
+        ti = T0*2/3/Mref*(solutions[:,2]/solutions[:,0]-1/2*solutions[:,1]**2/solutions[:,0]**2)
         dnn = calculate_dnn_cons(solutions,dnn_params,atomic_parameters,kb,mD,T0,n0,Mref,L0,t0)
     if dnn_params['ti_soft']:
         ti = softplus(ti,dnn_params['ti_min'],dnn_params['ti_w'],dnn_params['ti_width'])
