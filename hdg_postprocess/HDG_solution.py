@@ -1289,7 +1289,7 @@ class HDGsolution:
             print('Comibining first simple solution full')
             self.recombine_simple_full_solution()
 
-        self._r_axis, self._z_axis = self.mesh.vertices_glob[np.where(self.poloidal_flux_simple == self.poloidal_flux_simple.max())][0]
+        self._r_axis, self._z_axis = self.mesh.vertices_glob[np.where(self.poloidal_flux_simple == self.poloidal_flux_simple.min())][0]
     
     def define_minor_radii(self,which='simple'):
         """
