@@ -47,6 +47,8 @@ class HDGmesh:
         elif self.mesh_parameters['element_type'] == 'quadrilateral':
             if self.mesh_parameters['nodes_per_element']==49:
                 self._p_order = 6
+            elif self.mesh_parameters['nodes_per_element']==81:
+                self._p_order = 8
 
         minr,maxr,minz,maxz = 1e5,-1e5,1e5,-1e5
         for vertices in self.raw_vertices:
