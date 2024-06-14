@@ -1079,7 +1079,6 @@ class HDGsolution:
                     #grad(n_n) = n0/L0*grad(U5)
                     grad_phys[:,i,:] = calculate_grad_nn_cons(data_loc,self.parameters['adimensionalization']['density_scale'],
                                                              self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['density_scale']
                 elif (phys_variable == b'k'):
                     #grad(k) = u0**2/L0*grad(U6)
                     grad_phys[:,i,:] = calculate_grad_k_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2,
