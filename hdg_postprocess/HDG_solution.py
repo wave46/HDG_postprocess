@@ -63,7 +63,8 @@ class HDGsolution:
         self._dnn_parameters = None
         self._ionization_source_simple = None
         self._cx_source_simple = None
-        self._ionization_rate_simple = None        
+        self._ionization_rate_simple = None   
+        self._recombination_rate_simple = None        
         self._cx_rate_simple = None
         self._dnn_simple = None
         self._mfp_simple = None
@@ -469,6 +470,11 @@ class HDGsolution:
     def ionization_rate_simple(self):
         """Ionization rate coefficient on a simple solution mesh"""
         return self._ionization_rate_simple
+
+    @property
+    def recombination_rate_simple(self):
+        """Recombination rate coefficient on a simple solution mesh"""
+        return self._recombination_rate_simple
     
     @property
     def cx_rate_simple(self):
@@ -1568,6 +1574,37 @@ class HDGsolution:
             if not self._combined_to_full:
                 self.recombine_full_solution()
             self._ionization_rate = calculate_iz_rate_cons(self.solution_glob,self.atomic_parameters['iz'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'])
+
+    def calculate_recombination_rate(self,which="simple"):
+        """
+            calculate the recombination rate
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+            gauss_points: on gauss points (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_recombination_rate(which="full")
+
+            self._recombination_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._recombination_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._recombination_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        elif which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._recombination_rate = calculate_rec_rate_cons(self.solution_glob,self.atomic_parameters['rec'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'])
