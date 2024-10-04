@@ -66,6 +66,7 @@ class HDGsolution:
         self._ionization_rate_simple = None        
         self._cx_rate_simple = None
         self._dnn_simple = None
+        self._dnn_with_nn_collision_simple = None
         self._mfp_simple = None
 
         #plasma parameters
@@ -479,6 +480,16 @@ class HDGsolution:
     def dnn_simple(self):
         """Neutral diffusion on a simple solution mesh"""
         return self._dnn_simple
+
+    @property
+    def dnn_simple_with_nn_collision(self):
+        """Neutral diffusion with neutral-neutral diffusions on a global solution mesh"""
+        return self._dnn_simple_with_nn_collision
+    
+    @property
+    def dnn_simple_with_nn_collision_simple(self):
+        """Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"""
+        return self._dnn_simple_with_nn_collision_simple
 
     @property
     def dk_simple(self):
@@ -1631,6 +1642,43 @@ class HDGsolution:
             if not self._combined_to_full:
                 self.recombine_full_solution()
             self._dnn = calculate_dnn_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
+                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['length_scale'],
+                                                                self.parameters['adimensionalization']['time_scale'])
+
+    def calculate_dnn_with_nn_collision(self,which="simple"):
+        """
+            calculate neutral diffusion with neutral-neutral collisions
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if self.dnn_parameters is None:
+                raise ValueError("Please, provide neutral diffusion settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if "cx" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_dnn_with_nn_collision(which="full")
+
+            self._dnn_with_nn_collision_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._dnn_with_nn_collision_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn_with_nn_collision.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
                                                                 self._e,self.parameters['adimensionalization']['mass_scale'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
