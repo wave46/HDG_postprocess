@@ -1520,7 +1520,9 @@ class HDGsolution:
         """
 
         if 'ohmic_coeff' not in  self.parameters['physics'].keys():
-            raise KeyError('Please, provide ohmic heating adimensionalized coefficient')
+            raise KeyError('Please, provide ohmic heating adimensionalized coefficient to self.parameters["physics"]')
+        if 'Zeff' not in  self.parameters['physics'].keys():
+            raise KeyError('Please, effective charge to self.parameters["physics"]')
         
         if which=="simple":
             self.calculate_ohmic_source(which="full")
@@ -1536,7 +1538,8 @@ class HDGsolution:
                                                             self.parameters['adimensionalization']['density_scale'],
                                                             self.parameters['adimensionalization']['length_scale'],
                                                             self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'])
+                                                            self.parameters['physics']['ohmic_coeff'],
+                                                            self.parameters['physics']['Zeff'])
         elif which == 'gauss':
             if not self._combined_to_full:
                 self.recombine_full_solution()
@@ -1549,7 +1552,8 @@ class HDGsolution:
                                                             self.parameters['adimensionalization']['density_scale'],
                                                             self.parameters['adimensionalization']['length_scale'],
                                                             self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'])
+                                                            self.parameters['physics']['ohmic_coeff'],
+                                                            self.parameters['physics']['Zeff'])
             
             
 
