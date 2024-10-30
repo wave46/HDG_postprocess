@@ -63,9 +63,11 @@ class HDGsolution:
         self._dnn_parameters = None
         self._ionization_source_simple = None
         self._cx_source_simple = None
-        self._ionization_rate_simple = None        
+        self._ionization_rate_simple = None   
+        self._recombination_rate_simple = None        
         self._cx_rate_simple = None
         self._dnn_simple = None
+        self._dnn_with_nn_collision_simple = None
         self._mfp_simple = None
 
         #plasma parameters
@@ -469,6 +471,11 @@ class HDGsolution:
     def ionization_rate_simple(self):
         """Ionization rate coefficient on a simple solution mesh"""
         return self._ionization_rate_simple
+
+    @property
+    def recombination_rate_simple(self):
+        """Recombination rate coefficient on a simple solution mesh"""
+        return self._recombination_rate_simple
     
     @property
     def cx_rate_simple(self):
@@ -479,6 +486,16 @@ class HDGsolution:
     def dnn_simple(self):
         """Neutral diffusion on a simple solution mesh"""
         return self._dnn_simple
+
+    @property
+    def dnn_simple_with_nn_collision(self):
+        """Neutral diffusion with neutral-neutral diffusions on a global solution mesh"""
+        return self._dnn_simple_with_nn_collision
+    
+    @property
+    def dnn_simple_with_nn_collision_simple(self):
+        """Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"""
+        return self._dnn_simple_with_nn_collision_simple
 
     @property
     def dk_simple(self):
@@ -1502,7 +1519,9 @@ class HDGsolution:
         """
 
         if 'ohmic_coeff' not in  self.parameters['physics'].keys():
-            raise KeyError('Please, provide ohmic heating adimensionalized coefficient')
+            raise KeyError('Please, provide ohmic heating adimensionalized coefficient to self.parameters["physics"]')
+        if 'Zeff' not in  self.parameters['physics'].keys():
+            raise KeyError('Please, effective charge to self.parameters["physics"]')
         
         if which=="simple":
             self.calculate_ohmic_source(which="full")
@@ -1518,7 +1537,8 @@ class HDGsolution:
                                                             self.parameters['adimensionalization']['density_scale'],
                                                             self.parameters['adimensionalization']['length_scale'],
                                                             self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'])
+                                                            self.parameters['physics']['ohmic_coeff'],
+                                                            self.parameters['physics']['Zeff'])
         elif which == 'gauss':
             if not self._combined_to_full:
                 self.recombine_full_solution()
@@ -1531,7 +1551,8 @@ class HDGsolution:
                                                             self.parameters['adimensionalization']['density_scale'],
                                                             self.parameters['adimensionalization']['length_scale'],
                                                             self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'])
+                                                            self.parameters['physics']['ohmic_coeff'],
+                                                            self.parameters['physics']['Zeff'])
             
             
 
@@ -1567,6 +1588,37 @@ class HDGsolution:
             if not self._combined_to_full:
                 self.recombine_full_solution()
             self._ionization_rate = calculate_iz_rate_cons(self.solution_glob,self.atomic_parameters['iz'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'])
+
+    def calculate_recombination_rate(self,which="simple"):
+        """
+            calculate the recombination rate
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+            gauss_points: on gauss points (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_recombination_rate(which="full")
+
+            self._recombination_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._recombination_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._recombination_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        elif which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._recombination_rate = calculate_rec_rate_cons(self.solution_glob,self.atomic_parameters['rec'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'])
@@ -1630,6 +1682,43 @@ class HDGsolution:
             if not self._combined_to_full:
                 self.recombine_full_solution()
             self._dnn = calculate_dnn_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
+                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['length_scale'],
+                                                                self.parameters['adimensionalization']['time_scale'])
+
+    def calculate_dnn_with_nn_collision(self,which="simple"):
+        """
+            calculate neutral diffusion with neutral-neutral collisions
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if self.dnn_parameters is None:
+                raise ValueError("Please, provide neutral diffusion settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if "cx" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_dnn_with_nn_collision(which="full")
+
+            self._dnn_with_nn_collision_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._dnn_with_nn_collision_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn_with_nn_collision.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
                                                                 self._e,self.parameters['adimensionalization']['mass_scale'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],

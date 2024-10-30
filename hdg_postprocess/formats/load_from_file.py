@@ -61,8 +61,14 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_pa
 
         #define boundary dictionary
         solution_boundary_data = {}
-        solution_boundary_data['boundary_flags'] = solution_file['boundary_flags'].T
-        solution_boundary_data['exterior_faces'] = solution_file['exterior_faces'].T.astype(int) -1
+        if 'boundary_flags' in solution_file.keys():        
+            solution_boundary_data['boundary_flags'] = solution_file['boundary_flags'].T
+        elif 'boundaryFlag' in solution_file.keys(): 
+            solution_boundary_data['boundary_flags'] = solution_file['boundaryFlag'].T
+        if 'exterior_faces' in solution_file.keys():
+            solution_boundary_data['exterior_faces'] = solution_file['exterior_faces'].T.astype(int) -1
+        elif 'extfaces' in solution_file.keys():
+            solution_boundary_data['exterior_faces'] = solution_file['extfaces'].T.astype(int) -1
         raw_solution_boundary_infos.append(solution_boundary_data)
 
 
