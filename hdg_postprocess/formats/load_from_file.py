@@ -4,7 +4,7 @@ from silx.io.dictdump import h5todict
 import numpy as np
 
 
-def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_partitions):
+def load_HDG_solution_from_file(solpath,solname_base,meshpath=None,meshname_base=None,n_partitions=1):
     """
     Load an SOLEDGE-HDG simulation from SOLEDGE-HDG file(s) and meshile(s).
     :param str solpath: String path to a folder contatinging file(s) with simulation SOLEDGE-HDG.
@@ -51,32 +51,37 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_pa
                         parameters['physics'][key] = item[0]
         
         # stack raw data
-        raw_solutions.append(solution_file['u'])
-        raw_solutions_skeleton.append(solution_file['u_tilde'])
-        raw_gradients.append(solution_file['q'])
+        raw_solutions.append(solution_file['solution']['u'])
+        raw_solutions_skeleton.append(solution_file['solution']['u_tilde'])
+        raw_gradients.append(solution_file['solution']['q'])
 
         #define equilibrium dictionary
         equilibrium = {}
         if parameters['switches']['ohmicsrc'][0]==1:
-            equilibrium['plasma_current'] = solution_file['Jtor'].T
-        equilibrium['magnetic_field'] = solution_file['magnetic_field'].T
-        equilibrium['poloidal_flux'] = solution_file['magnetic_psi'].T   #this might be corrupted or normalized
+            equilibrium['plasma_current'] = solution_file['magnetic']['Jtor'].T
+        equilibrium['magnetic_field'] = solution_file['magnetic']['magnetic_field'].T
+        equilibrium['poloidal_flux'] = solution_file['magnetic']['magnetic_psi'].T   #this might be corrupted or normalized
         raw_equilibriums.append(equilibrium)
 
         #define boundary dictionary
         solution_boundary_data = {}
-        if 'boundary_flags' in solution_file.keys():        
-            solution_boundary_data['boundary_flags'] = solution_file['boundary_flags'].T
-        elif 'boundaryFlag' in solution_file.keys(): 
-            solution_boundary_data['boundary_flags'] = solution_file['boundaryFlag'].T
-        if 'exterior_faces' in solution_file.keys():
-            solution_boundary_data['exterior_faces'] = solution_file['exterior_faces'].T.astype(int) -1
-        elif 'extfaces' in solution_file.keys():
-            solution_boundary_data['exterior_faces'] = solution_file['extfaces'].T.astype(int) -1
-        
+        if 'boundary_flags' in solution_file['mesh'].keys():        
+            solution_boundary_data['boundary_flags'] = solution_file['mesh']['boundary_flags'].T
+        elif 'boundaryFlag' in solution_file['mesh'].keys(): 
+            solution_boundary_data['boundary_flags'] = solution_file['mesh']['boundaryFlag'].T
+        if 'exterior_faces' in solution_file['mesh'].keys():
+            solution_boundary_data['exterior_faces'] = solution_file['mesh']['exterior_faces'].T.astype(int) -1
+        elif 'extfaces' in solution_file['mesh'].keys():
+            solution_boundary_data['exterior_faces'] = solution_file['mesh']['extfaces'].T.astype(int) -1
         raw_solution_boundary_infos.append(solution_boundary_data)
 
-
+    if (meshpath is None) and (meshname_base is None):
+        meshpath = solpath
+        meshname_base = solname_base
+    else:
+        if (meshpath is None) or (meshname_base is None):
+            raise ValueError('If meshpath or meshname_base is given, both must be given')
+    
     mesh = load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions)
     
     sol = HDGsolution(raw_solutions, raw_solutions_skeleton, raw_gradients,
@@ -115,6 +120,8 @@ def load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions):
 
     #reading mesh file
         mesh_file = h5todict(meshfile_name)
+        if 'mesh' in mesh_file.keys():
+            mesh_file = mesh_file['mesh']
         if n_partition == 1:
             mesh_parameters['Ndim'] = int(mesh_file['Ndim'][0])
             mesh_parameters['nodes_per_element'] = int(mesh_file['Nnodesperelem'][0])

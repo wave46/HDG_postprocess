@@ -43,6 +43,7 @@ class HDGsolution:
         self._solution_simple = None
         self._gradient_simple = None
         self._magnetic_field_simple= None
+        self._jtor_simple = None
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
@@ -67,6 +68,7 @@ class HDGsolution:
         self._recombination_rate_simple = None        
         self._cx_rate_simple = None
         self._dnn_simple = None
+        self._dnn_with_nn_collision_simple = None
         self._mfp_simple = None
 
         #plasma parameters
@@ -262,6 +264,11 @@ class HDGsolution:
     def magnetic_field_simple(self):
         """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
         return self._magnetic_field_simple
+    
+    @property
+    def jtor_simple(self):
+        """plasma current recombined united on a single mesh (means not taking into account repeating points) [Nvertices]"""
+        return self._jtor_simple
 
     @property
     def poloidal_flux_simple(self):
@@ -487,6 +494,16 @@ class HDGsolution:
         return self._dnn_simple
 
     @property
+    def dnn_simple_with_nn_collision(self):
+        """Neutral diffusion with neutral-neutral diffusions on a global solution mesh"""
+        return self._dnn_simple_with_nn_collision
+    
+    @property
+    def dnn_simple_with_nn_collision_simple(self):
+        """Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"""
+        return self._dnn_simple_with_nn_collision_simple
+
+    @property
     def dk_simple(self):
         """Turbulent diffusion on a simple solution mesh"""
         return self._dk_simple
@@ -647,6 +664,9 @@ class HDGsolution:
 
         self._magnetic_field_simple = np.zeros([self.mesh.vertices_glob.shape[0],3])
         self._magnetic_field_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.magnetic_field_glob.reshape(self.magnetic_field_glob.shape[0]*self.magnetic_field_glob.shape[1],3)
+
+        self._jtor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+        self._jtor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.jtor_glob.reshape(self.jtor_glob.shape[0]*self.jtor_glob.shape[1])
 
         self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
         self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
@@ -1085,7 +1105,6 @@ class HDGsolution:
                     #grad(n_n) = n0/L0*grad(U5)
                     grad_phys[:,i,:] = calculate_grad_nn_cons(data_loc,self.parameters['adimensionalization']['density_scale'],
                                                              self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                    grad_phys[:,i,:] *= self.parameters['adimensionalization']['density_scale']
                 elif (phys_variable == b'k'):
                     #grad(k) = u0**2/L0*grad(U6)
                     grad_phys[:,i,:] = calculate_grad_k_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2,
@@ -1098,7 +1117,7 @@ class HDGsolution:
             elif len(data.shape) == 3:
                 self._gradient_simple_phys = grad_phys
                                                     
-    def plot_overview_physical(self,n_levels=100, limits=None):
+    def plot_overview_physical(self,n_levels=100, limits=None,ticks=None):
             """
             Plot n, n_n, Ti, Te, M,k,....
             As a physical overview legacy
@@ -1140,6 +1159,10 @@ class HDGsolution:
                     limit = None
                 else:
                     limit = limits[i]
+                if ticks == None:
+                    tick = None
+                else:
+                    tick = ticks[i]
                 if ((i!=4)and(i!=5)) :
                     data = solutions_plot[:,i].copy()
                     if (i == 0) or (i == 1):
@@ -1147,7 +1170,7 @@ class HDGsolution:
                     else:
                         data[data<0] = 1e-3
                     axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
-                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit)
+                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit,ticks=tick)
                 else:
                     data = solutions_plot[:,i].copy()
                     data[np.where(np.isnan(data))] = 0
@@ -1368,7 +1391,7 @@ class HDGsolution:
         defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u','cs',
                              'p_dyn','pi','dpi_dx','dpi_dy','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond','dk', 'btor', 'dbtor_dx', 'dbtor_dy','k']
+                             'q_e_par_conv','q_e_par_cond','dk', 'btor', 'dbtor_dx', 'dbtor_dy','k','psi']
         for variable in variable_list:
             if variable not in defined_variables:
                 raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
@@ -1456,6 +1479,9 @@ class HDGsolution:
             elif variable == 'k':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.k(r,z)
+            elif variable == 'psi':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.psi(r,z)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
             result[variable] = temp
@@ -1552,7 +1578,9 @@ class HDGsolution:
         """
 
         if 'ohmic_coeff' not in  self.parameters['physics'].keys():
-            raise KeyError('Please, provide ohmic heating adimensionalized coefficient')
+            raise KeyError('Please, provide ohmic heating adimensionalized coefficient to self.parameters["physics"]')
+        if 'Zeff' not in  self.parameters['physics'].keys():
+            raise KeyError('Please, effective charge to self.parameters["physics"]')
         
         if which=="simple":
             self.calculate_ohmic_source(which="full")
@@ -1568,7 +1596,8 @@ class HDGsolution:
                                                             self.parameters['adimensionalization']['density_scale'],
                                                             self.parameters['adimensionalization']['length_scale'],
                                                             self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'])
+                                                            self.parameters['physics']['ohmic_coeff'],
+                                                            self.parameters['physics']['Zeff'])
         elif which == 'gauss':
             if not self._combined_to_full:
                 self.recombine_full_solution()
@@ -1581,7 +1610,8 @@ class HDGsolution:
                                                             self.parameters['adimensionalization']['density_scale'],
                                                             self.parameters['adimensionalization']['length_scale'],
                                                             self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'])
+                                                            self.parameters['physics']['ohmic_coeff'],
+                                                            self.parameters['physics']['Zeff'])
             
             
 
@@ -1711,6 +1741,43 @@ class HDGsolution:
             if not self._combined_to_full:
                 self.recombine_full_solution()
             self._dnn = calculate_dnn_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
+                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['length_scale'],
+                                                                self.parameters['adimensionalization']['time_scale'])
+
+    def calculate_dnn_with_nn_collision(self,which="simple"):
+        """
+            calculate neutral diffusion with neutral-neutral collisions
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+        """    
+
+        if which=="simple":
+            if self.atomic_parameters is None:
+                raise ValueError("Please, provide atomic settings for the simulation")
+            if self.dnn_parameters is None:
+                raise ValueError("Please, provide neutral diffusion settings for the simulation")
+            if "iz" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if "cx" not in self.atomic_parameters.keys():
+                raise ValueError("Please, provide ionization atomic settings for the simulation")
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_dnn_with_nn_collision(which="full")
+
+            self._dnn_with_nn_collision_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._dnn_with_nn_collision_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn_with_nn_collision.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
                                                                 self._e,self.parameters['adimensionalization']['mass_scale'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
@@ -1930,6 +1997,9 @@ class HDGsolution:
 
         # q_cylindrical
         self._qcyl_interpolator = SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.qcyl_glob)
+
+        # psi
+        self._psi_interpolator = SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.poloidal_flux_glob)
 
     def n(self,r,z):
         """
@@ -2573,6 +2643,19 @@ class HDGsolution:
                         self.parameters['adimensionalization']['charge_scale'],
                         self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
                         50,self._cons_idx)
+    
+    def psi(self,r,z):
+        """
+        returns value of poloidal flux in given point (r,z)
+        """
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        #only fill needed field
+        psi = self._psi_interpolator(r,z)
+        
+        return psi
 
         
     
