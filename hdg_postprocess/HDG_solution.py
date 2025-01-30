@@ -43,6 +43,7 @@ class HDGsolution:
         self._solution_simple = None
         self._gradient_simple = None
         self._magnetic_field_simple= None
+        self._jtor_simple = None
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
@@ -263,6 +264,11 @@ class HDGsolution:
     def magnetic_field_simple(self):
         """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
         return self._magnetic_field_simple
+    
+    @property
+    def jtor_simple(self):
+        """plasma current recombined united on a single mesh (means not taking into account repeating points) [Nvertices]"""
+        return self._jtor_simple
 
     @property
     def poloidal_flux_simple(self):
@@ -658,6 +664,9 @@ class HDGsolution:
 
         self._magnetic_field_simple = np.zeros([self.mesh.vertices_glob.shape[0],3])
         self._magnetic_field_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.magnetic_field_glob.reshape(self.magnetic_field_glob.shape[0]*self.magnetic_field_glob.shape[1],3)
+
+        self._jtor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+        self._jtor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.jtor_glob.reshape(self.jtor_glob.shape[0]*self.jtor_glob.shape[1])
 
         self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
         self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
