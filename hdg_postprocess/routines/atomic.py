@@ -8,6 +8,9 @@ def compute_iz_rate_NRL(te,te_min):
     E0 = te/Ery
     return 1e-11*np.sqrt(E0)/(Ery**1.5)/(6+E0)*np.exp(-1/E0)
 
+def compute_cx_rate_legacy(te):
+    return 2.5e-15/np.exp(-0.5)*np.exp(-1/2/te)
+
 def compute_rec_rate_NRL(te,te_min):
     Ery = 13.6
     E0 = np.minimum(Ery/te,Ery/0.1)
@@ -224,10 +227,13 @@ def calculate_cx_rate(te,parameters):
     calculates cx rate for given te,ne
     """
     database = parameters['database']
-    alpha = parameters['alpha']
-    te_min = parameters['te_min']
+    
     if database == "OpenADAS expanded":
+        alpha = parameters['alpha']
+        te_min = parameters['te_min']
         return eirene_fit_1D(te,alpha,te_min)
+    elif database == "Legacy":
+        return compute_cx_rate_legacy(te)
 
 def calculate_cx_rate_cons(solutions,parameters,T0,Mref,tol=1e-20):
     """
