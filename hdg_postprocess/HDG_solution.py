@@ -1110,7 +1110,7 @@ class HDGsolution:
 
 
 
-            colorbar_labels = [r'n, m$^{-3}$',r'$n_n$, m$^{-3}$',r'$T_i$',r'$T_e$',r'M', r'k']
+            colorbar_labels = [r'n [m$^{-3}$]',r'$n_n$ [m$^{-3}$]',r'$T_i [eV]$',r'$T_e [eV] $',r'M', r'$D_k$ [m$^2$/s]']
             solutions_plot = np.zeros_like(self.solution_simple)
             solutions_plot[:,0] = self.solution_simple_phys[:,0] #ne
             solutions_plot[:,1] = self.solution_simple_phys[:,-1] #n_n
@@ -1365,10 +1365,10 @@ class HDGsolution:
         calculates plasma parameters noted in variables list on a given line
         returns a dictionary with variables as keys and values along lines for them
         """
-        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u',
-                             'p_dyn','q_i_par','q_e_par','gamma',
+        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u','cs',
+                             'p_dyn','pi','dpi_dx','dpi_dy','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond','dk']
+                             'q_e_par_conv','q_e_par_cond','dk', 'btor', 'dbtor_dx', 'dbtor_dy','k']
         for variable in variable_list:
             if variable not in defined_variables:
                 raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
@@ -1399,6 +1399,15 @@ class HDGsolution:
             elif variable == 'p_dyn':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.p_dyn(r,z)
+            elif variable == 'pi':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.pi(r,z)
+            elif variable == 'dpi_dx':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.grad_pi(r,z,'x')
+            elif variable == 'dpi_dy':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.grad_pi(r,z,'y')
             elif variable == 'q_i_par':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.ion_heat_flux_par(r,z)
@@ -1423,6 +1432,9 @@ class HDGsolution:
             elif variable == 'u':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.u(r,z)
+            elif variable == 'cs':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.cs(r,z)
             elif variable == 'dk':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.dk(r,z)
@@ -1432,6 +1444,18 @@ class HDGsolution:
             elif variable == 'iz_rate':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.iz_rate(r,z)
+            elif variable == 'btor':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.B(r,z,'theta')
+            elif variable == 'dbtor_dx':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.grad_B(r,z,'theta','x')
+            elif variable == 'dbtor_dy':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.grad_B(r,z,'theta','y')
+            elif variable == 'k':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.k(r,z)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
             result[variable] = temp
@@ -1442,10 +1466,11 @@ class HDGsolution:
     def save_summary_line(self,save_folder,r_line,z_line,variable_list):
 
 
-        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u',
-                             'p_dyn','q_i_par','q_e_par','gamma',
+        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u','cs',
+                             'p_dyn','pi','dpi_dx','dpi_dy','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond']
+                             'q_e_par_conv','q_e_par_cond', 'btor', 'dbtor_dx', 'dbtor_dy',
+                             'k', 'dk']
         for variable in variable_list:
             if variable not in defined_variables:
                 raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
@@ -1457,9 +1482,9 @@ class HDGsolution:
         
         for variable,values in values_on_line.items():
             if variable == 'n':
-                np.save(f'{save_folder}density.npy',values)
+                np.save(f'{save_folder}n.npy',values)
             elif variable == 'nn':
-                np.save(f'{save_folder}neitral_density.npy',values)
+                np.save(f'{save_folder}nn.npy',values)
             elif variable == 'te':
                 np.save(f'{save_folder}te.npy',values)
             elif variable == 'ti':
@@ -1472,6 +1497,8 @@ class HDGsolution:
                 np.save(f'{save_folder}mfp.npy',values)
             elif variable == 'u':
                 np.save(f'{save_folder}u.npy',values)
+            elif variable == 'cs':
+                np.save(f'{save_folder}cs.npy',values)
             elif variable == 'p_dyn':
                 np.save(f'{save_folder}p_dyn.npy',values)
             elif variable == 'q_i_par':
@@ -1494,6 +1521,22 @@ class HDGsolution:
                 np.save(f'{save_folder}cx_rate.npy',values)
             elif variable == 'iz_rate':
                 np.save(f'{save_folder}iz_rate.npy',values)
+            elif variable == 'pi':
+                np.save(f'{save_folder}pi.npy',values)
+            elif variable == 'dpi_dx':
+                np.save(f'{save_folder}dpi_dx.npy',values)
+            elif variable == 'dpi_dy':
+                np.save(f'{save_folder}dpi_dy.npy',values)
+            elif variable == 'btor':
+                np.save(f'{save_folder}btor.npy',values)
+            elif variable == 'dbtor_dx':
+                np.save(f'{save_folder}dbtor_dx.npy',values)
+            elif variable == 'dbtor_dy':
+                np.save(f'{save_folder}dbtor_dy.npy',values)
+            elif variable == 'k':
+                np.save(f'{save_folder}k.npy',values)
+            elif variable == 'dk':
+                np.save(f'{save_folder}dk.npy',values)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables')
 
@@ -2117,7 +2160,21 @@ class HDGsolution:
                                                                 self.parameters['physics']['Mref'],
                                                                 self.parameters['adimensionalization']['length_scale'],
                                                                 self.parameters['adimensionalization']['time_scale'])
+    def k(self,r,z):
+        """
+        returns value of turbulent energy in given point (r,z)
+        """
+        if b'rho' not in self.parameters['physics']['physical_variable_names']:
+            raise KeyError('density is not in the models')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        #only fill needed field
+        solution = np.zeros([1,self.neq])
+        solution[:,self._cons_idx[b'k']] = self._solution_interpolators[self._cons_idx[b'k']](r,z)
 
+        return calculate_k_cons(solution,self.parameters['adimensionalization']['k_scale'],self._cons_idx)
     def dk(self,r,z):
         """
         returns value of turbulent diffusion in given point (r,z)
@@ -2144,7 +2201,7 @@ class HDGsolution:
         Bt = self._field_interpolators[2](r,z)
         q_cyl = calculate_q_cyl(r,Br,Bz,Bt,a)
 
-        return calculate_dk_cons(solution,self.dk_parameters, q_cyl,r,
+        return calculate_dk_cons(solution,self.dk_parameters, q_cyl,r/self.parameters['adimensionalization']['length_scale'],
                                                                 self.parameters['adimensionalization']['length_scale']**2/
                                                                 self.parameters['adimensionalization']['time_scale'],self.cons_idx)
     
@@ -2196,7 +2253,23 @@ class HDGsolution:
                                           self.parameters['adimensionalization']['mass_scale']* \
                                           self.parameters['adimensionalization']['density_scale'],
                                           self.cons_idx)
+    def pi(self,r,z):
+        """
+        returns value of ion pressure kbTi in given point (r,z)
+        """
 
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] ==0:
+            return 0
+        p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
+                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+        return calculate_pi_cons(solution, p0,self.cons_idx)
+    
     def grad_ti(self,r,z,coordinate):
         """
         returns value of derivative of ion temperature over chosen direction in given point (r,z)
@@ -2223,6 +2296,33 @@ class HDGsolution:
 
         return calculate_grad_Ti_cons(solution,gradient,self.parameters['adimensionalization']['temperature_scale'],
                                       self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)[0][idx]
+
+    def grad_pi(self,r,z,coordinate):
+        """
+        returns value of derivative of ion pressure over chosen direction in given point (r,z)
+        """
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        #gradTi = 2/3/Mref*(Q1*(U2**2/U1**3-U3/U1**2)+Q2*(-U2/U1**2)+Q3*(1/U1))
+        if coordinate == 'x':
+            idx = 0
+        elif coordinate == 'y':
+            idx = 1
+        else:
+            raise ValueError(f'{coordinate} is not a coordinate of the problem')
+        solution = np.zeros([1,self.neq])
+        gradient = np.zeros([1,self.neq,2])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+            for k in range(2):
+                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
+        if solution[0,0] ==0:
+            return 0
+        p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
+                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
+        return calculate_grad_pi_cons(solution,gradient,p0,self.parameters['adimensionalization']['length_scale'],self._cons_idx)[0][idx]
 
     def grad_ti_par(self,r,z):
         """
@@ -2477,5 +2577,40 @@ class HDGsolution:
         
     
         
-
+    def B(self,r,z,component):
+        """
+        returns value of one of the components of the magnetic field vector in given point (r,z)
+        """
+        if component == 'R':
+            idx = 0
+        elif component == 'Z':
+            idx = 1
+        elif component == 'theta':
+            idx = 2
+        else:
+            raise ValueError(f'{component} is not a component of the problem')
+        return self._field_interpolators[idx](r,z)
     
+    def grad_B(self,r,z,component,coordinate):
+        """
+        returns value of gradient in along given coordinate of
+        one of the components of the magnetic field vector in given point (r,z)
+        """
+
+        if component == 'R':
+            idx = 0
+        elif component == 'Z':
+            idx = 1
+        elif component == 'theta':
+            idx = 2
+        else:
+            raise ValueError(f'{component} is not a component of the problem')
+
+        if coordinate == 'x':
+            idx_grad = 0
+        elif coordinate == 'y':
+            idx_grad = 1
+        else:
+            raise ValueError(f'{coordinate} is not a coordinate of the problem')
+
+        return self._field_interpolators[idx].gradient(r,z)[idx_grad]
