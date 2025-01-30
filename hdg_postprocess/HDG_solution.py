@@ -1117,7 +1117,7 @@ class HDGsolution:
             elif len(data.shape) == 3:
                 self._gradient_simple_phys = grad_phys
                                                     
-    def plot_overview_physical(self,n_levels=100, limits=None):
+    def plot_overview_physical(self,n_levels=100, limits=None,ticks=None):
             """
             Plot n, n_n, Ti, Te, M,k,....
             As a physical overview legacy
@@ -1159,14 +1159,18 @@ class HDGsolution:
                     limit = None
                 else:
                     limit = limits[i]
+                if ticks == None:
+                    tick = None
+                else:
+                    tick = ticks[i]
                 if ((i!=4)and(i!=5)) :
                     data = solutions_plot[:,i].copy()
                     if (i == 0) or (i == 1):
-                        data[data<0] = 1e8
+                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit,ticks=tick)
                     else:
                         data[data<0] = 1e-3
                     axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
-                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit)
+                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit,ticks=tick)
                 else:
                     data = solutions_plot[:,i].copy()
                     data[np.where(np.isnan(data))] = 0
