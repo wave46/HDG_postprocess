@@ -576,8 +576,8 @@ def calculate_dk_cons(solutions,dk_params,q_cyl,R,D0,cons_idx):
         q_res = q_cyl.flatten()
     else:
         sol = solutions.copy()
-        R_res = R.copy()
-        q_res = q_cyl.copy()
+        R_res = R
+        q_res = q_cyl
 
     cs = calculate_cs_cons(sol,1,cons_idx)
     k = calculate_k_cons(sol,1,cons_idx)
@@ -597,8 +597,8 @@ def calculate_q_cyl(R,Br,Bz,Bt,a):
     """
 
     q_cyl = np.abs(Bt)*a/np.sqrt(Br**2+Bz**2)/R
-    q_cyl[q_cyl<1] = 1
-    q_cyl[q_cyl>1e4] = 1e4
+    q_cyl = np.minimum(1e4,np.maximum(1,q_cyl))
+
     
     return q_cyl
 
