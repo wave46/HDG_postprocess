@@ -1391,7 +1391,7 @@ class HDGsolution:
         defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u',
                              'p_dyn','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond','dk']
+                             'q_e_par_conv','q_e_par_cond','dk','psi']
         for variable in variable_list:
             if variable not in defined_variables:
                 raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
@@ -1455,6 +1455,9 @@ class HDGsolution:
             elif variable == 'iz_rate':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.iz_rate(r,z)
+            elif variable == 'psi':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.psi(r,z)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
             result[variable] = temp
@@ -1951,6 +1954,9 @@ class HDGsolution:
 
         # q_cylindrical
         self._qcyl_interpolator = SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.qcyl_glob)
+
+        # psi
+        self._psi_interpolator = SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.poloidal_flux_glob)
 
     def n(self,r,z):
         """
@@ -2537,6 +2543,19 @@ class HDGsolution:
                         self.parameters['adimensionalization']['charge_scale'],
                         self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
                         50,self._cons_idx)
+    
+    def psi(self,r,z):
+        """
+        returns value of poloidal flux in given point (r,z)
+        """
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        #only fill needed field
+        psi = self._psi_interpolator(r,z)
+        
+        return psi
 
         
     
