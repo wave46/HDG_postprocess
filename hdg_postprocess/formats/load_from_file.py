@@ -43,8 +43,12 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath,meshname_base,n_pa
                 if len(item)==1:
                     parameters['adimensionalization'][key] = item[0]
             for key,item in parameters['physics'].items():
-                if len(item)==1:
-                    parameters['physics'][key] = item[0]
+                if key == "atomic":
+
+                    parameters['physics'][key] = item
+                else:
+                    if len(item)==1:
+                        parameters['physics'][key] = item[0]
         
         # stack raw data
         raw_solutions.append(solution_file['u'])
