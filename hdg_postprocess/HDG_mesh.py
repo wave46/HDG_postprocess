@@ -404,6 +404,7 @@ class HDGmesh:
                 if ticks is not None:
 
                     cbar.set_ticks(ticks)
+                if tick_labels is not None:
                     cbar.set_ticklabels(tick_labels)
                
         ax.set_aspect(1)
