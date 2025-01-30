@@ -26,6 +26,11 @@ class SoledgeHDG2DInterpolator():
         self._hashed_shape_functions = {}
         self._hashed_element = {}
 
+        #for gradients
+        self._hashed_shape_functions_dx = {}
+        self._hashed_shape_functions_dy = {}
+
+
 
     def evaluate(self,x,y):
         result = 0
@@ -54,11 +59,32 @@ class SoledgeHDG2DInterpolator():
                 xieta = xieta_element_precise(x, y, element_vertices,self._p_order,self._inv_vandermonde,self._element_type)
                 #calculating shape functions
                 if self._element_type == 'triangle':
-                    shape_functions = orthopoly2D(xieta[0], xieta[1], self._p_order) @ self._inv_vandermonde
+                    p, pdx, pdy= orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order) 
+                    shape_functions =  p@ self._inv_vandermonde
+                    Nx = pdx@ self._inv_vandermonde 
+                    Ny = pdy @ self._inv_vandermonde
                 elif self._element_type == 'quadrilateral':
                     shape_functions = shapefunctions_quads(xieta[0], xieta[1], self._p_order,self._inv_vandermonde)
                     shape_functions = shape_functions[:,0]
+                    Nx = shape_functions[:,1]
+                    Ny = shape_functions[:,2]
+                invJ = np.zeros([2,2])
+                J = np.zeros([2,2])
+                J[0,0] = Nx@element_vertices[:,0]
+                J[1,0] = Ny@element_vertices[:,0]
+                J[0,1] = Nx@element_vertices[:,1]
+                J[1,1] = Ny@element_vertices[:,1]
+                # inverse matrix
+                detJ = J[0,0]*J[1,1]-J[0,1]*J[1,0]
+                invJ[0,0] = J[1,1]/detJ
+                invJ[0,1] = -1*J[1,0]/detJ
+                invJ[1,0] = -1*J[0,1]/detJ
+                invJ[1,1] = J[0,0]/detJ
+                shape_functions_dx = invJ[0,0]*Nx + invJ[1,0]*Ny
+                shape_functions_dy = invJ[0,1]*Nx + invJ[1,1]*Ny
                 self._hashed_shape_functions[(x,y)] =shape_functions
+                self._hashed_shape_functions_dx[(x,y)] =shape_functions_dx
+                self._hashed_shape_functions_dy[(x,y)] =shape_functions_dy
                 #get data in element vertices
                 element_data = self._vertex_data[element_number,:]
 
@@ -66,6 +92,76 @@ class SoledgeHDG2DInterpolator():
                 result = np.dot(shape_functions,element_data)
 
                 return result
+
+    def gradient(self,x,y):
+        """
+        calculates gradient with the gradients of shape functions
+        using its own hash
+        """
+        result = np.array([0.,0.])
+
+        if (x,y) in self._hashed_shape_functions.keys():
+            if self._hashed_element[(x,y)]==-1:
+                return result
+            else: 
+                shape_functions_dx = self._hashed_shape_functions_dx[(x,y)]
+                shape_functions_dy = self._hashed_shape_functions_dy[(x,y)]
+                element_data = self._vertex_data[self._hashed_element[(x,y)],:]
+                result[0] = np.dot(shape_functions_dx,element_data)
+                result[1] = np.dot(shape_functions_dy,element_data)
+            return result
+        else:
+            element_number = int(self._element_number(x,y))
+            self._hashed_element[(x,y)] = element_number
+            if (element_number==-1):
+                self._hashed_shape_functions[(x,y)] = [0]              
+                if self._limit:            
+                    raise ValueError("Requested value outside mesh bounds.")
+                else:
+                    return result
+            else:
+                # get element vertces coordinates
+                element_vertices = self._vertex_coords[self._connectivity[element_number,:]]
+                #transition to element local coordinates
+                xieta = xieta_element_precise(x, y, element_vertices,self._p_order,self._inv_vandermonde,self._element_type)
+                #calculating shape functions
+                if self._element_type == 'triangle':
+                    p, pdx, pdy= orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order) 
+                    shape_functions =  p@ self._inv_vandermonde
+                    Nx = pdx@ self._inv_vandermonde 
+                    Ny = pdy @ self._inv_vandermonde
+                elif self._element_type == 'quadrilateral':
+                    shape_functions = shapefunctions_quads(xieta[0], xieta[1], self._p_order,self._inv_vandermonde)
+                    shape_functions = shape_functions[:,0]
+                    Nx = shape_functions[:,1]
+                    Ny = shape_functions[:,2]
+                invJ = np.zeros([2,2])
+                J = np.zeros([2,2])
+                J[0,0] = Nx@element_vertices[:,0]
+                J[1,0] = Ny@element_vertices[:,0]
+                J[0,1] = Nx@element_vertices[:,1]
+                J[1,1] = Ny@element_vertices[:,1]
+                # inverse matrix
+                detJ = J[0,0]*J[1,1]-J[0,1]*J[1,0]
+                invJ[0,0] = J[1,1]/detJ
+                invJ[0,1] = -1*J[1,0]/detJ
+                invJ[1,0] = -1*J[0,1]/detJ
+                invJ[1,1] = J[0,0]/detJ
+                shape_functions_dx = invJ[0,0]*Nx + invJ[1,0]*Ny
+                shape_functions_dy = invJ[0,1]*Nx + invJ[1,1]*Ny
+                self._hashed_shape_functions[(x,y)] =shape_functions
+                self._hashed_shape_functions_dx[(x,y)] =shape_functions_dx
+                self._hashed_shape_functions_dy[(x,y)] =shape_functions_dy
+                #get data in element vertices
+                element_data = self._vertex_data[element_number,:]
+
+                #getting value in point with shape functiosn
+                result[0] = np.dot(shape_functions_dx,element_data)
+                result[1] = np.dot(shape_functions_dy,element_data)
+
+                return result
+
+
             
     def __getstate__(self):
         return self._vertex_data, self._element_number, self._limit, self._default_value
@@ -95,6 +191,8 @@ class SoledgeHDG2DInterpolator():
         m._element_type = instance._element_type
 
         m._hashed_shape_functions = instance._hashed_shape_functions
+        m._hashed_shape_functions_dx = instance._hashed_shape_functions_dx
+        m._hashed_shape_functions_dy = instance._hashed_shape_functions_dy
         m._hashed_element = instance._hashed_element
 
         # do we have replacement vertex data?
