@@ -1166,7 +1166,7 @@ class HDGsolution:
                 if ((i!=4)and(i!=5)) :
                     data = solutions_plot[:,i].copy()
                     if (i == 0) or (i == 1):
-                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit,ticks=tick)
+                        data[data<0] = 1e8
                     else:
                         data[data<0] = 1e-3
                     axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
