@@ -398,6 +398,16 @@ def calculate_electron_loss_rate_due_to_rec_cons(solutions,rec_parameters,T0,n0,
         res = kb*n0**2*solutions[:,0]**2*sigma_Erec
     return res
 
+def calculate_electron_gain_rate_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
+    """
+    calculates electron gains due to recombination for given conservative solutions
+    """
+    sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
+    if len(solutions.shape)>2:
+        res = 13.6*kb*n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_rec
+    else:
+        res = 13.6*kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_rec
+    return res
 
 def calculate_cx_source(te,ne,nn,cx_parameters):
     """

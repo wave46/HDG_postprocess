@@ -65,6 +65,7 @@ class HDGsolution:
         self._ionization_source_simple = None
         self._electron_loss_iz_simple = None
         self._electron_loss_rec_simple = None
+        self._electron_gain_rec_simple = None
         self._cx_source_simple = None
         self._ionization_rate_simple = None   
         self._recombination_rate_simple = None        
@@ -105,6 +106,7 @@ class HDGsolution:
         self._ionization_source_gauss = None
         self._electron_loss_iz_gauss = None
         self._electron_loss_rec_gauss = None
+        self._electron_gain_rec_gauss = None
         self._cx_source_gauss = None
 
         # defining the indexes of conservative variables
@@ -477,6 +479,21 @@ class HDGsolution:
     def electron_loss_rec_gauss(self):
         """Ionization source on gauss points"""
         return self._electron_loss_rec_gauss
+
+    @property
+    def electron_gain_rec(self):
+        """Ionization source on a simple solution mesh"""
+        return self._electron_gain_rec
+
+    @property
+    def electron_gain_rec_simple(self):
+        """Ionization source on a simple solution mesh"""
+        return self._electron_gain_rec_simple
+
+    @property
+    def electron_gain_rec_gauss(self):
+        """Ionization source on gauss points"""
+        return self._electron_gain_rec_gauss
 
     @property
     def cx_source(self):
@@ -2032,6 +2049,46 @@ class HDGsolution:
                                                                 self.parameters['physics']['Mref'],
                                                                 self.parameters['adimensionalization']['charge_scale'])
                                                                 
+    def calculate_electron_gain_rate_due_to_rec(self,which="simple"):
+        """
+            calculate the electron gain rate due to recombination
+            simple: for simple mesh solution
+            full: on full mesh solution
+            gauss: on gauss points
+        """
+
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "rec" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide recombination atomic settings for the simulation")
+        if which=="simple":
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_electron_gain_rate_due_to_rec(which="full")
+
+            self._electron_gain_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._electron_gain_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_gain_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._electron_gain_rec = calculate_electron_gain_rate_due_to_rec_cons(self.solution_glob,self.atomic_parameters['rec'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['charge_scale'])
+
+        if which == 'gauss':
+            if self.solution_gauss is None:
+                print('Initializing values in gauss points first')
+                self.calculate_in_gauss_points()
+            self._electron_gain_rec_gauss = calculate_electron_gain_rate_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['rec'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['charge_scale'])
 
     def calculate_cx_source(self,which="simple"):
         """
