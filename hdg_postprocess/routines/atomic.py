@@ -387,7 +387,7 @@ def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,k
         res = kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_Eiz
     return res
 
-def calculate_electron_loss_rate_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
+def calculate_electron_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
     """
     calculates electron losses due to recombination for given conservative solutions
     """

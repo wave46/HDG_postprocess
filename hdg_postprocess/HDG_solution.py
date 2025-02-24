@@ -64,7 +64,7 @@ class HDGsolution:
         self._dnn_parameters = None
         self._ionization_source_simple = None
         self._electron_sink_iz_simple = None
-        self._electron_loss_rec_simple = None
+        self._electron_sink_rec_simple = None
         self._electron_gain_rec_simple = None
         self._cx_source_simple = None
         self._ionization_rate_simple = None   
@@ -105,7 +105,7 @@ class HDGsolution:
         self._ohmic_source_gauss = None
         self._ionization_source_gauss = None
         self._electron_sink_iz_gauss = None
-        self._electron_loss_rec_gauss = None
+        self._electron_sink_rec_gauss = None
         self._electron_gain_rec_gauss = None
         self._cx_source_gauss = None
 
@@ -466,19 +466,19 @@ class HDGsolution:
         return self._electron_sink_iz_gauss
 
     @property
-    def electron_loss_rec(self):
+    def electron_sink_rec(self):
         """Ionization source on a simple solution mesh"""
-        return self._electron_loss_rec
+        return self._electron_sink_rec
 
     @property
-    def electron_loss_rec_simple(self):
+    def electron_sink_rec_simple(self):
         """Ionization source on a simple solution mesh"""
-        return self._electron_loss_rec_simple
+        return self._electron_sink_rec_simple
 
     @property
-    def electron_loss_rec_gauss(self):
+    def electron_sink_rec_gauss(self):
         """Ionization source on gauss points"""
-        return self._electron_loss_rec_gauss
+        return self._electron_sink_rec_gauss
 
     @property
     def electron_gain_rec(self):
@@ -2008,7 +2008,7 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['charge_scale'])
 
 
-    def calculate_electron_loss_rate_due_to_rec(self,which="simple"):
+    def calculate_electron_sink_due_to_rec(self,which="simple"):
         """
             calculate the electron loss rate due to recombination
             simple: for simple mesh solution
@@ -2025,15 +2025,15 @@ class HDGsolution:
                 print('Initializing physical solution first')
                 self.init_phys_variables('simple')
             
-            self.calculate_electron_loss_rate_due_to_rec(which="full")
+            self.calculate_electron_sink_due_to_rec(which="full")
 
-            self._electron_loss_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._electron_loss_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_loss_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            self._electron_sink_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._electron_sink_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_sink_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
 
         if which =="full":
             if not self._combined_to_full:
                 self.recombine_full_solution()
-            self._electron_loss_rec = calculate_electron_loss_rate_due_to_rec_cons(self.solution_glob,self.atomic_parameters['Erec'],
+            self._electron_sink_rec = calculate_electron_sink_due_to_rec_cons(self.solution_glob,self.atomic_parameters['Erec'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
@@ -2043,7 +2043,7 @@ class HDGsolution:
             if self.solution_gauss is None:
                 print('Initializing values in gauss points first')
                 self.calculate_in_gauss_points()
-            self._electron_loss_rec_gauss = calculate_electron_loss_rate_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['Erec'],
+            self._electron_sink_rec_gauss = calculate_electron_sink_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['Erec'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
