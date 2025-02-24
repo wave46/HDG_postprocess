@@ -376,7 +376,7 @@ def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref):
         res =n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz
     return res
 
-def calculate_electron_loss_rate_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):
+def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):
     """
     calculates electron losses due to ionization for given conservative solutions
     """

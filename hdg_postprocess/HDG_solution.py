@@ -63,7 +63,7 @@ class HDGsolution:
         self._atomic_parameters = None
         self._dnn_parameters = None
         self._ionization_source_simple = None
-        self._electron_loss_iz_simple = None
+        self._electron_sink_iz_simple = None
         self._electron_loss_rec_simple = None
         self._electron_gain_rec_simple = None
         self._cx_source_simple = None
@@ -104,7 +104,7 @@ class HDGsolution:
         self._jtor_gauss = None
         self._ohmic_source_gauss = None
         self._ionization_source_gauss = None
-        self._electron_loss_iz_gauss = None
+        self._electron_sink_iz_gauss = None
         self._electron_loss_rec_gauss = None
         self._electron_gain_rec_gauss = None
         self._cx_source_gauss = None
@@ -451,19 +451,19 @@ class HDGsolution:
         return self._ionization_source_gauss
 
     @property
-    def electron_loss_iz(self):
-        """Ionization source on a simple solution mesh"""
-        return self._electron_loss_iz
+    def electron_sink_iz(self):
+        """Electron energy sink due to ionization"""
+        return self._electron_sink_iz
         
     @property
-    def electron_loss_iz_simple(self):
-        """Ionization source on a simple solution mesh"""
-        return self._electron_loss_iz_simple
+    def electron_sink_iz_simple(self):
+        """Electron energy sink due to ionization on a simple solution mesh"""
+        return self._electron_sink_iz_simple
 
     @property
-    def electron_loss_iz_gauss(self):
-        """Ionization source on gauss points"""
-        return self._electron_loss_iz_gauss
+    def electron_sink_iz_gauss(self):
+        """Electron energy sink due to ionization on gauss points"""
+        return self._electron_sink_iz_gauss
 
     @property
     def electron_loss_rec(self):
@@ -1965,8 +1965,8 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'])
-
-    def calculate_electron_loss_rate_due_to_iz(self,which="simple"):
+    
+    def calculate_electron_sink_due_to_iz(self,which="simple"):
         """
             calculate the electron loss rate due to ionization
             simple: for simple mesh solution
@@ -1983,15 +1983,15 @@ class HDGsolution:
                 print('Initializing physical solution first')
                 self.init_phys_variables('simple')
             
-            self.calculate_electron_loss_rate_due_to_iz(which="full")
+            self.calculate_electron_sink_due_to_iz(which="full")
 
-            self._electron_loss_iz_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._electron_loss_iz_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_loss_iz.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            self._electron_sink_iz_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._electron_sink_iz_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_sink_iz.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
 
         if which =="full":
             if not self._combined_to_full:
                 self.recombine_full_solution()
-            self._electron_loss_iz = calculate_electron_loss_rate_due_to_iz_cons(self.solution_glob,self.atomic_parameters['Eiz'],
+            self._electron_sink_iz = calculate_electron_sink_due_to_iz_cons(self.solution_glob,self.atomic_parameters['Eiz'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
@@ -2001,7 +2001,7 @@ class HDGsolution:
             if self.solution_gauss is None:
                 print('Initializing values in gauss points first')
                 self.calculate_in_gauss_points()
-            self._electron_loss_iz_gauss = calculate_electron_loss_rate_due_to_iz_cons(self.solution_gauss,self.atomic_parameters['Eiz'],
+            self._electron_sink_iz_gauss = calculate_electron_sink_due_to_iz_cons(self.solution_gauss,self.atomic_parameters['Eiz'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
