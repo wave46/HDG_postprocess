@@ -2049,7 +2049,7 @@ class HDGsolution:
                                                                 self.parameters['physics']['Mref'],
                                                                 self.parameters['adimensionalization']['charge_scale'])
                                                                 
-    def calculate_electron_gain_rate_due_to_rec(self,which="simple"):
+    def calculate_electron_gain_due_to_rec(self,which="simple"):
         """
             calculate the electron gain rate due to recombination
             simple: for simple mesh solution
@@ -2066,7 +2066,7 @@ class HDGsolution:
                 print('Initializing physical solution first')
                 self.init_phys_variables('simple')
             
-            self.calculate_electron_gain_rate_due_to_rec(which="full")
+            self.calculate_electron_gain_due_to_rec(which="full")
 
             self._electron_gain_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
             self._electron_gain_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_gain_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
@@ -2074,7 +2074,7 @@ class HDGsolution:
         if which =="full":
             if not self._combined_to_full:
                 self.recombine_full_solution()
-            self._electron_gain_rec = calculate_electron_gain_rate_due_to_rec_cons(self.solution_glob,self.atomic_parameters['rec'],
+            self._electron_gain_rec = calculate_electron_gain_due_to_rec_cons(self.solution_glob,self.atomic_parameters['rec'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
@@ -2084,7 +2084,7 @@ class HDGsolution:
             if self.solution_gauss is None:
                 print('Initializing values in gauss points first')
                 self.calculate_in_gauss_points()
-            self._electron_gain_rec_gauss = calculate_electron_gain_rate_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['rec'],
+            self._electron_gain_rec_gauss = calculate_electron_gain_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['rec'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],

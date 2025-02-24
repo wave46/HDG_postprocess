@@ -398,7 +398,7 @@ def calculate_electron_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,
         res = kb*n0**2*solutions[:,0]**2*sigma_Erec
     return res
 
-def calculate_electron_gain_rate_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
+def calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
     """
     calculates electron gains due to recombination for given conservative solutions
     """
