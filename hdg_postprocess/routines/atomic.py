@@ -391,11 +391,11 @@ def calculate_electron_loss_rate_due_to_rec_cons(solutions,rec_parameters,T0,n0,
     """
     calculates electron losses due to recombination for given conservative solutions
     """
-    sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
+    sigma_Erec = calculate_Erec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
     if len(solutions.shape)>2:
-        res = kb*n0**2*solutions[:,:,0]**2*sigma_rec
+        res = kb*n0**2*solutions[:,:,0]**2*sigma_Erec
     else:
-        res = kb*n0**2*solutions[:,0]**2*sigma_rec
+        res = kb*n0**2*solutions[:,0]**2*sigma_Erec
     return res
 
 
