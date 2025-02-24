@@ -292,6 +292,68 @@ def calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref,tol=1e-20):
         res = res.reshape(dimensions[0],dimensions[1])
     return res
 
+def calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref,tol=1e-20):
+    """
+    calculates Eiz rate for given te,ne
+    """
+    database = Eiz_parameters['database']
+    alpha = Eiz_parameters['alpha']
+    te_min = Eiz_parameters['te_min']
+    te_max = Eiz_parameters['te_max']
+    ne_min = Eiz_parameters['ne_min']
+    ne_max = Eiz_parameters['ne_max']
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape     
+        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    if database == "AMJUEL 2.1.5JH":
+        te = np.zeros_like(solutions[:,0])
+        ne = np.zeros_like(solutions[:,0])
+        #good U1 and U4
+        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
+
+        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
+        ne[good_idx] = n0*solutions[good_idx,0]
+        te[~good_idx] = 1e-10
+        ne[~good_idx] = n0*1e-20
+        res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
+    elif database == "NRL":
+        raise ValueError('NRL database not implemented for Eiz')
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
+def calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref,tol=1e-20):
+    """
+    calculates Erec rate for given te,ne
+    """
+    database = Erec_parameters['database']
+    alpha = Erec_parameters['alpha']
+    te_min = Erec_parameters['te_min']
+    te_max = Erec_parameters['te_max']
+    ne_min = Erec_parameters['ne_min']
+    ne_max = Erec_parameters['ne_max']
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape     
+        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    if (database == "AMJUEL 2.1.8JH") or (database == "AMJUEL 2.1.8a"):
+        te = np.zeros_like(solutions[:,0])
+        ne = np.zeros_like(solutions[:,0])
+        #good U1 and U4
+        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
+
+        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
+        ne[good_idx] = n0*solutions[good_idx,0]
+        te[~good_idx] = 1e-10
+        ne[~good_idx] = n0*1e-20
+        res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
+    elif database == "NRL":
+        raise ValueError('NRL database not implemented for Erec')
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
 def calculate_iz_source(te,ne,nn,iz_parameters):
     """
     calculates ionization source for given plasma density, electron temperature and neutral density
@@ -313,6 +375,29 @@ def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref):
     else:
         res =n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz
     return res
+
+def calculate_electron_loss_rate_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):
+    """
+    calculates electron losses due to ionization for given conservative solutions
+    """
+    sigma_Eiz = calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref)
+    if len(solutions.shape)>2:
+        res = kb*n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_Eiz
+    else:
+        res = kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_Eiz
+    return res
+
+def calculate_electron_loss_rate_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
+    """
+    calculates electron losses due to recombination for given conservative solutions
+    """
+    sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
+    if len(solutions.shape)>2:
+        res = kb*n0**2*solutions[:,:,0]**2*sigma_rec
+    else:
+        res = kb*n0**2*solutions[:,0]**2*sigma_rec
+    return res
+
 
 def calculate_cx_source(te,ne,nn,cx_parameters):
     """
