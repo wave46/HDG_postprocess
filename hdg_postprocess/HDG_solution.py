@@ -65,6 +65,7 @@ class HDGsolution:
         self._ionization_source_simple = None
         self._ion_gain_iz_simple = None
         self._ion_sink_rec_simple = None
+        self._ion_sink_cx_simple = None
         self._electron_sink_iz_simple = None
         self._electron_sink_rec_simple = None
         self._electron_gain_rec_simple = None
@@ -108,6 +109,7 @@ class HDGsolution:
         self._ionization_source_gauss = None
         self._ion_gain_iz_gauss = None
         self._ion_sink_rec_gauss = None
+        self._ion_sink_cx_gauss = None
         self._electron_sink_iz_gauss = None
         self._electron_sink_rec_gauss = None
         self._electron_gain_rec_gauss = None
@@ -483,6 +485,21 @@ class HDGsolution:
     def ion_sink_rec_gauss(self):
         """Ion energy sink due to recombination on gauss points"""
         return self._ion_sink_rec_gauss
+    
+    @property
+    def ion_sink_cx(self):
+        """Ion energy sink due to charge exchange"""
+        return self._ion_sink_cx
+    
+    @property
+    def ion_sink_cx_simple(self):
+        """Ion energy sink due to charge exchange on a simple solution mesh"""
+        return self._ion_sink_cx_simple
+    
+    @property
+    def ion_sink_cx_gauss(self):
+        """Ion energy sink due to charge exchange on gauss points"""
+        return self._ion_sink_cx_gauss
 
     @property
     def electron_sink_iz(self):
@@ -2086,7 +2103,52 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
                                                                 self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'])
+    def calculate_ion_sink_due_to_cx(self,which="simple"):
+        """
+            calculate the ion loss rate due to charge exchange
+            simple: for simple mesh solution
+            full: on full mesh solution
+            gauss: on gauss points
+        """
 
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "cx" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide atomic settings for ion losses due to charge exchange for the simulation")
+        if which=="simple":
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_ion_sink_due_to_cx(which="full")
+
+            self._ion_sink_cx_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._ion_sink_cx_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ion_sink_cx.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._ion_sink_cx = calculate_ion_sink_due_to_cx_cons(self.solution_glob,self.atomic_parameters['cx'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['speed_scale'],
+                                                                self.parameters['adimensionalization']['mass_scale'],
+                                                                self._cons_idx)
+
+        if which == 'gauss':
+            if self.solution_gauss is None:
+                print('Initializing values in gauss points first')
+                self.calculate_in_gauss_points()
+            self._ion_sink_cx_gauss = calculate_ion_sink_due_to_cx_cons(self.solution_gauss,self.atomic_parameters['cx'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['speed_scale'],
+                                                                self.parameters['adimensionalization']['mass_scale'],
+                                                                self._cons_idx)
+            
+        
     def calculate_electron_sink_due_to_iz(self,which="simple"):
         """
             calculate the electron loss rate due to ionization

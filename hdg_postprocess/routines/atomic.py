@@ -1,5 +1,5 @@
 import numpy as np
-from .plasma import calculate_Ti_cons, calculate_Ei_cons
+from .plasma import calculate_Ti_cons, calculate_u_cons
 from .tools import softplus,double_softplus
 
 def compute_iz_rate_NRL(te,te_min):
@@ -398,6 +398,18 @@ def calculate_ion_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,E0):
         res = E0*n0**2*solutions[:,:,0]*solutions[:,:,2]*sigma_rec
     else:
         res = E0*n0**2*solutions[:,0]*solutions[:,:,2]*sigma_rec
+    return res
+
+def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,cons_idx):
+    """
+    calculates ion losses due to charge exchange for given conservative solutions
+    """
+    sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
+    u = calculate_u_cons(solutions,u0,cons_idx)
+    if len(solutions.shape)>2:
+        res = 0.5*mi*n0**2*solutions[:,:,0]*solutions[:,:,-1]*u**2*sigma_cx
+    else:
+        res = 0.5*mi*n0**2*solutions[:,:,0]*solutions[:,:,-1]*u**2*sigma_cx
     return res
 
 def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):
