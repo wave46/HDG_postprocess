@@ -1,5 +1,5 @@
 import numpy as np
-from .plasma import calculate_Ti_cons
+from .plasma import calculate_Ti_cons, calculate_Ei_cons
 from .tools import softplus,double_softplus
 
 def compute_iz_rate_NRL(te,te_min):
@@ -387,6 +387,17 @@ def calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,
         res = 1.5*kb*n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_iz*R_E*ti
     else:
         res = 1.5*kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz*R_E*ti
+    return res
+
+def calculate_ion_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,E0):
+    """
+    calculates ion losses due to recombination for given conservative solutions
+    """
+    sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
+    if len(solutions.shape)>2:
+        res = E0*n0**2*solutions[:,:,0]*solutions[:,:,2]*sigma_rec
+    else:
+        res = E0*n0**2*solutions[:,0]*solutions[:,:,2]*sigma_rec
     return res
 
 def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):

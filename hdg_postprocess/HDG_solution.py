@@ -64,6 +64,7 @@ class HDGsolution:
         self._dnn_parameters = None
         self._ionization_source_simple = None
         self._ion_gain_iz_simple = None
+        self._ion_sink_rec_simple = None
         self._electron_sink_iz_simple = None
         self._electron_sink_rec_simple = None
         self._electron_gain_rec_simple = None
@@ -106,6 +107,7 @@ class HDGsolution:
         self._ohmic_source_gauss = None
         self._ionization_source_gauss = None
         self._ion_gain_iz_gauss = None
+        self._ion_sink_rec_gauss = None
         self._electron_sink_iz_gauss = None
         self._electron_sink_rec_gauss = None
         self._electron_gain_rec_gauss = None
@@ -466,6 +468,21 @@ class HDGsolution:
     def ion_gain_iz_gauss(self):
         """Ion energy sink due to ionization on gauss points"""
         return self._ion_gain_iz_gauss
+    
+    @property
+    def ion_sink_rec(self):
+        """Ion energy sink due to recombination"""
+        return self._ion_sink_rec
+    
+    @property
+    def ion_sink_rec_simple(self):
+        """Ion energy sink due to recombination on a simple solution mesh"""
+        return self._ion_sink_rec_simple
+    
+    @property
+    def ion_sink_rec_gauss(self):
+        """Ion energy sink due to recombination on gauss points"""
+        return self._ion_sink_rec_gauss
 
     @property
     def electron_sink_iz(self):
@@ -2029,6 +2046,46 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['charge_scale'],
                                                                 self._cons_idx)
 
+    def calculate_ion_sink_due_to_rec(self,which="simple"):
+        """
+            calculate the ion loss rate due to recombination
+            simple: for simple mesh solution
+            full: on full mesh solution
+            gauss: on gauss points
+        """
+
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "rec" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide atomic settings for ion losses due to recombination for the simulation")
+        if which=="simple":
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_ion_sink_due_to_rec(which="full")
+
+            self._ion_sink_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._ion_sink_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ion_sink_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._ion_sink_rec = calculate_ion_sink_due_to_rec_cons(self.solution_glob,self.atomic_parameters['rec'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'])
+
+        if which == 'gauss':
+            if self.solution_gauss is None:
+                print('Initializing values in gauss points first')
+                self.calculate_in_gauss_points()
+            self._ion_sink_rec_gauss = calculate_ion_sink_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['rec'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'])
 
     def calculate_electron_sink_due_to_iz(self,which="simple"):
         """
