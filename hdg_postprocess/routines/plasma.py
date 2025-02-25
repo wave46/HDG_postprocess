@@ -1,5 +1,4 @@
 import numpy as np
-from .atomic import calculate_cx_rate,calculate_cx_rate_cons,calculate_iz_rate,calculate_iz_rate_cons
 
 def calculate_plasma_resistivity_cons(solutions,Mref,mD,n0,L0,t0,ohmic_coef,Zeff):
     """
