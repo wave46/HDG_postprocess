@@ -422,11 +422,11 @@ def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,k
         res = kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_Eiz
     return res
 
-def calculate_electron_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
+def calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb):
     """
     calculates electron losses due to recombination for given conservative solutions
     """
-    sigma_Erec = calculate_Erec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
+    sigma_Erec = calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref)
     if len(solutions.shape)>2:
         res = kb*n0**2*solutions[:,:,0]**2*sigma_Erec
     else:
@@ -439,9 +439,9 @@ def calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,
     """
     sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
     if len(solutions.shape)>2:
-        res = 13.6*kb*n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_rec
+        res = 13.6*kb*n0**2*solutions[:,:,0]**2*sigma_rec
     else:
-        res = 13.6*kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_rec
+        res = 13.6*kb*n0**2*solutions[:,0]**2*sigma_rec
     return res
 
 def calculate_cx_source(te,ne,nn,cx_parameters):
