@@ -3030,6 +3030,11 @@ class HDGsolution:
             idx = 2
         else:
             raise ValueError(f'{component} is not a component of the problem')
+        
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
         return self._field_interpolators[idx](r,z)
     
     def grad_B(self,r,z,component,coordinate):
@@ -3054,4 +3059,152 @@ class HDGsolution:
         else:
             raise ValueError(f'{coordinate} is not a coordinate of the problem')
 
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
         return self._field_interpolators[idx].gradient(r,z)[idx_grad]
+
+    def Q_e_loss_iz(self,r,z):
+        """
+        returns value of electron energy loss due to ionization in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "Eiz" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide Eiz atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+        return calculate_electron_sink_due_to_iz_cons(solution,self.atomic_parameters['Eiz'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'],
+                                                 self.parameters['adimensionalization']['charge_scale'])
+
+    def Q_e_loss_rec(self,r,z):
+        """
+        returns value of electron energy loss due to recombination in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "Erec" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide Erec atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+        return calculate_electron_sink_due_to_rec_cons(solution,self.atomic_parameters['Erec'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'],
+                                                 self.parameters['adimensionalization']['charge_scale'])
+
+    def Q_e_gain_rec(self,r,z):
+        """
+        returns value of electron energy gain due to recombination in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "rec" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide recombination atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+        
+        return calculate_electron_gain_due_to_rec_cons(solution,self.atomic_parameters['rec'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'],
+                                                 self.parameters['adimensionalization']['charge_scale'])
+
+    def Q_i_gain_iz(self,r,z):
+        """
+        returns value of ion energy gain due to ionization in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+        return calculate_ion_gain_due_to_iz_cons(solution,self.atomic_parameters['iz'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'],
+                                                 self.parameters['physics']['R_E'],
+                                                 self.parameters['adimensionalization']['charge_scale'],
+                                                 self._cons_idx)
+
+    def Q_i_loss_rec(self,r,z):
+        """
+        returns value of ion energy loss due to recombination in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "rec" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide recombination atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+        return calculate_ion_sink_due_to_rec_cons(solution,self.atomic_parameters['rec'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'],
+                                                 self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'])
+
+    def Q_i_loss_cx(self,r,z):
+        """
+        returns value of ion energy loss due to charge exchange in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "cx" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+        return calculate_ion_sink_due_to_cx_cons(solution,self.atomic_parameters['cx'],
+                                                 self.parameters['adimensionalization']['temperature_scale'],
+                                                 self.parameters['adimensionalization']['density_scale'],
+                                                 self.parameters['physics']['Mref'],
+                                                 self.parameters['adimensionalization']['speed_scale'],
+                                                 self.parameters['adimensionalization']['mass_scale'],
+                                                 self._cons_idx)
+
