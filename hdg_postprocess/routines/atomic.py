@@ -251,9 +251,8 @@ def calculate_cx_rate_cons(solutions,parameters,T0,Mref,tol=1e-20):
     if database == "OpenADAS expanded":
         te = np.zeros_like(solutions[:,0])
         #good U1 and U4
-        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
-        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
-        te[~good_idx] = 1e-10
+        te = T0*2/3/Mref*(solutions[:,2]/solutions[:,0]-0.5*solutions[:,1]**2/solutions[:,0]**2)
+        te = np.maximum(te,1e-10)
 
         res= eirene_fit_1D(te,alpha,te_min)
         if dimensions is not None:
