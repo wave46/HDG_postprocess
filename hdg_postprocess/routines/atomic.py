@@ -396,7 +396,7 @@ def calculate_ion_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,E0):
     if len(solutions.shape)>2:
         res = E0*n0**2*solutions[:,:,0]*solutions[:,:,2]*sigma_rec
     else:
-        res = E0*n0**2*solutions[:,0]*solutions[:,:,2]*sigma_rec
+        res = E0*n0**2*solutions[:,0]*solutions[:,2]*sigma_rec
     return res
 
 def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,cons_idx):
@@ -408,7 +408,8 @@ def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,c
     if len(solutions.shape)>2:
         res = 0.5*mi*n0**2*solutions[:,:,0]*solutions[:,:,-1]*u**2*sigma_cx
     else:
-        res = 0.5*mi*n0**2*solutions[:,:,0]*solutions[:,:,-1]*u**2*sigma_cx
+        res = 0.5*mi*n0**2*solutions[:,0]*solutions[:,-1]*u**2*sigma_cx
+    return res
     return res
 
 def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):
