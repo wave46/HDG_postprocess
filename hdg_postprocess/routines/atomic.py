@@ -410,6 +410,16 @@ def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,c
     else:
         res = 0.5*mi*n0**2*solutions[:,0]*solutions[:,-1]*u**2*sigma_cx
     return res
+
+def calculate_ion_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_parameters,T0,n0,Mref,R_E,kb,mi,E0,u0,cons_idx):
+    """
+    calculates total ion losses for given conservative solutions
+    """
+    ion_gain_iz = calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,cons_idx)
+    ion_sink_rec = calculate_ion_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,E0)
+    ion_sink_cx = calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,cons_idx)
+
+    res = ion_sink_cx+ion_sink_rec-ion_gain_iz
     return res
 
 def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):
@@ -443,6 +453,27 @@ def calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,
         res = 13.6*kb*n0**2*solutions[:,:,0]**2*sigma_rec
     else:
         res = 13.6*kb*n0**2*solutions[:,0]**2*sigma_rec
+    return res
+
+def calculate_electron_total_loss_cons(solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb):
+    """
+    calculates total electron losses for given conservative solutions
+    """
+    electron_sink_iz = calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb)
+    electron_sink_rec = calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb)
+    electron_gain_rec = calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb)
+
+    res = electron_sink_iz+electron_sink_rec-electron_gain_rec
+    return res
+
+def calculate_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_parameters,Eiz_parameters,Erec_parameters,T0,n0,Mref,R_E,kb,mi,E0,u0,cons_idx):
+    """
+    calculates total losses for given conservative solutions
+    """
+    ion_total_loss = calculate_ion_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_parameters,T0,n0,Mref,R_E,kb,mi,E0,u0,cons_idx)
+    electron_total_loss = calculate_electron_total_loss_cons(solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb)
+
+    res = ion_total_loss+electron_total_loss
     return res
 
 def calculate_cx_source(te,ne,nn,cx_parameters):

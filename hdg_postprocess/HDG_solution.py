@@ -3135,6 +3135,33 @@ class HDGsolution:
                                                  self.parameters['physics']['Mref'],
                                                  self.parameters['adimensionalization']['charge_scale'])
 
+    def Q_e_loss_tot(self,r,z):
+        """
+        returns value of total electron energy loss in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "Eiz" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide Eiz atomic settings for the simulation")
+        if "Erec" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide Erec atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+        
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+
+        return calculate_electron_total_loss_cons(solution,self.atomic_parameters['Eiz'],self.atomic_parameters['Erec'],
+                                                    self.atomic_parameters['rec'],
+                                                    self.parameters['adimensionalization']['temperature_scale'],
+                                                    self.parameters['adimensionalization']['density_scale'],
+                                                    self.parameters['physics']['Mref'],
+                                                    self.parameters['adimensionalization']['charge_scale'])
+
     def Q_i_gain_iz(self,r,z):
         """
         returns value of ion energy gain due to ionization in given point (r,z)
@@ -3207,4 +3234,38 @@ class HDGsolution:
                                                  self.parameters['adimensionalization']['speed_scale'],
                                                  self.parameters['adimensionalization']['mass_scale'],
                                                  self._cons_idx)
+
+    def Q_i_loss_tot(self,r,z):
+        """
+        returns value of total ion energy loss in given point (r,z)
+        """
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "iz" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide ionization atomic settings for the simulation")
+        if "rec" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide recombination atomic settings for the simulation")
+        if "cx" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+        if self._solution_interpolators is None:
+            print('Definition of interpolators will take some time for the initialization')
+            self.define_interpolators()
+
+        solution = np.zeros([1,self.neq])
+        for i in range(self.neq):
+            solution[0,i] = self._solution_interpolators[i](r,z)
+        if solution[0,0] == 0:
+            return 0
+
+        return calculate_ion_total_loss_cons(solution,self.atomic_parameters['iz'],
+                                                    self.atomic_parameters['rec'],self.atomic_parameters['cx'],
+                                                    self.parameters['adimensionalization']['temperature_scale'],
+                                                    self.parameters['adimensionalization']['density_scale'],
+                                                    self.parameters['physics']['Mref'],
+                                                    self.parameters['physics']['R_E'],
+                                                    self.parameters['adimensionalization']['charge_scale'],
+                                                    self.parameters['adimensionalization']['mass_scale'],
+                                                    self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],
+                                                    self.parameters['adimensionalization']['speed_scale'],
+                                                    self._cons_idx)
 
