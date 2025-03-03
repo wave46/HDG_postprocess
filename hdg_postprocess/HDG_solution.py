@@ -1493,7 +1493,11 @@ class HDGsolution:
         defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u','cs',
                              'p_dyn','pi','dpi_dx','dpi_dy','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond','dk', 'btor', 'dbtor_dx', 'dbtor_dy','k','psi']
+                             'q_e_par_conv','q_e_par_cond','dk', 'btor', 'dbtor_dx', 'dbtor_dy','k','psi',
+                             'Q_e_loss_iz','Q_e_loss_rec','Q_e_gain_rec',
+                             'Q_i_gain_iz','Q_i_loss_rec','Q_i_loss_cx',
+                             'Q_e_loss_tot','Q_i_loss_tot','Q_loss_tot',
+                             'Siz']
         for variable in variable_list:
             if variable not in defined_variables:
                 raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
@@ -1584,6 +1588,36 @@ class HDGsolution:
             elif variable == 'psi':
                 for i,(r,z) in enumerate(zip(r_line,z_line)):
                     temp[i] = self.psi(r,z)
+            elif variable == 'Q_e_loss_iz':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_e_loss_iz(r,z)
+            elif variable == 'Q_e_loss_rec':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_e_loss_rec(r,z)
+            elif variable == 'Q_e_gain_rec':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_e_gain_rec(r,z)
+            elif variable == 'Q_i_gain_iz':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_i_gain_iz(r,z)
+            elif variable == 'Q_i_loss_rec':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_i_loss_rec(r,z)
+            elif variable == 'Q_i_loss_cx':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_i_loss_cx(r,z)
+            elif variable == "Q_e_loss_tot":
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_e_loss_tot(r,z)
+            elif variable == "Q_i_loss_tot":
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_i_loss_tot(r,z)
+            elif variable == "Q_loss_tot":
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.Q_loss_tot(r,z)
+            elif variable == 'Siz':
+                for i,(r,z) in enumerate(zip(r_line,z_line)):
+                    temp[i] = self.ionization_source_interp(r,z)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
             result[variable] = temp
@@ -1598,7 +1632,11 @@ class HDGsolution:
                              'p_dyn','pi','dpi_dx','dpi_dy','q_i_par','q_e_par','gamma',
                              'q_i_par_conv','q_i_par_cond',
                              'q_e_par_conv','q_e_par_cond', 'btor', 'dbtor_dx', 'dbtor_dy',
-                             'k', 'dk']
+                             'k', 'dk',
+                             'Q_e_loss_iz','Q_e_loss_rec','Q_e_gain_rec',
+                             'Q_i_gain_iz','Q_i_loss_rec','Q_i_loss_cx',
+                             'Q_e_loss_tot','Q_i_loss_tot','Q_loss_tot',
+                             'Siz']
         for variable in variable_list:
             if variable not in defined_variables:
                 raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
@@ -1665,6 +1703,26 @@ class HDGsolution:
                 np.save(f'{save_folder}k.npy',values)
             elif variable == 'dk':
                 np.save(f'{save_folder}dk.npy',values)
+            elif variable == 'Q_e_loss_iz':
+                np.save(f'{save_folder}Q_e_loss_iz.npy',values)
+            elif variable == 'Q_e_loss_rec':
+                np.save(f'{save_folder}Q_e_loss_rec.npy',values)
+            elif variable == 'Q_e_gain_rec':
+                np.save(f'{save_folder}Q_e_gain_rec.npy',values)
+            elif variable == 'Q_i_gain_iz':
+                np.save(f'{save_folder}Q_i_gain_iz.npy',values)
+            elif variable == 'Q_i_loss_rec':
+                np.save(f'{save_folder}Q_i_loss_rec.npy',values)
+            elif variable == 'Q_i_loss_cx':
+                np.save(f'{save_folder}Q_i_loss_cx.npy',values)
+            elif variable == 'Q_e_loss_tot':
+                np.save(f'{save_folder}Q_e_loss_tot.npy',values)
+            elif variable == 'Q_i_loss_tot':
+                np.save(f'{save_folder}Q_i_loss_tot.npy',values)
+            elif variable == 'Q_loss_tot':
+                np.save(f'{save_folder}Q_loss_tot.npy',values)
+            elif variable == 'Siz':
+                np.save(f'{save_folder}Siz.npy',values)
             else:
                 raise KeyError(f'{variable} is not in the list of posible variables')
 
