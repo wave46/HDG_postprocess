@@ -65,14 +65,18 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath=None,meshname_base
 
         #define boundary dictionary
         solution_boundary_data = {}
-        if 'boundary_flags' in solution_file['mesh'].keys():        
-            solution_boundary_data['boundary_flags'] = solution_file['mesh']['boundary_flags'].T
-        elif 'boundaryFlag' in solution_file['mesh'].keys(): 
-            solution_boundary_data['boundary_flags'] = solution_file['mesh']['boundaryFlag'].T
-        if 'exterior_faces' in solution_file['mesh'].keys():
-            solution_boundary_data['exterior_faces'] = solution_file['mesh']['exterior_faces'].T.astype(int) -1
-        elif 'extfaces' in solution_file['mesh'].keys():
-            solution_boundary_data['exterior_faces'] = solution_file['mesh']['extfaces'].T.astype(int) -1
+        if 'mesh' in solution_file.keys():
+            boundary_temp = solution_file['mesh']
+        else:
+            boundary_temp = solution_file
+        if 'boundary_flags' in boundary_temp.keys():        
+            solution_boundary_data['boundary_flags'] = boundary_temp['boundary_flags'].T
+        elif 'boundaryFlag' in boundary_temp.keys(): 
+            solution_boundary_data['boundary_flags'] = boundary_temp['boundaryFlag'].T
+        if 'exterior_faces' in boundary_temp.keys():
+            solution_boundary_data['exterior_faces'] = boundary_temp['exterior_faces'].T.astype(int) -1
+        elif 'extfaces' in boundary_temp.keys():
+            solution_boundary_data['exterior_faces'] = boundary_temp['extfaces'].T.astype(int) -1
         raw_solution_boundary_infos.append(solution_boundary_data)
 
     if (meshpath is None) and (meshname_base is None):
