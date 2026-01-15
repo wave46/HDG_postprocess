@@ -860,7 +860,7 @@ def calculate_perp_ion_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,n
         res = res.reshape(dimensions[0],dimensions[1])
     return res
 
-def calculate_perp_electron_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,E0,L0,cons_idx):
+def calculate_perp_electron_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,n0,E0,L0,cons_idx):
     """
     calculates perpendicular ion heat flux on the wall with normal n value based on conservatives values
     diffusion dimensional (assuming Dperp only)
@@ -891,7 +891,7 @@ def calculate_perp_electron_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,B
     bn = br*n_res[:,0]+bz*n_res[:,1]
     grad_nEe = grad[:,cons_idx[b'nEe']]
 
-    res = -1*diffusion_res*(grad_nEe[:,0]*n_res[:,0]+grad_nEe[:,1]*n_res[:,1]-grad_nEe[:,0]*bn*br-grad_nEe[:,1]*bn*bz)*E0/L0
+    res = -1*diffusion_res*(grad_nEe[:,0]*n_res[:,0]+grad_nEe[:,1]*n_res[:,1]-grad_nEe[:,0]*bn*br-grad_nEe[:,1]*bn*bz)*n0*E0/L0
 
     if dimensions is not None:
         res = res.reshape(dimensions[0],dimensions[1])
