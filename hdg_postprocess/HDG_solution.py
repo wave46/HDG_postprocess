@@ -69,6 +69,8 @@ class HDGsolution:
         self._electron_sink_iz_simple = None
         self._electron_sink_rec_simple = None
         self._electron_gain_rec_simple = None
+        self._electron_sink_cooling_factor_simple = None
+        self._cooling_factor_simple = None
         self._cx_source_simple = None
         self._ionization_rate_simple = None   
         self._recombination_rate_simple = None        
@@ -113,6 +115,8 @@ class HDGsolution:
         self._electron_sink_iz_gauss = None
         self._electron_sink_rec_gauss = None
         self._electron_gain_rec_gauss = None
+        self._electron_sink_cooling_factor_gauss = None
+        self._cooling_factor_gauss = None
         self._cx_source_gauss = None
 
         # defining the indexes of conservative variables
@@ -545,6 +549,38 @@ class HDGsolution:
     def electron_gain_rec_gauss(self):
         """Ionization source on gauss points"""
         return self._electron_gain_rec_gauss
+    
+    @property
+    def electron_sink_cooling_factor(self):
+        """Sink due to cooling factor on a solution mesh"""
+        return self._eelectron_sink_cooling_factor
+
+    @property
+    def electron_sink_cooling_factor_simple(self):
+        """Sink due to cooling factor on a simple solution mesh"""
+        return self._electron_sink_cooling_factor_simple
+
+    @property
+    def electron_sink_cooling_factor_gauss(self):
+        """Sink due to cooling factor on gauss points"""
+        return self._electron_sink_cooling_factor_gauss
+    
+    @property
+    def cooling_factor(self):
+        """Cooling factor on a solution mesh"""
+        return self._cooling_factor
+    
+    @property
+    def cooling_factor_simple(self):
+        """Cooling factor on a simple solution mesh"""
+        return self._cooling_factor_simple
+    
+    @property
+    def cooling_factor_gauss(self):
+        """Cooling factor on gauss points"""
+        return self._cooling_factor_gauss
+    
+
 
     @property
     def cx_source(self):
@@ -2348,7 +2384,89 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
                                                                 self.parameters['adimensionalization']['charge_scale'])
+    def calculate_electron_sink_due_to_cooling_factor(self,which="simple"):
+        """
+            calculate the electron loss rate due to cooling factor
+            simple: for simple mesh solution
+            full: on full mesh solution
+            gauss: on gauss points
+        """
 
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "cooling_factor" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide atomic settings for electron losses due to cooling factor for the simulation")
+        if which=="simple":
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_electron_sink_due_to_cooling_factor(which="full")
+
+            self._electron_sink_cooling_factor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._electron_sink_cooling_factor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_sink_cooling_factor.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(self.solution_glob,self.atomic_parameters['cooling_factor'],
+                                                                self.parameters['physics']['impurity_concentration'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['charge_scale'])
+
+        if which == 'gauss':
+            if self.solution_gauss is None:
+                print('Initializing values in gauss points first')
+                self.calculate_in_gauss_points()
+            self._electron_sink_cooling_factor_gauss = calculate_electron_sink_due_to_cooling_factor_cons(self.solution_gauss,self.atomic_parameters['cooling_factor'],
+                                                                self.parameters['physics']['impurity_concentration'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['charge_scale'])
+
+    def calculate_cooling_factor(self,which="simple"):
+        """
+            calculate the cooling factor
+            simple: for simple mesh solution
+            full: on full mesh solution
+            coordinates: on a line with provided coordinates (to be done)
+            gauss: on gauss points
+        """    
+        if self.atomic_parameters is None:
+            raise ValueError("Please, provide atomic settings for the simulation")
+        if "cooling_factor" not in self.atomic_parameters.keys():
+            raise ValueError("Please, provide atomic settings for the cooling factor for the simulation")
+        if which=="simple":
+            
+            if not self._simple_phys_initialized:
+                print('Initializing physical solution first')
+                self.init_phys_variables('simple')
+            
+            self.calculate_cooling_factor(which="full")
+
+            self._cooling_factor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._cooling_factor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._cooling_factor.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
+            
+        if which =="full":
+            if not self._combined_to_full:
+                self.recombine_full_solution()
+            self._cooling_factor = calculate_cooling_factor_cons(self.solution_glob,self.atomic_parameters['cooling_factor'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.parameters['adimensionalization']['charge_scale'])
+
+        if which == 'gauss':
+            if self.solution_gauss is None:
+                print('Initializing values in gauss points first')
+                self.calculate_in_gauss_points()
+            self._cooling_factor_gauss = calculate_cooling_factor_cons(self.solution_gauss,self.atomic_parameters['cooling_factor'],
+                                                                self.parameters['physics']['impurity_concentration'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['physics']['Mref'])
     def calculate_cx_source(self,which="simple"):
         """
             calculate the charge-exchange source
