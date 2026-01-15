@@ -107,6 +107,7 @@ class HDGsolution:
         self._gradient_gauss = None
         self._magnetic_field_gauss = None
         self._jtor_gauss = None
+        self._poloidal_flux_gauss = None
         self._ohmic_source_gauss = None
         self._ionization_source_gauss = None
         self._ion_gain_iz_gauss = None
@@ -315,6 +316,11 @@ class HDGsolution:
     def magnetic_field_unit_boundary(self):
         """magnetic field unit vector recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
         return self._magnetic_field_unit_boundary
+    
+    @property
+    def poloidal_flux_boundary(self):
+        """poloidal flux recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face]"""
+        return self._poloidal_flux_boundary
 
     @property
     def solution_boundary_gauss(self):
@@ -340,6 +346,11 @@ class HDGsolution:
     def magnetic_field_unit_boundary_gauss(self):
         """magnetic field unit vector recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
         return self._magnetic_field_unit_boundary_gauss
+    
+    @property
+    def poloidal_flux_boundary_gauss(self):
+        """poloidal flux recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face]"""
+        return self._poloidal_flux_boundary_gauss
 
     @property
     def combined_to_full(self):
@@ -384,6 +395,11 @@ class HDGsolution:
     def poloidal_flux_glob(self):
         """poloidal flux recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
         return self._poloidal_flux_glob
+    
+    @property
+    def poloidal_flux_gauss(self):
+        """poloidal flux recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
+        return self._poloidal_flux_gauss
 
     @property
     def magnetic_field_unit_glob(self):
@@ -731,8 +747,9 @@ class HDGsolution:
             np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim))
         self._magnetic_field_glob = \
             np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],3))
-        self._poloidal_flux_glob = \
-            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
+        if 'poloidal_flux' in self.raw_equilibriums[0].keys():
+            self._poloidal_flux_glob = \
+                np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
         if self.parameters['switches']['ohmicsrc'][0]==1:
             self._jtor_glob = \
                 np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
@@ -747,8 +764,9 @@ class HDGsolution:
             #magnetic field
             raw_field = self.raw_equilibriums[i]['magnetic_field'][self.mesh.raw_connectivity[i]] 
 
-            #poloidal flux
-            raw_poloidal_flux = self.raw_equilibriums[i]['poloidal_flux'][self.mesh.raw_connectivity[i]] 
+            if 'poloidal_flux' in self.raw_equilibriums[0].keys():
+                #poloidal flux
+                raw_poloidal_flux = self.raw_equilibriums[i]['poloidal_flux'][self.mesh.raw_connectivity[i]] 
 
             if self.parameters['switches']['ohmicsrc'][0]==1:
                 #plasma current
@@ -764,9 +782,9 @@ class HDGsolution:
 
                 raw_field = raw_field[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
                 self._magnetic_field_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_field
-
-                raw_poloidal_flux = raw_poloidal_flux[~self.mesh.raw_ghost_elements[i].astype(bool).flatten()]
-                self._poloidal_flux_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_poloidal_flux
+                if 'poloidal_flux' in self.raw_equilibriums[0].keys():
+                    raw_poloidal_flux = raw_poloidal_flux[~self.mesh.raw_ghost_elements[i].astype(bool).flatten()]
+                    self._poloidal_flux_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_poloidal_flux
 
                 if self.parameters['switches']['ohmicsrc'][0]==1:
                     raw_jtor = raw_jtor[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
@@ -775,7 +793,8 @@ class HDGsolution:
                 self._solution_glob = raw_solution
                 self._gradient_glob = raw_gradient
                 self._magnetic_field_glob = raw_field
-                self._poloidal_flux_glob = raw_poloidal_flux
+                if 'poloidal_flux' in self.raw_equilibriums[0].keys():
+                    self._poloidal_flux_glob = raw_poloidal_flux
                 if self.parameters['switches']['ohmicsrc'][0]==1:
                     self._jtor_glob = raw_jtor
 
@@ -805,9 +824,9 @@ class HDGsolution:
 
         self._jtor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
         self._jtor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.jtor_glob.reshape(self.jtor_glob.shape[0]*self.jtor_glob.shape[1])
-
-        self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
-        self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
+        if 'poloidal_flux' in self.raw_equilibriums[0].keys():
+            self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
+            self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
         self._combined_simple_solution = True
     
     def recombine_boundary_solution(self):
@@ -827,6 +846,7 @@ class HDGsolution:
         self._gradient_boundary = {}
         self._magnetic_field_boundary = {}
         self._magnetic_field_unit_boundary = {}
+        self._poloidal_flux_boundary = {}
         self._solution_skeleton_boundary = {}
 
         for key in self.mesh._connectivity_b_glob.keys():
@@ -834,6 +854,7 @@ class HDGsolution:
             self._gradient_boundary[key] = []
 
             self._magnetic_field_boundary[key] = []
+            self._poloidal_flux_boundary[key] = []
             self._magnetic_field_unit_boundary[key] = []
             for face_element_number,face_local_number in zip(self.mesh.face_element_number[key],self.mesh.face_local_number[key]):
                 self._solution_boundary[key].append(self.solution_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
@@ -841,6 +862,7 @@ class HDGsolution:
 
                 self._magnetic_field_boundary[key].append(self.magnetic_field_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
                 self._magnetic_field_unit_boundary[key].append(self.magnetic_field_unit_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
+                self._poloidal_flux_boundary[key].append(self.poloidal_flux_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:]])
 
         #re building skeleton solution
         if self.n_partitions>1:
@@ -876,6 +898,7 @@ class HDGsolution:
         self._magnetic_field_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_glob)
         self._magnetic_field_unit_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_unit_glob)
         self._jtor_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.jtor_glob)
+        self._poloidal_flux_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.poloidal_flux_glob)
     
     def calculate_in_boundary_gauss_points(self,boundaries):
         if self.mesh.reference_element is None:
@@ -883,26 +906,28 @@ class HDGsolution:
         if not self.combined_boundary:
             print('Comibining first values on boundary')
             self.recombine_boundary_solution()
-        boundary_ordering,connectivity_ordered = self.mesh.calculate_gauss_boundary(boundaries,self.raw_solution_boundary_infos)
+        boundary_ordering,connectivity_ordered,iel_face_ordered = self.mesh.calculate_gauss_boundary(boundaries,self.raw_solution_boundary_infos)
 
         solution_boundary_ordered = np.empty([0,self.solution_boundary[boundaries[0]][0].shape[1],self.solution_boundary[boundaries[0]][0].shape[2]])
         solution_skeleton_boundary_ordered = np.empty([0,self.solution_skeleton_boundary[boundaries[0]][0].shape[1],self.solution_skeleton_boundary[boundaries[0]][0].shape[2]])
         gradient_boundary_ordered = np.empty([0,self._gradient_boundary[boundaries[0]][0].shape[1],self._gradient_boundary[boundaries[0]][0].shape[2],self._gradient_boundary[boundaries[0]][0].shape[3]])
         magnetic_field_boundary_ordered = np.empty([0,self._magnetic_field_boundary[boundaries[0]][0].shape[1],self._magnetic_field_boundary[boundaries[0]][0].shape[2]])
         magnetic_field_unit_boundary_ordered = np.empty([0,self._magnetic_field_unit_boundary[boundaries[0]][0].shape[1],self._magnetic_field_unit_boundary[boundaries[0]][0].shape[2]])
+        poloidal_flux_boundary_ordered = np.empty([0,self._poloidal_flux_boundary[boundaries[0]][0].shape[1]])
         for bound_ordering in boundary_ordering:
             solution_boundary_ordered = np.vstack([solution_boundary_ordered,self.solution_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
             solution_skeleton_boundary_ordered = np.vstack([solution_skeleton_boundary_ordered,self.solution_skeleton_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
             gradient_boundary_ordered = np.vstack([gradient_boundary_ordered,self._gradient_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
             magnetic_field_boundary_ordered = np.vstack([magnetic_field_boundary_ordered,self._magnetic_field_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
             magnetic_field_unit_boundary_ordered = np.vstack([magnetic_field_unit_boundary_ordered,self._magnetic_field_unit_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-
+            poloidal_flux_boundary_ordered = np.vstack([poloidal_flux_boundary_ordered,self._poloidal_flux_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
         self._solution_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],solution_boundary_ordered)
         self._solution_skeleton_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],solution_skeleton_boundary_ordered)
         self._gradient_boundary_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N1d'],gradient_boundary_ordered)
         self._magnetic_field_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],magnetic_field_boundary_ordered)
+        self._poloidal_flux_boundary_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N1d'],poloidal_flux_boundary_ordered)
         self._magnetic_field_unit_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],magnetic_field_unit_boundary_ordered)
-        return boundary_ordering,connectivity_ordered
+        return boundary_ordering,connectivity_ordered,iel_face_ordered
 
     def summary_along_the_wall(self):
         """
