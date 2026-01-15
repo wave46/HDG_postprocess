@@ -511,151 +511,179 @@ class HDGmesh:
             self._vertices_glob[self.raw_rest_mesh_data[i]['loc2glob_no'],:] = self.raw_vertices[i][:,:]
         self._combined_to_full = True
     
-    def recombine_full_boundary(self,raw_boundary_info):
+    def recombine_full_boundary(self, raw_boundary_info):
         """
-        Recombines full boundary connectivity with all needed information to calculate fluxes at the wall
+        Recombines full boundary connectivity with all needed information to calculate fluxes at the wall.
+        Handles cases where boundary types can have disconnected segments or additional closed loops.
         """
-        if self.n_partitions>1:
+        if self.n_partitions > 1:
             self._nfaces_glob = 0
             for i in range(self.n_partitions):
-                self._nfaces_glob = max(self._nfaces_glob,self.raw_rest_mesh_data[i]['loc2glob_fa'].max())
-            self._nfaces_glob+=1
-            connectivity_b_glob = -1*np.ones((self._nfaces_glob,self.mesh_parameters['nodes_per_face']),dtype=int)
-            boundary_flags = -1*np.ones((self._nfaces_glob),dtype=int)
-            face_element_number = np.zeros((self._nfaces_glob,1),dtype=int)
-            face_local_number = np.zeros((self._nfaces_glob),dtype=int)
+                self._nfaces_glob = max(self._nfaces_glob, self.raw_rest_mesh_data[i]['loc2glob_fa'].max())
+            self._nfaces_glob += 1
+
+            connectivity_b_glob = -1 * np.ones((self._nfaces_glob, self.mesh_parameters['nodes_per_face']), dtype=int)
+            boundary_flags = -1 * np.ones((self._nfaces_glob), dtype=int)
+            face_element_number = np.zeros((self._nfaces_glob, 1), dtype=int)
+            face_local_number = np.zeros((self._nfaces_glob), dtype=int)
 
             for i in range(self.n_partitions):
                 non_ghost = (~self.raw_ghost_faces[i].flatten())[-self.raw_mesh_numbers[i]['Nextfaces']:]
 
-                connectivity_b_glob[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost],:] = \
-                    self.raw_rest_mesh_data[i]['loc2glob_no'][self.raw_connectivity_boundary[i][:,:]][non_ghost]
+                connectivity_b_glob[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost], :] = \
+                    self.raw_rest_mesh_data[i]['loc2glob_no'][self.raw_connectivity_boundary[i][:, :]][non_ghost]
                 boundary_flags[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
                     raw_boundary_info[i]['boundary_flags'][non_ghost]
                 face_element_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
-                    self.raw_rest_mesh_data[i]['loc2glob_el'][raw_boundary_info[i]['exterior_faces'][:,0][non_ghost]][None].T
+                    self.raw_rest_mesh_data[i]['loc2glob_el'][raw_boundary_info[i]['exterior_faces'][:, 0][non_ghost]][None].T
                 face_local_number[self.raw_rest_mesh_data[i]['loc2glob_fa'][-self.raw_mesh_numbers[i]['Nextfaces']:][non_ghost]] = \
-                    raw_boundary_info[i]['exterior_faces'][:,1][non_ghost]
+                    raw_boundary_info[i]['exterior_faces'][:, 1][non_ghost]
 
-            # we filled in only exterior faces info
-            # excluding empty entrances
-            filled = (connectivity_b_glob!=-1).all(axis=1)
-            connectivity_b_glob = connectivity_b_glob[filled,:]
+            # Filter out unfilled entries
+            filled = (connectivity_b_glob != -1).all(axis=1)
+            connectivity_b_glob = connectivity_b_glob[filled, :]
             boundary_flags = boundary_flags[filled]
             face_element_number = face_element_number[filled]
             face_local_number = face_local_number[filled]
 
-            #save to make easier skeleton solution rebuilding
+            # Save for easier skeleton solution rebuilding
             self._filled = filled
         else:
             self._nfaces_glob = self._raw_connectivity_boundary[0].shape[0]
             connectivity_b_glob = self._raw_connectivity_boundary[0]
             boundary_flags = raw_boundary_info[0]['boundary_flags']
-            face_element_number = raw_boundary_info[0]['exterior_faces'][:,0][None].T
-            face_local_number = raw_boundary_info[0]['exterior_faces'][:,1]
-        # this boundary is not ordered, so now we reorder it
-        # also the boundary is splitted according to boundary flags and saved in dictionary
+            face_element_number = raw_boundary_info[0]['exterior_faces'][:, 0][None].T
+            face_local_number = raw_boundary_info[0]['exterior_faces'][:, 1]
+
+        # Reorganize boundaries by type and handle disconnected segments or loops
         unique_boundaries = np.unique(boundary_flags)
         indices = {}
         self._connectivity_b_glob = {}
         self._boundary_flags = {}
         self._face_element_number = {}
         self._face_local_number = {}
-        for boundary_type in unique_boundaries:
-            #choosing this boundary
-            boundary_idx = np.where(boundary_type ==boundary_flags )[0]
-            bound_connectivity = connectivity_b_glob[boundary_idx,:]
-            # now choosing the index to start mesh recombining
-            starting_indices = bound_connectivity[:,0]
-            ending_indices = bound_connectivity[:,-1]
-            difference = np.setdiff1d(starting_indices,ending_indices)
-            if len(difference)==0:
-                #this means that the border is closed and continous
-                all_ind = []
-                ind = [boundary_idx[0]]
-                i = 0
-                while(len(ind)!=len(bound_connectivity)):
-                    
-                    i = np.where(bound_connectivity[i,-1]==bound_connectivity[:,0])[0][0]
-                    ind.append(boundary_idx[i])
-                all_ind.append(ind)
 
-                    
-            else:
-                #We start with first segment and if there are more, we take next index in difference
-                k=0
-                starting_ind = difference[k]
+        for boundary_type in unique_boundaries:
+            # Extract segments for this boundary type
+            boundary_idx = np.where(boundary_flags == boundary_type)[0]
+            bound_connectivity = connectivity_b_glob[boundary_idx, :]
+
+            # Identify disconnected components (loops or segments)
+            starting_indices = bound_connectivity[:, 0]
+            ending_indices = bound_connectivity[:, -1]
+            difference = np.setdiff1d(starting_indices, ending_indices)
+
+            all_ind = []
+            visited = set()
+
+            while len(visited) < len(bound_connectivity):
+                # Start with the first unvisited segment
+                if len(difference) > 0:
+                    starting_ind = difference[0]
+                    difference = difference[1:]
+                else:
+                    # If no difference, find the next unvisited segment
+                    unvisited_idx = next(idx for idx in range(len(bound_connectivity)) if idx not in visited)
+                    starting_ind = starting_indices[unvisited_idx]
+
+                # Traverse the current component
+                component = []
                 i = np.where(starting_ind == starting_indices)[0][0]
-                all_ind = []
-                ind = [boundary_idx[i]]
-                recorded_indexes = 1
-                while(recorded_indexes!=len(bound_connectivity)):
-                    i = np.where(bound_connectivity[i,-1]==bound_connectivity[:,0])[0]
-                    if len(i)!=0:
-                        i = i[0]
-                        ind.append(boundary_idx[i])
-                    else:
-                        all_ind.append(ind)
-                        k+=1
-                        starting_ind = difference[k]
-                        i = np.where(starting_ind == starting_indices)[0][0]
-                        ind = [boundary_idx[i]]
-                        
-                    
-                    recorded_indexes+=1
-                all_ind.append(ind)
-            self._connectivity_b_glob[boundary_type] = []            
+                while i not in visited:
+                    component.append(boundary_idx[i])
+                    visited.add(i)
+                    next_candidates = np.where(bound_connectivity[i, -1] == bound_connectivity[:, 0])[0]
+                    if len(next_candidates) == 0:
+                        break
+                    i = next_candidates[0]
+
+                all_ind.append(component)
+
+            # Store the results for this boundary type
+            self._connectivity_b_glob[boundary_type] = []
+            self._boundary_flags[boundary_type] = []
             self._face_element_number[boundary_type] = []
             self._face_local_number[boundary_type] = []
-            self._boundary_flags[boundary_type] = []
-            for ind in all_ind:
 
-                self._connectivity_b_glob[boundary_type].append(connectivity_b_glob[ind,:])
-                self._boundary_flags[boundary_type].append(boundary_flags[ind])
-                self._face_element_number[boundary_type].append(face_element_number[ind])
-                self._face_local_number[boundary_type].append(face_local_number[ind])
+            for component in all_ind:
+                self._connectivity_b_glob[boundary_type].append(connectivity_b_glob[component, :])
+                self._boundary_flags[boundary_type].append(boundary_flags[component])
+                self._face_element_number[boundary_type].append(face_element_number[component])
+                self._face_local_number[boundary_type].append(face_local_number[component])
+
             indices[boundary_type] = all_ind
-        
 
-        #save to make easier skeleton solution rebuilding
+        # Save for easier skeleton solution rebuilding
         self._indices = indices
         self._boundary_combined = True
         
-    def boundary_ordering(self,raw_boundary_info,boundaries):
+    def boundary_ordering(self, raw_boundary_info, boundaries):
         """
-        Recombines ordered boundary connectivity for given boundaries with all needed information to calculate fluxes at the wall
+        Recombines ordered boundary connectivity for given boundaries with all needed information to calculate fluxes at the wall.
+        Ensures that looped segments are moved to the end of the array.
         """
-
+    
         if not self._boundary_combined:
             self.recombine_full_boundary(raw_boundary_info)
-
+    
         connected_boundaries = []
         segments = 0
         for boundary in boundaries:
             connected_boundary = []
             for sub_connectivity in self.connectivity_b_glob[boundary]:
                 connected_boundary.append(False)
-                segments+=1
+                segments += 1
             connected_boundaries.append(connected_boundary)
-        boundary_ordering = [[0,0]]
+    
+        boundary_ordering = [[0, 0]]
         connected_boundaries[0][0] = True
-        segments -=1
-        node_idx = self.connectivity_b_glob[boundaries[0]][0][-1,-1]
-        while segments>0:
-            for i,connected_boundary in enumerate(connected_boundaries):
-                for j,segment in enumerate(connected_boundary):
+        segments -= 1
+        node_idx = self.connectivity_b_glob[boundaries[0]][0][-1, -1]
+    
+        looped_segments = []  # To store looped segments
+    
+        while segments > 0:
+            found_segment = False
+            for i, connected_boundary in enumerate(connected_boundaries):
+                for j, segment in enumerate(connected_boundary):
                     if not segment:
-                        if node_idx == self.connectivity_b_glob[boundaries[i]][j][0,0]:
-                            connected_boundaries[i][j] == True
+                        if node_idx == self.connectivity_b_glob[boundaries[i]][j][0, 0]:
+                            connected_boundaries[i][j] = True
                             segments -= 1
-                            boundary_ordering.append([i,j])
-                            node_idx = self.connectivity_b_glob[boundaries[i]][j][-1,-1]
-
-        connectivity_b_ordered = np.empty([0,self.connectivity_b_glob[boundaries[0]][0].shape[1]],dtype=int)
+                            boundary_ordering.append([i, j])
+                            node_idx = self.connectivity_b_glob[boundaries[i]][j][-1, -1]
+                            found_segment = True
+                            break
+                if found_segment:
+                    break
+                
+            # If no segment is found, it means we have encountered a loop
+            if not found_segment:
+                for i, connected_boundary in enumerate(connected_boundaries):
+                    for j, segment in enumerate(connected_boundary):
+                        if not segment:
+                            connected_boundaries[i][j] = True
+                            segments -= 1
+                            looped_segments.append([i, j])
+                            node_idx = self.connectivity_b_glob[boundaries[i]][j][-1, -1]
+                            break
+                    if found_segment:
+                        break
+                    
+        # Append looped segments to the end of the boundary ordering
+        boundary_ordering.extend(looped_segments)
+    
+        connectivity_b_ordered = np.empty([0, self.connectivity_b_glob[boundaries[0]][0].shape[1]], dtype=int)
+        iel_face_ordered = np.empty([0, self._face_element_number[boundaries[0]][0].shape[1]], dtype=int)
         for bound_ordering in boundary_ordering:
-            connectivity_b_ordered = np.vstack([connectivity_b_ordered,self.connectivity_b_glob[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-            
-        return boundary_ordering,connectivity_b_ordered
+            connectivity_b_ordered = np.vstack(
+                [connectivity_b_ordered, self.connectivity_b_glob[boundaries[bound_ordering[0]]][bound_ordering[1]]]
+            )
+            iel_face_ordered = np.vstack(
+                [iel_face_ordered, self._face_element_number[boundaries[bound_ordering[0]]][bound_ordering[1]]]
+            )
+    
+        return boundary_ordering, connectivity_b_ordered, iel_face_ordered
 
 
 
@@ -732,7 +760,7 @@ class HDGmesh:
             if raw_boundary_info is None:
                 raise ValueError('Please, provide raw boundary info as input to this method')
             self.recombine_full_boundary(raw_boundary_info)
-        boundary_ordering,connectivity_ordered = self.boundary_ordering(raw_boundary_info,boundaries)
+        boundary_ordering,connectivity_ordered,iel_face_number = self.boundary_ordering(raw_boundary_info,boundaries)
         
         self._vertices_boundary_gauss = np.einsum('ij,kjh->kih', self.reference_element['N1d'],
                                                 self.vertices_glob[connectivity_ordered,:])
@@ -749,8 +777,7 @@ class HDGmesh:
         self._segment_length_gauss = derivative_norm*self.reference_element['IPweights1d'][None,:,:]
         self._segment_surface_gauss = self._segment_length_gauss*2*np.pi*self._vertices_boundary_gauss[:,:,0][:,:,None]
 
-        return boundary_ordering,connectivity_ordered
-        
+        return boundary_ordering,connectivity_ordered,iel_face_number
     def find_adjacent_elements(self,element_number):
         """ 
         finds numbers of adjacent elements
