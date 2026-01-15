@@ -371,7 +371,7 @@ def calculate_iz_source(te,ne,nn,iz_parameters):
     return ne*nn*sigma_iz
 
 
-def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref):
+def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref,cons_idx):
     """
     calculates ionization source for given conservative solutions
     todo make indexing not hardcoded
@@ -379,9 +379,9 @@ def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref):
 
     sigma_iz = calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref)
     if len(solutions.shape)>2:
-        res = n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_iz
+        res = n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_iz
     else:
-        res =n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz
+        res =n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_iz
     return res
 
 def calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,cons_idx):

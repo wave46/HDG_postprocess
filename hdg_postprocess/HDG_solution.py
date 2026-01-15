@@ -2078,7 +2078,8 @@ class HDGsolution:
             self._ionization_source = calculate_iz_source_cons(self.solution_glob,self.atomic_parameters['iz'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'])
+                                                                self.parameters['physics']['Mref'],
+                                                                self._cons_idx)
 
         if which == 'gauss':
             if self.solution_gauss is None:
@@ -2087,7 +2088,8 @@ class HDGsolution:
             self._ionization_source_gauss = calculate_iz_source_cons(self.solution_gauss,self.atomic_parameters['iz'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'])
+                                                                self.parameters['physics']['Mref'],
+                                                                self._cons_idx)
     def calculate_ion_gain_due_to_iz(self,which="simple"):
         """
             calculate the ion gain rate due to ionization
