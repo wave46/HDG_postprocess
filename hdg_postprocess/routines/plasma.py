@@ -452,7 +452,7 @@ def calculate_cs_cons(solutions,u0,cons_idx):
     res = u0*np.sqrt(2/3*(sol[:,cons_idx[b'nEi']]+sol[:,cons_idx[b'nEe']]-
                      0.5*sol[:,cons_idx[b'Gamma']]**2/sol[:,cons_idx[b'rho']])/sol[:,cons_idx[b'rho']])
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_grad_cs_cons(solutions,gradients,u0,L0,cons_idx):
