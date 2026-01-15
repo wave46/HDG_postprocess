@@ -336,7 +336,7 @@ class HDGmesh:
         return ax
 
     def plot_full_mesh(self, data=None, ax=None, log=False, label=None, connectivity=None, 
-                        n_levels=100,limits = None,ticks=None,tick_labels=None):
+                        n_levels=100,limits = None,ticks=None,tick_labels=None,cmap='jet'):
         """
         Plot all raw meshes to a matplotlib figure.
         :param data: Data array defined on the soledgehdg mesh
@@ -350,7 +350,7 @@ class HDGmesh:
             print('Comibining to full mesh')
             self.recombine_full_mesh()
 
-        colors = 'b'
+        colors = 'k'
         if ax is None:
             _, ax = plt.subplots(constrained_layout=True)
         if connectivity is None:
@@ -367,7 +367,7 @@ class HDGmesh:
 
         if data is None:            
             verts = self.vertices_glob[connectivity]
-            collection = PolyCollection(verts, facecolor="none", edgecolor=colors, linewidth=0.05)
+            collection = PolyCollection(verts, facecolor="none", edgecolor=colors, linewidth=1.)
             ax.add_collection(collection) 
         else:
             if data.shape[0] == connectivity.shape[0]:
@@ -380,12 +380,12 @@ class HDGmesh:
                 if log:
                     if limits == None:
                         im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], np.log10(data),levels=n_levels
-                        , extend='both',triangles = connectivity, cmap='jet'
+                        , extend='both',triangles = connectivity, cmap=cmap
                         ,extendrect = True)
                         ax.set_title(f'log10({label})')  
                     else:
                         im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=np.logspace(limits[0],limits[1],n_levels)
-                        ,triangles = connectivity, cmap='jet', vmin = 10.**limits[0],vmax = 10.**limits[1],norm=LogNorm(vmin=10.**limits[0],vmax=10.**limits[1])
+                        ,triangles = connectivity, cmap=cmap, vmin = 10.**limits[0],vmax = 10.**limits[1],norm=LogNorm(vmin=10.**limits[0],vmax=10.**limits[1])
                         , extend='both',extendrect = True)
                     
 
@@ -393,11 +393,11 @@ class HDGmesh:
                 else:
                     if limits == None:
                         im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=n_levels
-                        , extend='both',triangles = connectivity, cmap='jet'
+                        , extend='both',triangles = connectivity, cmap=cmap
                         ,extendrect = True)
                     else:
                         im = ax.tricontourf(self.vertices_glob[:,0], self.vertices_glob[:,1], data,levels=np.linspace(limits[0],limits[1],n_levels)
-                        , extend='both',triangles = connectivity, cmap='jet',vmin = limits[0],vmax = limits[1]
+                        , extend='both',triangles = connectivity, cmap=cmap,vmin = limits[0],vmax = limits[1]
                         ,extendrect = True)
                     ax.set_title(f'{label}')     
                 cbar = plt.colorbar(im, ax=ax,extendrect = True)

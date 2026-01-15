@@ -951,7 +951,7 @@ class HDGsolution:
             cons_variable =self.parameters['physics']['conservative_variable_names'][i]
             if (cons_variable != b'Gamma') and (cons_variable != b'k') :
                 axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_dimensional[:,i],ax=axes[i//2,i%2],
-                                                          log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
+                                                          log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,cmap='bwr')
             else:
                 axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_dimensional[:,i],ax=axes[i//2,i%2],
                                                           log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
@@ -1011,9 +1011,12 @@ class HDGsolution:
 
         for i in range(self.neq):
             cons_variable =self.parameters['physics']['conservative_variable_names'][i]
-
-            axes[i//2,i%2] = self.mesh.plot_full_mesh(difference_dimensional[:,i],ax=axes[i//2,i%2],
+            if (cons_variable != b'Gamma'):
+                axes[i//2,i%2] = self.mesh.plot_full_mesh(difference_dimensional[:,i],ax=axes[i//2,i%2],
                                                           log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
+            else:
+                axes[i//2,i%2] = self.mesh.plot_full_mesh(difference_dimensional[:,i],ax=axes[i//2,i%2],
+                                                          log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,cmap='bwr')
         return fig,axes, difference_dimensional    
     
     def init_phys_variables(self, which='both'):
@@ -1231,7 +1234,7 @@ class HDGsolution:
 
 
 
-            colorbar_labels = [r'n [m$^{-3}$]',r'$n_n$ [m$^{-3}$]',r'$T_i [eV]$',r'$T_e [eV] $',r'M', r'$D_k$ [m$^2$/s]']
+            colorbar_labels = [r'n [m$^{-3}$]',r'$n_n$ [m$^{-3}$]',r'$T_i [eV]$',r'$T_e [eV] $',r'M', r'$k$ [m$^2$/s$^2$]']
             solutions_plot = np.zeros_like(self.solution_simple)
             solutions_plot[:,0] = self.solution_simple_phys[:,0] #ne
             solutions_plot[:,1] = self.solution_simple_phys[:,-1] #n_n
@@ -1276,7 +1279,11 @@ class HDGsolution:
                 else:
                     data = solutions_plot[:,i].copy()
                     data[np.where(np.isnan(data))] = 0
-                    axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
+                    if (i == 4):
+                        axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
+                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit,cmap='bwr')
+                    else:
+                        axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
                                                               log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit)
     
 
@@ -1323,8 +1330,11 @@ class HDGsolution:
             fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
 
             for i in range(self.neq):
-
-                axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
+                if (i==4):
+                    axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
+                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,cmap='bwr')
+                else:
+                    axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
                                                               log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
     
 
@@ -1396,19 +1406,23 @@ class HDGsolution:
             if log:
                 data[data<0] = 10.**limit[0]
             res[variable] = data
+            if variable == 'M':
+                cmap = 'bwr'
+            else:
+                cmap = 'jet'
             if var_to_plot>2:
                 axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
                              log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
-                             ticks=tick,tick_labels=tick_label,limits=limit)
+                             ticks=tick,tick_labels=tick_label,limits=limit,cmap=cmap)
             elif var_to_plot==2:
                 axes[i%2] = self.mesh.plot_full_mesh(data,ax=axes[i%2],
                              log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
-                             ticks=tick,tick_labels=tick_label,limits=limit)
+                             ticks=tick,tick_labels=tick_label,limits=limit,cmap=cmap)
             else:
                 axes = self.mesh.plot_full_mesh(data,ax=axes,
                              log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
-                             ticks=tick,tick_labels=tick_label,limits=limit)
-        
+                             ticks=tick,tick_labels=tick_label,limits=limit,cmap=cmap)
+        plt.tight_layout()
         return fig,axes,res
 
 
