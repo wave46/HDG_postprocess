@@ -1,6 +1,7 @@
 import numpy as np
 from .tools import softplus,double_softplus
 from .atomic import calculate_cx_rate,calculate_cx_rate_cons,calculate_iz_rate,calculate_iz_rate_cons
+from .plasma import calculate_grad_nn_cons
 def calculate_dnn(ti,te,ne,dnn_params,atomic_parameters,kb,mD):
     """
     calculates neutral diffusion value
@@ -131,6 +132,46 @@ def calculate_dnn_with_nn_collision_cons(solutions,dnn_params,atomic_parameters,
             dnn = dnn.reshape(dimensions[0],dimensions[1])        
 
         return dnn*(L0**2/t0)
+    
+def calculate_neutral_perp_flux_wall_cons(solutions,gradients,dnn_parameters,atomic_parameters,Br,Bz,Bt,n,n0,L0,charge,m_i,T0,Mref,t0,cons_idx):
+    """
+    calculates perpendicular neutral flux on the wall with normal n value based on conservatives values
+    diffusion dimensional (assuming Dperp only)
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = gradients.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
+        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
+        
+    else:
+        sol = solutions.copy()
+        grad = gradients.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
+        n_res = n.copy()
+
+
+    
+
+    grad_nn = calculate_grad_nn_cons(grad,n0,L0,cons_idx)
+
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bn = br*n_res[:,0]+bz*n_res[:,1]
+    diffusion_res = calculate_dnn_with_nn_collision_cons(sol,dnn_parameters,atomic_parameters,
+                                                        charge,m_i,T0,n0,Mref,L0,t0)
+
+    res = diffusion_res*(grad_nn[:,0]*n_res[:,0]+grad_nn[:,1]*n_res[:,1]-grad_nn[:,0]*bn*br-grad_nn[:,1]*bn*bz)
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
 
 def calculate_mfp(ti,te,ne,dnn_params,atomic_parameters,kb,mD):
     """
