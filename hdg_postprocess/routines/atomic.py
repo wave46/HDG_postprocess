@@ -238,7 +238,8 @@ def calculate_cx_rate(te,parameters):
     if database == "OpenADAS expanded":
         alpha = parameters['alpha']
         te_min = parameters['te_min']
-        return eirene_fit_1D(te,alpha,te_min)
+        te_max = parameters['te_max']
+        return eirene_fit_1D(te,alpha,te_min,te_max)
     elif database == "Legacy":
         return compute_cx_rate_legacy(te)
 
@@ -249,6 +250,7 @@ def calculate_cx_rate_cons(solutions,parameters,T0,Mref,tol=1e-20):
     database = parameters['database']
     alpha = parameters['alpha']
     te_min = parameters['te_min']
+    te_max = parameters['te_max']
     dimensions = None
     if len(solutions.shape)>2:
         dimensions = solutions.shape     
@@ -260,7 +262,7 @@ def calculate_cx_rate_cons(solutions,parameters,T0,Mref,tol=1e-20):
         te = T0*2/3/Mref*(solutions[:,2]/solutions[:,0]-0.5*solutions[:,1]**2/solutions[:,0]**2)
         te = np.maximum(te,1e-10)
 
-        res= eirene_fit_1D(te,alpha,te_min)
+        res= eirene_fit_1D(te,alpha,te_min,te_max)
         if dimensions is not None:
             res = res.reshape(dimensions[0],dimensions[1])
         return res
