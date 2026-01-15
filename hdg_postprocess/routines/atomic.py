@@ -331,6 +331,36 @@ def calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref,tol=1e-20):
         res = res.reshape(dimensions[0],dimensions[1])
     return res
 
+def calculate_cooling_factor_cons(solutions,cooling_parameters,T0,Mref,kb,tol=1e-20):
+    """
+    calculates cooling factor for given conservative solutions
+    """
+    database = cooling_parameters['database']
+    alpha = cooling_parameters['alpha']
+    te_min = cooling_parameters['te_min']
+    te_max = cooling_parameters['te_max']
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape     
+        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    
+    if database == "ADAS":
+        te = np.zeros_like(solutions[:,0])
+
+        #good U1 and U4
+        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
+
+        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
+        te[~good_idx] = 1e-10
+
+        res = eirene_fit_1D(te,alpha,te_min,te_max)
+    elif database == "NRL":
+        raise ValueError('NRL database not implemented for cooling factor')
+    
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res#/kb
+
 def calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref,tol=1e-20):
     """
     calculates Erec rate for given te,ne
@@ -430,15 +460,26 @@ def calculate_ion_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_para
     res = ion_sink_cx+ion_sink_rec-ion_gain_iz
     return res
 
-def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb):
+def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb,cons_idx):
     """
     calculates electron losses due to ionization for given conservative solutions
     """
     sigma_Eiz = calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref)
     if len(solutions.shape)>2:
-        res = kb*n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_Eiz
+        res = kb*n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_Eiz
     else:
-        res = kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_Eiz
+        res = kb*n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_Eiz
+    return res
+
+def calculate_electron_sink_due_to_cooling_factor_cons(solutions,cooling_parameters,impurity_concentration,T0,n0,Mref,kb):
+    """
+    calculates electron losses due to cooling factor for given conservative solutions
+    """
+    cooling_factor = calculate_cooling_factor_cons(solutions,cooling_parameters,T0,Mref,kb)
+    if len(solutions.shape)>2:
+        res = kb*n0**2*solutions[:,:,0]**2*cooling_factor*impurity_concentration
+    else:
+        res = kb*n0**2*solutions[:,0]**2*cooling_factor*impurity_concentration
     return res
 
 def calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb):
@@ -463,13 +504,13 @@ def calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,
         res = 13.6*kb*n0**2*solutions[:,0]**2*sigma_rec
     return res
 
-def calculate_electron_total_loss_cons(solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb):
+def calculate_electron_total_loss_cons(solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb,cons_idx):
     """
     calculates total electron losses for given conservative solutions
     """
-    electron_sink_iz = calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb)
-    electron_sink_rec = calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb)
-    electron_gain_rec = calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb)
+    electron_sink_iz = calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,kb,cons_idx)
+    electron_sink_rec = calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb,cons_idx)
+    electron_gain_rec = calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb,cons_idx)
 
     res = electron_sink_iz+electron_sink_rec-electron_gain_rec
     return res

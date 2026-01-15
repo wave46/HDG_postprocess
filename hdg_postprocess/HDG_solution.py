@@ -2252,7 +2252,8 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
+                                                                self.parameters['adimensionalization']['charge_scale'],
+                                                                self._cons_idx)
 
         if which == 'gauss':
             if self.solution_gauss is None:
@@ -2262,7 +2263,8 @@ class HDGsolution:
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
                                                                 self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
+                                                                self.parameters['adimensionalization']['charge_scale'],
+                                                                self._cons_idx)
 
 
     def calculate_electron_sink_due_to_rec(self,which="simple"):
@@ -3163,7 +3165,8 @@ class HDGsolution:
                                                  self.parameters['adimensionalization']['temperature_scale'],
                                                  self.parameters['adimensionalization']['density_scale'],
                                                  self.parameters['physics']['Mref'],
-                                                 self.parameters['adimensionalization']['charge_scale'])
+                                                 self.parameters['adimensionalization']['charge_scale'],
+                                                 self._cons_idx)
 
     def Q_e_loss_rec(self,r,z):
         """
