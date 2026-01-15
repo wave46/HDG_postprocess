@@ -37,7 +37,7 @@ def d_eirene_fit_1D_dte(te,params):
         res+=i*params[i]*np.log(te)**(i-1)
     return res
 
-def eirene_fit_1D(te,params,te_min):
+def eirene_fit_1D(te,params,te_min,te_max):
     """
     This routine calculates extrapolated AMJUEL 1D rate (typically on temperature) 
     for given temperature and coefficients
@@ -45,13 +45,19 @@ def eirene_fit_1D(te,params,te_min):
     """
     result = np.zeros_like(te)
     #good indices
-    index_1 = (te>=te_min)
+    index_1 = (te>=te_min)&(te<=te_max)
     result[index_1] = eirene_fit_1D_log(te[index_1],params)
     #bad indices
     index_2 = (te<te_min)
     result[index_2] = eirene_fit_1D_log(te_min*np.ones_like(te[index_2]),params)
     result[index_2] += (d_eirene_fit_1D_dte(te_min*np.ones_like(te[index_2]),params)*
                         (np.log(te[index_2])-np.log(te_min*np.ones_like(te[index_2]))))
+    
+    index_3 = (te>te_max)
+    result[index_3] = eirene_fit_1D_log(te_max*np.ones_like(te[index_3]),params)
+    result[index_3] += (d_eirene_fit_1D_dte(te_max*np.ones_like(te[index_3]),params)*
+                        (np.log(te[index_3])-np.log(te_max*np.ones_like(te[index_3]))))
+    
     return np.exp(result)/1e6
 
 
