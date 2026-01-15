@@ -2593,7 +2593,8 @@ class HDGsolution:
         return calculate_iz_source_cons(solution,self.atomic_parameters['iz'],
                                                  self.parameters['adimensionalization']['temperature_scale'],
                                                  self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'])
+                                                 self.parameters['physics']['Mref'],
+                                                 self._cons_idx)
 
     def iz_rate(self,r,z):
         """
