@@ -493,7 +493,7 @@ def calculate_cx_source(te,ne,nn,cx_parameters):
     return ne*nn*sigma_cx
 
 
-def calculate_cx_source_cons(solutions,cx_parameters,T0,n0,Mref):
+def calculate_cx_source_cons(solutions,cx_parameters,T0,n0,Mref,cons_idx):
     """
     calculates charge-exchange source for given conservative solutions
     todo make indexing not hardcoded
@@ -501,8 +501,8 @@ def calculate_cx_source_cons(solutions,cx_parameters,T0,n0,Mref):
 
     sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
     if len(solutions.shape)>2:
-        res = n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_cx
+        res = n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_cx
     else:
-        res =n0**2*solutions[:,0]*solutions[:,-1]*sigma_cx
+        res =n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_cx
     return res
 

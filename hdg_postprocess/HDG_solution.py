@@ -2374,7 +2374,8 @@ class HDGsolution:
             self._cx_source = calculate_cx_source_cons(self.solution_glob,self.atomic_parameters['cx'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'])
+                                                                self.parameters['physics']['Mref'],
+                                                                self._cons_idx)
 
         if which == 'gauss':
             if self.solution_gauss is None:
@@ -2383,7 +2384,8 @@ class HDGsolution:
             self._cx_source_gauss = calculate_cx_source_cons(self.solution_gauss,self.atomic_parameters['cx'],
                                                                 self.parameters['adimensionalization']['temperature_scale'],
                                                                 self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'])
+                                                                self.parameters['physics']['Mref'],
+                                                                self._cons_idx)
     def define_interpolators(self):
         """
         defines interpolators for full solutions and gradients based on shape functions
