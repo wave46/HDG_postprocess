@@ -543,7 +543,7 @@ def calculate_k_cons(solutions,k0,cons_idx):
 
     res = sol[:,cons_idx[b'k']]*k0
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_grad_k_cons(gradients,k0,L0,cons_idx):
@@ -559,7 +559,7 @@ def calculate_grad_k_cons(gradients,k0,L0,cons_idx):
 
     res = grad[:,cons_idx[b'k'],:]*k0/L0
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
     return res
 
 def calculate_dk_cons(solutions,dk_params,q_cyl,R,D0,cons_idx):
