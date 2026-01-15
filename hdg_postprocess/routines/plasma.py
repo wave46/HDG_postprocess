@@ -527,7 +527,7 @@ def calculate_grad_M_cons(solutions,gradients,L0,cons_idx):
 
 
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
+        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
     return res
 
 def calculate_k_cons(solutions,k0,cons_idx):
