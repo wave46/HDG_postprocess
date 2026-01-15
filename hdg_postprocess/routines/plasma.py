@@ -897,3 +897,74 @@ def calculate_perp_electron_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,B
         res = res.reshape(dimensions[0],dimensions[1])
     return res
 
+def calculate_ion_heat_flux_wall_bc_cons(solutions,gamma_i,Br,Bz,Bt,n,n0,u0,T0,Mref,kb,mD,cons_idx):
+    """
+    calculates ion heat flux on the wall with normal n value based on conservatives values
+    diffusion dimensional (assuming Dperp only)
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
+        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
+    else:
+        sol = solutions.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
+        n_res = n.copy()
+    
+
+    ni = calculate_n_cons(sol,n0,cons_idx)
+    u = calculate_u_cons(sol,u0,cons_idx)
+    ti = calculate_Ti_cons(sol,T0,Mref,cons_idx)
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bn = br*n_res[:,0]+bz*n_res[:,1]
+
+    res = (gamma_i*u*ni*ti*kb+0.5*ni*mD*u**3)*bn
+
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
+def calculate_electron_heat_flux_wall_bc_cons(solutions,gamma_e,Br,Bz,Bt,n,n0,u0,T0,Mref,kb,cons_idx):
+    """
+    calculates electron heat flux on the wall with normal n value based on conservatives values
+    diffusion dimensional (assuming Dperp only)
+    """
+    dimensions = None
+    if len(solutions.shape)>2:
+        dimensions = solutions.shape
+        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
+        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
+        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
+        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
+    else:
+        sol = solutions.copy()
+        Br_res =Br.copy()
+        Bz_res =Bz.copy()
+        Bt_res =Bt.copy()
+        n_res = n.copy()
+    
+
+    ne = calculate_n_cons(sol,n0,cons_idx)
+    u = calculate_u_cons(sol,u0,cons_idx)
+    te = calculate_Te_cons(sol,T0,Mref,cons_idx)
+    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bn = br*n_res[:,0]+bz*n_res[:,1]
+
+    res = gamma_e*u*ne*te*bn*kb
+
+
+    if dimensions is not None:
+        res = res.reshape(dimensions[0],dimensions[1])
+    return res
+
+
