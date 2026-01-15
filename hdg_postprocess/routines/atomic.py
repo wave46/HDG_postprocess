@@ -414,9 +414,9 @@ def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,c
     sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
     u = calculate_u_cons(solutions,u0,cons_idx)
     if len(solutions.shape)>2:
-        res = 0.5*mi*n0**2*solutions[:,:,0]*solutions[:,:,-1]*u**2*sigma_cx
+        res = 0.5*mi*n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*u**2*sigma_cx
     else:
-        res = 0.5*mi*n0**2*solutions[:,0]*solutions[:,-1]*u**2*sigma_cx
+        res = 0.5*mi*n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*u**2*sigma_cx
     return res
 
 def calculate_ion_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_parameters,T0,n0,Mref,R_E,kb,mi,E0,u0,cons_idx):
