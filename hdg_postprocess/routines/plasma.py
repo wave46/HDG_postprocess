@@ -500,7 +500,7 @@ def calculate_M_cons(solutions,cons_idx):
     cs = calculate_cs_cons(sol,1,cons_idx)
     res = u/cs
     if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
+        res = res.reshape(dimensions[0],dimensions[1])
     return res
 
 def calculate_grad_M_cons(solutions,gradients,L0,cons_idx):
