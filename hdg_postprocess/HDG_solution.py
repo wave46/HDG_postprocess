@@ -938,17 +938,439 @@ class HDGsolution:
             print('Comibining first values on boundary gauss points')
             self.calculate_in_boundary_gauss_points()
 
-        variables = ['n','u','te','ti','M','p_dyn','gamma_dep','q_dep','recycling','gamma_neut','dl','ds']
+        variables = ['b_n','normal_vector',
+                     'dl','ds',
+                     'solution','solution_skeleton','gradient',
+                     'n','n_skeleton','u','u_skeleton',
+                     'te','te_skeleton','ti','ti_skeleton',
+                     'M','M_skeleton','p_dyn','p_dyn_skeleton',
+                     'gamma','gamma_skeleton',
+                     'gamma_perp_dep','gamma_perp_dep_skeleton',
+                     'gamma_tot_dep','gamma_tot_dep_skeleton',
+                     'q_i_par_cond', 'q_i_par_cond_skeleton',
+                     'q_e_par_cond', 'q_e_par_cond_skeleton',
+                     'q_i_par_conv', 'q_i_par_conv_skeleton',
+                     'q_e_par_conv', 'q_e_par_conv_skeleton',
+                     'q_i_par', 'q_i_par_skeleton',
+                     'q_e_par', 'q_e_par_skeleton',
+                     'q_i_perp_dep','q_i_perp_dep_skeleton',
+                     'q_e_perp_dep','q_e_perp_dep_skeleton',
+                     'q_i_tot_dep','q_i_tot_dep_skeleton',
+                     'q_e_tot_dep','q_e_tot_dep_skeleton',
+                     'q_e_tot_dep_bc','q_e_tot_dep_bc_skeleton',
+                     'q_i_tot_dep_bc','q_i_tot_dep_bc_skeleton',
+                     'neutral_flux','neutral_flux_skeleton'
+                     ]
 
         result = {}
         for variable in variables:
             if variable == 'dl':
-                res = self.mesh.segment_length_gauss
+                res = self.mesh.segment_length_gauss[:,:,0]
             elif variable == 'ds':
-                res = self.mesh.segment_surface_gauss
+                res = self.mesh.segment_surface_gauss[:,:,0]
+            elif variable == 'normal_vector':
+                res = self.mesh.normals_gauss
+            elif variable == 'b_n':
+                res = np.sum(self.magnetic_field_unit_boundary_gauss[:,:,:2] * self.mesh.normals_gauss, axis=-1)
+            elif variable == 'solution':
+                res = self.solution_boundary_gauss
+            elif variable == 'solution_skeleton':
+                res = self.solution_skeleton_boundary_gauss
+            elif variable == 'gradient':
+                res = self.gradient_boundary_gauss
+            elif variable == 'n':
+                res = calculate_n_cons(self.solution_boundary_gauss,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
+            elif variable == 'n_skeleton':
+                res = calculate_n_cons(self.solution_skeleton_boundary_gauss,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
+            elif variable == 'u':
+                res = calculate_u_cons(self.solution_boundary_gauss,self.parameters['adimensionalization']['speed_scale'],self.cons_idx)
+            elif variable == 'u_skeleton':
+                res = calculate_u_cons(self.solution_skeleton_boundary_gauss,self.parameters['adimensionalization']['speed_scale'],self.cons_idx)
+            elif variable == 'te':
+                res = calculate_Te_cons(self.solution_boundary_gauss,self.parameters['adimensionalization']['temperature_scale'],
+                                 self.parameters['physics']['Mref'],self._cons_idx)
+            elif variable == 'te_skeleton':
+                res = calculate_Te_cons(self.solution_skeleton_boundary_gauss,self.parameters['adimensionalization']['temperature_scale'],
+                                 self.parameters['physics']['Mref'],self._cons_idx)
+            elif variable == 'ti':
+                res = calculate_Ti_cons(self.solution_boundary_gauss,self.parameters['adimensionalization']['temperature_scale'],
+                                 self.parameters['physics']['Mref'],self._cons_idx)
+            elif variable == 'ti_skeleton':
+                res = calculate_Ti_cons(self.solution_skeleton_boundary_gauss,self.parameters['adimensionalization']['temperature_scale'],
+                                 self.parameters['physics']['Mref'],self._cons_idx)
+            elif variable == 'M':
+                res = calculate_M_cons(self.solution_boundary_gauss,self.cons_idx)
+            elif variable == 'M_skeleton':
+                res = calculate_M_cons(self.solution_skeleton_boundary_gauss,self.cons_idx)
+            elif variable == 'p_dyn':
+                res = calculate_pdyn_cons(self.solution_boundary_gauss,(2/3/self.parameters['physics']['Mref'])* \
+                                          self.parameters['adimensionalization']['density_scale']* \
+                                          self.parameters['adimensionalization']['temperature_scale']* \
+                                          self.parameters['adimensionalization']['charge_scale'],
+                                          self.parameters['adimensionalization']['speed_scale']**2* \
+                                          self.parameters['adimensionalization']['mass_scale']* \
+                                          self.parameters['adimensionalization']['density_scale'],
+                                          self.cons_idx)
+            elif variable == 'p_dyn_skeleton':
+                res = calculate_pdyn_cons(self.solution_skeleton_boundary_gauss,(2/3/self.parameters['physics']['Mref'])* \
+                                          self.parameters['adimensionalization']['density_scale']* \
+                                          self.parameters['adimensionalization']['temperature_scale']* \
+                                          self.parameters['adimensionalization']['charge_scale'],
+                                          self.parameters['adimensionalization']['speed_scale']**2* \
+                                          self.parameters['adimensionalization']['mass_scale']* \
+                                          self.parameters['adimensionalization']['density_scale'],
+                                          self.cons_idx)
+            elif variable == 'gamma':
+                res = calculate_parallel_flux_cons(self.solution_boundary_gauss,self.parameters['adimensionalization']['density_scale']* \
+                                                    self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+            elif variable == 'gamma_skeleton':
+                res = calculate_parallel_flux_cons(self.solution_skeleton_boundary_gauss,self.parameters['adimensionalization']['density_scale']* \
+                                                    self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+            elif variable == 'gamma_perp_dep':
+                if 'ME_diff_n' not in self.parameters['physics'].keys():
+                    d = self.parameters['physics']['diff_n']
+                else:
+                    d = self.parameters['physics']['ME_diff_n']
+                diffusion = (d*self.parameters['adimensionalization']['length_scale']**2/
+                             self.parameters['adimensionalization']['time_scale'])*np.ones_like(self.solution_boundary_gauss[:,:,0])
+                res = calculate_particle_perp_flux_wall_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                        diffusion,self.magnetic_field_boundary_gauss[:,:,0],
+                                                        self.magnetic_field_boundary_gauss[:,:,1],
+                                                        self.magnetic_field_boundary_gauss[:,:,2],
+                                                        self.mesh.normals_gauss,
+                                                        self.parameters['adimensionalization']['density_scale'],
+                                                        self.parameters['adimensionalization']['length_scale'],
+                                                        self._cons_idx)
+            elif variable == 'gamma_perp_dep_skeleton':
+                if 'ME_diff_n' not in self.parameters['physics'].keys():
+                    d = self.parameters['physics']['diff_n']
+                else:
+                    d = self.parameters['physics']['ME_diff_n']
+                diffusion = (d*self.parameters['adimensionalization']['length_scale']**2/
+                             self.parameters['adimensionalization']['time_scale'])*np.ones_like(self.solution_boundary_gauss[:,:,0])
+                res = calculate_particle_perp_flux_wall_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                        diffusion,self.magnetic_field_boundary_gauss[:,:,0],
+                                                        self.magnetic_field_boundary_gauss[:,:,1],
+                                                        self.magnetic_field_boundary_gauss[:,:,2],
+                                                        self.mesh.normals_gauss,
+                                                        self.parameters['adimensionalization']['density_scale'],
+                                                        self.parameters['adimensionalization']['length_scale'],
+                                                        self._cons_idx)
+            elif variable == 'gamma_tot_dep':
+                res = result['gamma']*result['b_n']+ result['gamma_perp_dep']
+            elif variable == 'gamma_tot_dep_skeleton':
+                res = result['gamma_skeleton']*result['b_n']+ result['gamma_perp_dep_skeleton']
 
+            elif variable == 'q_i_par_cond':
+
+                res = calculate_parallel_ion_heat_flux_par_cond_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+                
+            elif variable == 'q_i_par_cond_skeleton':
+                res = calculate_parallel_ion_heat_flux_par_cond_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+
+            elif variable == 'q_e_par_cond':
+                res = calculate_parallel_electron_heat_flux_par_cond_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+                
+            elif variable == 'q_e_par_cond_skeleton':
+                res = calculate_parallel_electron_heat_flux_par_cond_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+            
+            elif variable == 'q_i_par_conv':
+                res = calculate_parallel_ion_heat_flux_par_conv_cons(self.solution_boundary_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],self.parameters['adimensionalization']['mass_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+            elif variable == 'q_i_par_conv_skeleton':
+                res = calculate_parallel_ion_heat_flux_par_conv_cons(self.solution_skeleton_boundary_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],self.parameters['adimensionalization']['mass_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+            
+            elif variable == 'q_e_par_conv':
+                res = calculate_parallel_electron_heat_flux_par_conv_cons(self.solution_boundary_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+            elif variable == 'q_e_par_conv_skeleton':
+                res = calculate_parallel_electron_heat_flux_par_conv_cons(self.solution_skeleton_boundary_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+
+            elif variable == 'q_i_par':
+                res = calculate_parallel_ion_heat_flux_par_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],self.parameters['adimensionalization']['mass_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+            elif variable == 'q_i_par_skeleton':
+                res = calculate_parallel_ion_heat_flux_par_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],self.parameters['adimensionalization']['mass_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+            elif variable == 'q_e_par':
+                res = calculate_parallel_electron_heat_flux_par_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+            elif variable == 'q_e_par_skeleton':
+                res = calculate_parallel_electron_heat_flux_par_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                    self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
+                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
+                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
+                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
+                        self.parameters['adimensionalization']['charge_scale'],
+                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
+                        50,self._cons_idx)
+            elif variable == 'q_i_perp_dep':
+                if ((self.parameters['physics']['diff_n']!=self.parameters['physics']['diff_e']) or 
+                    (self.parameters['physics']['diff_e'])!=self.parameters['physics']['diff_u']):
+                    print('Warning: different perpendicular diffusions and heat conductivities')
+                    print('Not calculating, providing zeros as perpendicular heat fluxes')
+                    res = np.zeros_like(self.solution_boundary_gauss[:,:,0])
+                else:
+                    if 'ME_diff_e' not in self.parameters['physics'].keys():
+                        d = self.parameters['physics']['diff_e']
+                    else:
+                        d = self.parameters['physics']['ME_diff_e']
+                    diffusion = (d*self.parameters['adimensionalization']['length_scale']**2/
+                                 self.parameters['adimensionalization']['time_scale'])*np.ones_like(self.solution_boundary_gauss[:,:,0])
+                    res = calculate_perp_ion_heat_wall_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                    diffusion,self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.mesh.normals_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                                                    self.parameters['adimensionalization']['mass_scale']* \
+                                                    self.parameters['adimensionalization']['speed_scale']**2,
+                                                    self.parameters['adimensionalization']['length_scale'],
+                                                    self._cons_idx)
+            elif variable == 'q_i_perp_dep_skeleton':
+                if ((self.parameters['physics']['diff_n']!=self.parameters['physics']['diff_e']) or 
+                    (self.parameters['physics']['diff_e'])!=self.parameters['physics']['diff_u']):
+                    print('Warning: different perpendicular diffusions and heat conductivities')
+                    print('Not calculating, providing zeros as perpendicular heat fluxes')
+                    res = np.zeros_like(self.solution_skeleton_boundary_gauss[:,:,0])
+                else:
+                    if 'ME_diff_e' not in self.parameters['physics'].keys():
+                        d = self.parameters['physics']['diff_e']
+                    else:
+                        d = self.parameters['physics']['ME_diff_e']
+                    diffusion = (d*self.parameters['adimensionalization']['length_scale']**2/
+                                 self.parameters['adimensionalization']['time_scale'])*np.ones_like(self.solution_skeleton_boundary_gauss[:,:,0])
+                    res = calculate_perp_ion_heat_wall_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                    diffusion,self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.mesh.normals_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                                                    self.parameters['adimensionalization']['mass_scale']* \
+                                                    self.parameters['adimensionalization']['speed_scale']**2,
+                                                    self.parameters['adimensionalization']['length_scale'],
+                                                    self._cons_idx)
+            elif variable == 'q_e_perp_dep':
+                if ((self.parameters['physics']['diff_n']!=self.parameters['physics']['diff_ee'])):
+                    print('Warning: different perpendicular diffusions and heat conductivities')
+                    print('Not calculating, providing zeros as perpendicular heat fluxes')
+                    res = np.zeros_like(self.solution_boundary_gauss[:,:,0])
+                else:
+                    if 'ME_diff_ee' not in self.parameters['physics'].keys():
+                        d = self.parameters['physics']['diff_ee']
+                    else:
+                        d = self.parameters['physics']['ME_diff_ee']
+                    diffusion = (d*self.parameters['adimensionalization']['length_scale']**2/
+                                 self.parameters['adimensionalization']['time_scale'])*np.ones_like(self.solution_boundary_gauss[:,:,0])
+                    res = calculate_perp_electron_heat_wall_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                    diffusion,self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.mesh.normals_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                                                    self.parameters['adimensionalization']['mass_scale']* \
+                                                    self.parameters['adimensionalization']['speed_scale']**2,
+                                                    self.parameters['adimensionalization']['length_scale'],
+                                                    self._cons_idx)
+            elif variable == 'q_e_perp_dep_skeleton':
+                if ((self.parameters['physics']['diff_n']!=self.parameters['physics']['diff_ee'])):
+                    print('Warning: different perpendicular diffusions and heat conductivities')
+                    print('Not calculating, providing zeros as perpendicular heat fluxes')
+                    res = np.zeros_like(self.solution_skeleton_boundary_gauss[:,:,0])
+                else:
+                    if 'ME_diff_ee' not in self.parameters['physics'].keys():
+                        d = self.parameters['physics']['diff_ee']
+                    else:
+                        d = self.parameters['physics']['ME_diff_ee']
+                    diffusion = (d*self.parameters['adimensionalization']['length_scale']**2/
+                                 self.parameters['adimensionalization']['time_scale'])*np.ones_like(self.solution_skeleton_boundary_gauss[:,:,0])
+                    res = calculate_perp_electron_heat_wall_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                    diffusion,self.magnetic_field_boundary_gauss[:,:,0],
+                                                    self.magnetic_field_boundary_gauss[:,:,1],
+                                                    self.magnetic_field_boundary_gauss[:,:,2],
+                                                    self.mesh.normals_gauss,
+                                                    self.parameters['adimensionalization']['density_scale'],
+                                                    self.parameters['adimensionalization']['mass_scale']* \
+                                                    self.parameters['adimensionalization']['speed_scale']**2,
+                                                    self.parameters['adimensionalization']['length_scale'],
+                                                    self._cons_idx)
+            elif variable == 'q_i_tot_dep':
+                res = result['q_i_par']*result['b_n']+ result['q_i_perp_dep']
+            elif variable == 'q_i_tot_dep_skeleton':
+                res = result['q_i_par_skeleton']*result['b_n']+ result['q_i_perp_dep_skeleton']
+            elif variable == 'q_e_tot_dep':
+                res = result['q_e_par']*result['b_n']+ result['q_e_perp_dep']
+            elif variable == 'q_e_tot_dep_skeleton':
+                res = result['q_e_par_skeleton']*result['b_n']+ result['q_e_perp_dep_skeleton']
+            
+            elif variable == 'q_e_tot_dep_bc':
+                res = calculate_electron_heat_flux_wall_bc_cons(self.solution_boundary_gauss, self.parameters['physics']['Gmbohme'],
+                                                               self.magnetic_field_boundary_gauss[:,:,0],
+                                                        self.magnetic_field_boundary_gauss[:,:,1],
+                                                        self.magnetic_field_boundary_gauss[:,:,2],
+                                                        self.mesh.normals_gauss,
+                                                        self.parameters['adimensionalization']['density_scale'],
+                                                        self.parameters['adimensionalization']['speed_scale'],
+                                                        self.parameters['adimensionalization']['temperature_scale'],
+                                                        self.parameters['physics']['Mref'],
+                                                        self.e,
+                                                        self._cons_idx)
+            elif variable == 'q_e_tot_dep_bc_skeleton':
+                res = calculate_electron_heat_flux_wall_bc_cons(self.solution_skeleton_boundary_gauss, self.parameters['physics']['Gmbohme'],
+                                                                self.magnetic_field_boundary_gauss[:,:,0],
+                                                                self.magnetic_field_boundary_gauss[:,:,1],
+                                                                self.magnetic_field_boundary_gauss[:,:,2],
+                                                                self.mesh.normals_gauss,
+                                                                self.parameters['adimensionalization']['density_scale'],
+                                                                self.parameters['adimensionalization']['speed_scale'],
+                                                                self.parameters['adimensionalization']['temperature_scale'],
+                                                                self.parameters['physics']['Mref'],
+                                                                self.e,
+                                                                self._cons_idx)
+            elif variable == 'q_i_tot_dep_bc':
+                res = calculate_ion_heat_flux_wall_bc_cons(self.solution_boundary_gauss, self.parameters['physics']['Gmbohm'],
+                                                           self.magnetic_field_boundary_gauss[:,:,0],
+                                                           self.magnetic_field_boundary_gauss[:,:,1],
+                                                           self.magnetic_field_boundary_gauss[:,:,2],
+                                                           self.mesh.normals_gauss,
+                                                           self.parameters['adimensionalization']['density_scale'],
+                                                           self.parameters['adimensionalization']['speed_scale'],
+                                                           self.parameters['adimensionalization']['temperature_scale'],
+                                                           self.parameters['physics']['Mref'],
+                                                           self.e,
+                                                           self.parameters['adimensionalization']['mass_scale'],
+                                                           self._cons_idx)
+            elif variable == 'q_i_tot_dep_bc_skeleton':
+                res = calculate_ion_heat_flux_wall_bc_cons(self.solution_skeleton_boundary_gauss, self.parameters['physics']['Gmbohm'],
+                                                           self.magnetic_field_boundary_gauss[:,:,0],
+                                                           self.magnetic_field_boundary_gauss[:,:,1],
+                                                           self.magnetic_field_boundary_gauss[:,:,2],
+                                                           self.mesh.normals_gauss,
+                                                           self.parameters['adimensionalization']['density_scale'],
+                                                           self.parameters['adimensionalization']['speed_scale'],
+                                                           self.parameters['adimensionalization']['temperature_scale'],
+                                                           self.parameters['physics']['Mref'],
+                                                           self.e,
+                                                           self.parameters['adimensionalization']['mass_scale'],
+                                                           self._cons_idx)           
+            elif variable == 'neutral_flux':
+                res = calculate_neutral_perp_flux_wall_cons(self.solution_boundary_gauss,self.gradient_boundary_gauss,
+                                                                     self.dnn_parameters,self.atomic_parameters,
+                                                                     self.magnetic_field_boundary_gauss[:,:,0],
+                                                                     self.magnetic_field_boundary_gauss[:,:,1],
+                                                                     self.magnetic_field_boundary_gauss[:,:,2],
+                                                                     self.mesh.normals_gauss,
+                                                                     self.parameters['adimensionalization']['density_scale'],
+                                                                     self.parameters['adimensionalization']['length_scale'],
+                                                                     self.parameters['adimensionalization']['charge_scale'],
+                                                                     self.parameters['adimensionalization']['mass_scale'],
+                                                                     self.parameters['adimensionalization']['temperature_scale'],
+                                                                     self.parameters['physics']['Mref'],
+                                                                     self.parameters['adimensionalization']['time_scale'],
+                                                                     self._cons_idx)
+            elif variable == 'neutral_flux_skeleton':
+                res = calculate_neutral_perp_flux_wall_cons(self.solution_skeleton_boundary_gauss,self.gradient_boundary_gauss,
+                                                                     self.dnn_parameters,self.atomic_parameters,
+                                                                     self.magnetic_field_boundary_gauss[:,:,0],
+                                                                     self.magnetic_field_boundary_gauss[:,:,1],
+                                                                     self.magnetic_field_boundary_gauss[:,:,2],
+                                                                     self.mesh.normals_gauss,
+                                                                     self.parameters['adimensionalization']['density_scale'],
+                                                                     self.parameters['adimensionalization']['length_scale'],
+                                                                     self.parameters['adimensionalization']['charge_scale'],
+                                                                     self.parameters['adimensionalization']['mass_scale'],
+                                                                     self.parameters['adimensionalization']['temperature_scale'],
+                                                                     self.parameters['physics']['Mref'],
+                                                                     self.parameters['adimensionalization']['time_scale'],
+                                                                     self._cons_idx)
+                
             #back-reordering on faces
             result[variable] = res[:,::-1]
+        result['time'] = self.parameters['time']['Current_time']*self.parameters['adimensionalization']['time_scale']
+        result['r'] = self.mesh.vertices_boundary_gauss[:,::-1,0]
+        result['z'] = self.mesh.vertices_boundary_gauss[:,::-1,1]
+        result['psi'] = self.poloidal_flux_boundary_gauss[:,::-1]
+        return result
 
 
 
