@@ -391,9 +391,9 @@ def calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,
     sigma_iz = calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref)
     ti = calculate_Ti_cons(solutions,T0,Mref,cons_idx)
     if len(solutions.shape)>2:
-        res = 1.5*kb*n0**2*solutions[:,:,0]*solutions[:,:,-1]*sigma_iz*R_E*ti
+        res = 1.5*kb*n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_iz*R_E*ti
     else:
-        res = 1.5*kb*n0**2*solutions[:,0]*solutions[:,-1]*sigma_iz*R_E*ti
+        res = 1.5*kb*n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_iz*R_E*ti
     return res
 
 def calculate_ion_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,E0):
