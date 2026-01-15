@@ -49,18 +49,26 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath=None,meshname_base
                 else:
                     if len(item)==1:
                         parameters['physics'][key] = item[0]
-        
+        if "solution" in solution_file.keys():
+            temp = solution_file['solution']
+        else:
+            temp = solution_file
         # stack raw data
-        raw_solutions.append(solution_file['solution']['u'])
-        raw_solutions_skeleton.append(solution_file['solution']['u_tilde'])
-        raw_gradients.append(solution_file['solution']['q'])
+        raw_solutions.append(temp['u'])
+        raw_solutions_skeleton.append(temp['u_tilde'])
+        raw_gradients.append(temp['q'])
 
+        if "magnetic" in solution_file.keys():
+            temp = solution_file['magnetic']
+        else:
+            temp = solution_file
         #define equilibrium dictionary
         equilibrium = {}
         if parameters['switches']['ohmicsrc'][0]==1:
-            equilibrium['plasma_current'] = solution_file['magnetic']['Jtor'].T
-        equilibrium['magnetic_field'] = solution_file['magnetic']['magnetic_field'].T
-        equilibrium['poloidal_flux'] = solution_file['magnetic']['magnetic_psi'].T   #this might be corrupted or normalized
+            equilibrium['plasma_current'] = temp['Jtor'].T
+        equilibrium['magnetic_field'] = temp['magnetic_field'].T
+        if 'magnetic_psi' in temp.keys():
+            equilibrium['poloidal_flux'] = temp['magnetic_psi'].T   #this might be corrupted or normalized
         raw_equilibriums.append(equilibrium)
 
         #define boundary dictionary
@@ -130,6 +138,8 @@ def load_HDG_mesh_from_file(meshpath,meshname_base,n_partitions):
             mesh_parameters['Ndim'] = int(mesh_file['Ndim'][0])
             mesh_parameters['nodes_per_element'] = int(mesh_file['Nnodesperelem'][0])
             mesh_parameters['nodes_per_face'] = int(mesh_file['Nnodesperface'][0])
+            if 'elemSize' in mesh_file.keys():
+                mesh_parameters['elemSize'] = mesh_file['elemSize']
             if mesh_file['elemType'][0] == 0:
                 mesh_parameters['element_type'] = 'triangle'
             else:
