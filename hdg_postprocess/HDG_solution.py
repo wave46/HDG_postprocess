@@ -3358,7 +3358,8 @@ class HDGsolution:
                                                     self.parameters['adimensionalization']['temperature_scale'],
                                                     self.parameters['adimensionalization']['density_scale'],
                                                     self.parameters['physics']['Mref'],
-                                                    self.parameters['adimensionalization']['charge_scale'])
+                                                    self.parameters['adimensionalization']['charge_scale'],
+                                                    self._cons_idx)
 
     def Q_i_gain_iz(self,r,z):
         """
