@@ -1363,9 +1363,11 @@ class HDGsolution:
                                                                      self.parameters['physics']['Mref'],
                                                                      self.parameters['adimensionalization']['time_scale'],
                                                                      self._cons_idx)
+            result[variable] = res
                 
             #back-reordering on faces
-            result[variable] = res[:,::-1]
+        for key, item in result.items():
+            result[key] = item[:,::-1]
         result['time'] = self.parameters['time']['Current_time']*self.parameters['adimensionalization']['time_scale']
         result['r'] = self.mesh.vertices_boundary_gauss[:,::-1,0]
         result['z'] = self.mesh.vertices_boundary_gauss[:,::-1,1]
