@@ -177,7 +177,7 @@ class HDGsolution:
             self._solution_glob = None
             self._gradient_glob = None
             self._magnetic_field_glob = None
-            self._magnetic_field_glob_unit = None
+            self._magnetic_field_unit_glob = None
             self._jtor_glob = None
             
 
@@ -635,7 +635,7 @@ class HDGsolution:
     @property
     def electron_sink_cooling_factor(self):
         """Sink due to cooling factor on a solution mesh"""
-        return self._eelectron_sink_cooling_factor
+        return self._electron_sink_cooling_factor
 
     @property
     def electron_sink_cooling_factor_simple(self):
