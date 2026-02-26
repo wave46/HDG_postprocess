@@ -79,6 +79,11 @@ class HDGsolution:
         self._dnn_with_nn_collision_simple = None
         self._mfp_simple = None
 
+        self._external_heating_simple = None
+        self._external_heating_e_simple = None
+        self._external_heating_i_simple = None
+        
+
         #plasma parameters
         self._ohmic_source_simple = None
 
@@ -119,6 +124,26 @@ class HDGsolution:
         self._electron_sink_cooling_factor_gauss = None
         self._cooling_factor_gauss = None
         self._cx_source_gauss = None
+        self._external_heating_gauss = None
+        self._external_heating_e_gauss = None
+        self._external_heating_i_gauss = None
+
+        # total volumetric values
+        self._ohmic_source_total = None
+        self._electron_sink_iz_total = None
+        self._ion_gain_iz_total = None
+        self._electron_sink_rec_total = None
+        self._electron_gain_rec_total = None
+        self._ion_sink_rec_total = None
+        self._ion_sink_cx_total = None
+        self._external_heating_total = None
+        self._external_heating_e_total = None
+        self._external_heating_i_total = None
+
+        #boundary 
+        self._boundary_summary = None
+        self._ion_energy_sheath_loss_total = None
+        self._electron_energy_sheath_loss_total = None
 
         # defining the indexes of conservative variables
         self._cons_idx = {}
@@ -133,6 +158,17 @@ class HDGsolution:
         else: 
             self._e = 1.60217662e-19
             self.parameters['adimensionalization']['charge_scale'] = self.e
+
+        if 'external_heating' in self.parameters['physics'].keys():
+            self.parameters['physics']['external_heating'] = (self.parameters['physics']['external_heating']*self.parameters['adimensionalization']['specific_energy_density_scale']/
+                                        self.parameters['adimensionalization']['time_scale']*self.parameters['adimensionalization']['mass_scale'])
+        if 'external_heating_i' in self.parameters['physics'].keys():
+            self.parameters['physics']['external_heating_i'] = (self.parameters['physics']['external_heating_i']*self.parameters['adimensionalization']['specific_energy_density_scale']/
+                                        self.parameters['adimensionalization']['time_scale']*self.parameters['adimensionalization']['mass_scale'])
+        if 'external_heating_e' in self.parameters['physics'].keys():
+            self.parameters['physics']['external_heating_e'] = (self.parameters['physics']['external_heating_e']*self.parameters['adimensionalization']['specific_energy_density_scale']/
+                                        self.parameters['adimensionalization']['time_scale']*self.parameters['adimensionalization']['mass_scale'])
+
 
         if self._n_partitions == 1:
             #no need to recombine meshes
@@ -492,6 +528,11 @@ class HDGsolution:
         return self._ion_gain_iz_gauss
     
     @property
+    def ion_gain_iz_total(self):
+        """Total ion energy sink due to ionization on a full solution mesh using conservative values as inputs"""
+        return self._ion_gain_iz_total
+    
+    @property
     def ion_sink_rec(self):
         """Ion energy sink due to recombination"""
         return self._ion_sink_rec
@@ -507,6 +548,11 @@ class HDGsolution:
         return self._ion_sink_rec_gauss
     
     @property
+    def ion_sink_rec_total(self):
+        """Total ion energy sink due to recombination on a full solution mesh using conservative values as inputs"""
+        return self._ion_sink_rec_total
+    
+    @property
     def ion_sink_cx(self):
         """Ion energy sink due to charge exchange"""
         return self._ion_sink_cx
@@ -520,6 +566,11 @@ class HDGsolution:
     def ion_sink_cx_gauss(self):
         """Ion energy sink due to charge exchange on gauss points"""
         return self._ion_sink_cx_gauss
+    
+    @property
+    def ion_sink_cx_total(self):
+        """Total ion energy sink due to charge exchange on a full solution mesh using conservative values as inputs"""
+        return self._ion_sink_cx_total
 
     @property
     def electron_sink_iz(self):
@@ -535,6 +586,11 @@ class HDGsolution:
     def electron_sink_iz_gauss(self):
         """Electron energy sink due to ionization on gauss points"""
         return self._electron_sink_iz_gauss
+    
+    @property
+    def electron_sink_iz_total(self):
+        """Total electron energy sink due to ionization on a full solution mesh using conservative values as inputs"""
+        return self._electron_sink_iz_total
 
     @property
     def electron_sink_rec(self):
@@ -550,6 +606,11 @@ class HDGsolution:
     def electron_sink_rec_gauss(self):
         """Electron energy sink due to recombination on gauss points"""
         return self._electron_sink_rec_gauss
+    
+    @property
+    def electron_sink_rec_total(self):
+        """Total electron energy sink due to recombination on a full solution mesh using conservative values as inputs"""
+        return self._electron_sink_rec_total
 
     @property
     def electron_gain_rec(self):
@@ -565,6 +626,11 @@ class HDGsolution:
     def electron_gain_rec_gauss(self):
         """Ionization source on gauss points"""
         return self._electron_gain_rec_gauss
+
+    @property
+    def electron_gain_rec_total(self):
+        """Total ionization source on a full solution mesh using conservative values as inputs"""
+        return self._electron_gain_rec_total
     
     @property
     def electron_sink_cooling_factor(self):
@@ -612,7 +678,59 @@ class HDGsolution:
     def cx_source_gauss(self):
         """Charge-exchange source on gauss points"""
         return self._cx_source_gauss
+
+    @property
+    def external_heating(self):
+        """External heating source on a full solution mesh using conservative values as inputs"""
+        return self._external_heating
+    @property
+    def external_heating_simple(self):
+        """External heating source on a simple solution mesh"""
+        return self._external_heating_simple
+    @property
+    def external_heating_gauss(self):
+        """External heating source on gauss points"""
+        return self._external_heating_gauss
+    @property
+    def external_heating_total(self):
+        """Total external heating source on a full solution mesh using conservative values as inputs"""
+        return self._external_heating_total
     
+
+    @property
+    def external_heating_e(self):
+        """External heating source on electrons on a full solution mesh using conservative values as inputs"""
+        return self._external_heating_e
+    @property
+    def external_heating_e_simple(self):
+        """External heating source on electrons on a simple solution mesh"""
+        return self._external_heating_e_simple
+    @property
+    def external_heating_e_gauss(self): 
+        """External heating source on electrons on gauss points"""
+        return self._external_heating_e_gauss
+    @property
+    def external_heating_e_total(self):
+        """Total external heating source on electrons on a full solution mesh using conservative values as inputs"""
+        return self._external_heating_e_total
+
+    @property
+    def external_heating_i(self):
+        """External heating source on ions on a full solution mesh using conservative values as inputs"""
+        return self._external_heating_i
+    @property
+    def external_heating_i_simple(self):
+        """External heating source on ions on a simple solution mesh"""
+        return self._external_heating_i_simple
+    @property
+    def external_heating_i_gauss(self):
+        """External heating source on ions on gauss points"""
+        return self._external_heating_i_gauss
+    @property
+    def external_heating_i_total(self):
+        """Total external heating source on ions on a full solution mesh using conservative values as inputs"""
+        return self._external_heating_i_total
+
     @property
     def ohmic_source(self):
         """Ohmic heating source on a full solution mesh using conservative values as inputs"""
@@ -627,6 +745,11 @@ class HDGsolution:
     def ohmic_source_gauss(self):
         """Ohmic heating source on gauss points mesh"""
         return self._ohmic_source_gauss
+    @property
+    def ohmic_source_total(self):
+        """Total ohmic heating source on a full solution mesh using conservative values as inputs"""
+        return self._ohmic_source_total
+    
     @property
     def ionization_rate_simple(self):
         """Ionization rate coefficient on a simple solution mesh"""
@@ -729,6 +852,20 @@ class HDGsolution:
     def qcyl_simple(self):
         """Cylindrical safety factor on simple mesh"""
         return self._qcyl_simple
+
+    @property
+    def boundary_summary(self):
+        """A dictionary with boundary summary information"""
+        return self._boundary_summary
+
+    @property
+    def ion_energy_sheath_loss_total(self):
+        """Total ion energy loss in sheath on a full solution mesh using conservative values as inputs"""
+        return self._ion_energy_sheath_loss_total
+    @property
+    def electron_energy_sheath_loss_total(self):
+        """Total electron energy loss in sheath on a full solution mesh using conservative values as inputs"""
+        return self._electron_energy_sheath_loss_total
     
 
 
@@ -798,6 +935,13 @@ class HDGsolution:
                 if self.parameters['switches']['ohmicsrc'][0]==1:
                     self._jtor_glob = raw_jtor
 
+        if 'external_heating' in self.parameters['physics']:
+            self._external_heating = self.parameters['physics']['external_heating'][self.mesh._connectivity_glob]
+        if 'external_heating_e' in self.parameters['physics']:
+            self._external_heating_e = self.parameters['physics']['external_heating_e'][self.mesh._connectivity_glob]
+        if 'external_heating_i' in self.parameters['physics']:
+            self._external_heating_i = self.parameters['physics']['external_heating_i'][self.mesh._connectivity_glob]
+                
         self._magnetic_field_unit_glob = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2).sum(axis=-1))[:,:,None]
         self._combined_to_full = True
 
@@ -828,6 +972,13 @@ class HDGsolution:
             self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
             self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
         self._combined_simple_solution = True
+
+        if 'external_heating' in self.parameters['physics']:
+            self._external_heating_simple = self.parameters['physics']['external_heating']
+        if 'external_heating_e' in self.parameters['physics']:
+            self._external_heating_e_simple = self.parameters['physics']['external_heating_e']
+        if 'external_heating_i' in self.parameters['physics']:
+            self._external_heating_i_simple = self.parameters['physics']['external_heating_i']
     
     def recombine_boundary_solution(self):
         """
@@ -899,6 +1050,13 @@ class HDGsolution:
         self._magnetic_field_unit_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_unit_glob)
         self._jtor_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.jtor_glob)
         self._poloidal_flux_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.poloidal_flux_glob)
+
+        if 'external_heating' in self.parameters['physics']:
+            self._external_heating_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.external_heating)
+        if 'external_heating_e' in self.parameters['physics']:
+            self._external_heating_e_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.external_heating_e)
+        if 'external_heating_i' in self.parameters['physics']:
+            self._external_heating_i_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.external_heating_i)
     
     def calculate_in_boundary_gauss_points(self,boundaries):
         if self.mesh.reference_element is None:
@@ -1372,6 +1530,7 @@ class HDGsolution:
         result['r'] = self.mesh.vertices_boundary_gauss[:,::-1,0]
         result['z'] = self.mesh.vertices_boundary_gauss[:,::-1,1]
         result['psi'] = self.poloidal_flux_boundary_gauss[:,::-1]
+        self._boundary_summary = result
         return result
 
 
@@ -2276,6 +2435,124 @@ class HDGsolution:
 
 
         
+    def calculate_power_balance(self):
+        """
+        evaluates power balance for the solution
+        calculates ion and electron losses to the wall, ohmic heating, volumetric ion and electron losses and gains due to ionization, recombination and charge exchange, 
+        and external heating (if available)
+        returns a dictionary with these values, total power balance and relative power balance (power balance normalized to total heating)
+        """
+
+        
+
+        power_balance = {}
+        print('Calculating volumetric sources for power balance evaluation')
+        self.calculate_volumetric_sources()
+        print('Calculating power losses to the wall for power balance evaluation')
+        self.calculate_power_losses_to_wall()
+
+        power_balance['ohmic_heating'] = self._ohmic_source_total
+        power_balance['electron_sink_iz'] = self._electron_sink_iz_total
+        power_balance['electron_sink_rec'] = self._electron_sink_rec_total
+        power_balance['ion_gain_iz'] = self._ion_gain_iz_total
+        power_balance['electron_gain_rec'] = self._electron_gain_rec_total
+        power_balance['ion_sink_rec'] = self._ion_sink_rec_total
+        power_balance['ion_sink_cx'] = self._ion_sink_cx_total
+        power_balance['electron_sink_tot'] = self._electron_sink_iz_total - self._electron_gain_rec_total + self._electron_sink_rec_total
+        power_balance['ion_sink_tot'] = self._ion_sink_rec_total + self._ion_sink_cx_total - self._ion_gain_iz_total
+        if 'impurity_concentration' in self.parameters['physics'].keys():
+            if self.parameters['physics']['impurity_concentration']>0:
+                power_balance['electron_sink_cooling_factor'] = self._electron_sink_cooling_factor_total
+                power_balance['electron_sink_tot'] += self._electron_sink_cooling_factor_total
+        power_balance['total_loss'] = power_balance['electron_sink_tot'] + power_balance['ion_sink_tot']
+        if 'external_heating' in self.parameters['physics'].keys():
+            power_balance['external_heating'] = self._external_heating_total
+            power_balance['total_heating'] = power_balance['ohmic_heating'] + power_balance['external_heating']
+        elif 'external_heating_e' in self.parameters['physics'].keys():
+            power_balance['external_heating_e'] = self._external_heating_e_total
+            power_balance['external_heating_i'] = self._external_heating_i_total
+            power_balance['external_heating'] = power_balance['external_heating_e'] + power_balance['external_heating_i']
+            power_balance['total_heating'] = power_balance['ohmic_heating'] + power_balance['external_heating']
+        else:
+            power_balance['total_heating'] = power_balance['ohmic_heating']
+
+        power_balance['ion_wall_loss'] = self._ion_energy_sheath_loss_total
+        power_balance['electron_wall_loss'] = self._electron_energy_sheath_loss_total
+        power_balance['total_wall_loss'] = power_balance['ion_wall_loss'] + power_balance['electron_wall_loss']
+        power_balance['power_balance'] = power_balance['total_heating'] - power_balance['total_loss'] - power_balance['total_wall_loss']
+        power_balance['relative_power_balance'] = power_balance['power_balance']/power_balance['total_heating']
+        self._power_balance = power_balance
+        return power_balance
+
+    def calculate_volumetric_sources(self):
+        
+        if self.mesh.volumes_gauss is None:
+            self.mesh.calculate_gauss_volumes()
+        if self._ohmic_source_gauss is None:
+            print('Calculating ohmic source on gauss points first')
+            self.calculate_ohmic_source(which='gauss')
+        if self._electron_sink_iz_gauss is None:
+            print('Calculating electron ionization sink on gauss points first')
+            self.calculate_electron_sink_due_to_iz(which='gauss')
+        if self._electron_sink_rec_gauss is None:
+            print('Calculating electron recombination sink on gauss points first')
+            self.calculate_electron_sink_due_to_rec(which='gauss')
+        if self._ion_gain_iz_gauss is None:
+            print('Calculating ionization gain on gauss points first')
+            self.calculate_ion_gain_due_to_iz(which='gauss')
+        if self._electron_gain_rec_gauss is None:
+            print('Calculating electron recombination gain on gauss points first')
+            self.calculate_electron_gain_due_to_rec(which='gauss')
+        if self._ion_sink_rec_gauss is None:
+            print('Calculating ion recombination sink on gauss points first')
+            self.calculate_ion_sink_due_to_rec(which='gauss')
+        if self._ion_sink_cx_gauss is None:
+            print('Calculating ion charge exchange sink on gauss points first')
+            self.calculate_ion_sink_due_to_cx(which='gauss')
+
+        if 'impurity_concentration' in self.parameters['physics'].keys():
+            if self.parameters['physics']['impurity_concentration']>0:
+                if self._electron_sink_cooling_factor_gauss is None:
+                    print('Calculating impurity radiation on gauss points first')
+                    self.calculate_electron_sink_due_to_cooling_factor(which='gauss')
+        
+
+        self._ohmic_source_total = np.sum(self._ohmic_source_gauss*self.mesh.volumes_gauss)
+        self._electron_sink_iz_total = np.sum(self._electron_sink_iz_gauss*self.mesh.volumes_gauss)
+        self._ion_gain_iz_total = np.sum(self._ion_gain_iz_gauss*self.mesh.volumes_gauss)
+        self._electron_sink_rec_total = np.sum(self._electron_sink_rec_gauss*self.mesh.volumes_gauss)
+        self._electron_gain_rec_total = np.sum(self._electron_gain_rec_gauss*self.mesh.volumes_gauss)
+        self._ion_sink_rec_total = np.sum(self._ion_sink_rec_gauss*self.mesh.volumes_gauss)
+        self._ion_sink_cx_total = np.sum(self._ion_sink_cx_gauss*self.mesh.volumes_gauss)
+
+        if 'external_heating' in self.parameters['physics'].keys():
+            self._external_heating_total = np.sum(self._external_heating_gauss*self.mesh.volumes_gauss)
+        elif 'external_heating_e' in self.parameters['physics'].keys():
+            self._external_heating_e_total = np.sum(self._external_heating_e_gauss*self.mesh.volumes_gauss)
+            self._external_heating_i_total = np.sum(self._external_heating_i_gauss*self.mesh.volumes_gauss)
+            self._external_heating_total = self._external_heating_e_total + self._external_heating_i_total
+        if 'impurity_concentration' in self.parameters['physics'].keys():
+            if self.parameters['physics']['impurity_concentration']>0:
+                self._electron_sink_cooling_factor_total = np.sum(self._electron_sink_cooling_factor_gauss*self.mesh.volumes_gauss)
+        
+    def calculate_power_losses_to_wall(self):
+        if self._boundary_summary is None:
+            print('Calculating boundary summary first')
+            self.calculate_boundary_summary()
+        
+        if self._ion_energy_sheath_loss_total is None:
+            self._ion_energy_sheath_loss_total = (self._boundary_summary['q_i_tot_dep_bc_skeleton']*self._boundary_summary['ds']).sum()
+        if self._electron_energy_sheath_loss_total is None:
+                self._electron_energy_sheath_loss_total = (self._boundary_summary['q_e_tot_dep_bc_skeleton']*self._boundary_summary['ds']).sum()
+
+            
+        
+    def calculate_boundary_summary(self):
+        _,_,_ = self.calculate_in_boundary_gauss_points(np.unique(self._raw_solution_boundary_infos[0]['boundary_flags']))
+        self._boundary_summary = self.summary_along_the_wall()
+        
+        
+
 
 
 
