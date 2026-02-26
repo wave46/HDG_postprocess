@@ -965,9 +965,9 @@ class HDGsolution:
 
         self._magnetic_field_simple = np.zeros([self.mesh.vertices_glob.shape[0],3])
         self._magnetic_field_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.magnetic_field_glob.reshape(self.magnetic_field_glob.shape[0]*self.magnetic_field_glob.shape[1],3)
-
-        self._jtor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-        self._jtor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.jtor_glob.reshape(self.jtor_glob.shape[0]*self.jtor_glob.shape[1])
+        if self.parameters['switches']['ohmicsrc'][0]==1:
+            self._jtor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
+            self._jtor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.jtor_glob.reshape(self.jtor_glob.shape[0]*self.jtor_glob.shape[1])
         if 'poloidal_flux' in self.raw_equilibriums[0].keys():
             self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
             self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
