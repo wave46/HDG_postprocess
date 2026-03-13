@@ -8,7 +8,7 @@ from raysect.core.math.function.float import Discrete2DMesh
 from pathlib import Path
 from matplotlib.colors import LogNorm
 import os
-from hdg_postprocess.mesh_ops import (
+from hdg_postprocess.mesh_operations import (
     boundary_ordering as boundary_ordering_impl,
     calculate_gauss_boundary as calculate_gauss_boundary_impl,
     calculate_gauss_volumes as calculate_gauss_volumes_impl,
