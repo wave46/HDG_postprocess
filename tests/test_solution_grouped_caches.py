@@ -127,6 +127,9 @@ def test_grouped_caches_sync_sources_and_totals(manifest_path):
     assert sol._grouped_caches["sources"]["ohmic_source"]["gauss"] is sol.ohmic_source_gauss
     assert sol._grouped_caches["sources"]["ion_gain_iz"]["total"] == sol.ion_gain_iz_total
     assert sol._grouped_caches["sources"]["electron_sink_iz"]["total"] == sol.electron_sink_iz_total
+    assert sol._summary.sources.ion_gain_iz_total == sol.ion_gain_iz_total
+    assert sol._summary.sources.electron_sink_iz_total == sol.electron_sink_iz_total
+    assert sol._summary.sources.ohmic_source_total == sol.ohmic_source_total
     assert sol._views.glob.sources.ionization_source is sol.ionization_source
     assert sol._views.simple.sources.ionization_source is sol.ionization_source_simple
     assert sol._views.gauss.sources.ionization_source is sol.ionization_source_gauss
@@ -139,6 +142,9 @@ def test_grouped_caches_sync_sources_and_totals(manifest_path):
     assert sol._views.glob.sources.ohmic_source is sol.ohmic_source
     assert sol._views.simple.sources.ohmic_source is sol.ohmic_source_simple
     assert sol._views.gauss.sources.ohmic_source is sol.ohmic_source_gauss
+    assert sol._summary.boundary.boundary_summary is sol.boundary_summary
+    assert sol._summary.boundary.ion_energy_sheath_loss_total == sol.ion_energy_sheath_loss_total
+    assert sol._summary.boundary.electron_energy_sheath_loss_total == sol.electron_energy_sheath_loss_total
 
 
 def test_grouped_caches_sync_representations(manifest_path):

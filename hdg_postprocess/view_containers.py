@@ -42,6 +42,34 @@ class SourceViewState:
 
 
 @dataclass
+class SourceSummaryState:
+    ion_gain_iz_total: object = None
+    ion_sink_rec_total: object = None
+    ion_sink_cx_total: object = None
+    electron_sink_iz_total: object = None
+    electron_sink_rec_total: object = None
+    electron_gain_rec_total: object = None
+    electron_sink_cooling_factor_total: object = None
+    external_heating_total: object = None
+    external_heating_e_total: object = None
+    external_heating_i_total: object = None
+    ohmic_source_total: object = None
+
+
+@dataclass
+class BoundarySummaryState:
+    boundary_summary: object = None
+    ion_energy_sheath_loss_total: object = None
+    electron_energy_sheath_loss_total: object = None
+
+
+@dataclass
+class SolutionSummaryState:
+    sources: SourceSummaryState = field(default_factory=SourceSummaryState)
+    boundary: BoundarySummaryState = field(default_factory=BoundarySummaryState)
+
+
+@dataclass
 class SolutionViewState:
     solution: SolutionFieldState = field(default_factory=SolutionFieldState)
     solution_skeleton: SolutionFieldState = field(default_factory=SolutionFieldState)

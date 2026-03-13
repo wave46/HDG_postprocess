@@ -6,7 +6,7 @@ from hdg_postprocess.routines.plasma import *
 from hdg_postprocess.routines.neutrals import *
 from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
-from hdg_postprocess.view_containers import SolutionViews
+from hdg_postprocess.view_containers import SolutionSummaryState, SolutionViews
 from hdg_postprocess.solution_operations import (
     calculate_boundary_summary as calculate_boundary_summary_impl,
     calculate_dnn as calculate_dnn_impl,
@@ -135,6 +135,22 @@ class HDGsolution:
         "_ohmic_source": ("glob", "sources", "ohmic_source"),
         "_ohmic_source_simple": ("simple", "sources", "ohmic_source"),
         "_ohmic_source_gauss": ("gauss", "sources", "ohmic_source"),
+    }
+    _SUMMARY_CONTAINER_PATHS = {
+        "_ion_gain_iz_total": ("sources", "ion_gain_iz_total"),
+        "_ion_sink_rec_total": ("sources", "ion_sink_rec_total"),
+        "_ion_sink_cx_total": ("sources", "ion_sink_cx_total"),
+        "_electron_sink_iz_total": ("sources", "electron_sink_iz_total"),
+        "_electron_sink_rec_total": ("sources", "electron_sink_rec_total"),
+        "_electron_gain_rec_total": ("sources", "electron_gain_rec_total"),
+        "_electron_sink_cooling_factor_total": ("sources", "electron_sink_cooling_factor_total"),
+        "_external_heating_total": ("sources", "external_heating_total"),
+        "_external_heating_e_total": ("sources", "external_heating_e_total"),
+        "_external_heating_i_total": ("sources", "external_heating_i_total"),
+        "_ohmic_source_total": ("sources", "ohmic_source_total"),
+        "_boundary_summary": ("boundary", "boundary_summary"),
+        "_ion_energy_sheath_loss_total": ("boundary", "ion_energy_sheath_loss_total"),
+        "_electron_energy_sheath_loss_total": ("boundary", "electron_energy_sheath_loss_total"),
     }
     _GROUPED_CACHE_PATHS = {
         "_solution_simple": ("representations", "simple", "solution"),
@@ -273,6 +289,11 @@ class HDGsolution:
             view_state = getattr(views, view_path[0])
             field_state = getattr(view_state, view_path[1])
             setattr(field_state, view_path[2], value)
+        summary = self.__dict__.get("_summary")
+        summary_path = self._SUMMARY_CONTAINER_PATHS.get(name)
+        if summary is not None and summary_path is not None:
+            summary_state = getattr(summary, summary_path[0])
+            setattr(summary_state, summary_path[1], value)
         grouped_caches = self.__dict__.get("_grouped_caches")
         cache_path = self._GROUPED_CACHE_PATHS.get(name)
         if grouped_caches is None or cache_path is None:
@@ -286,6 +307,7 @@ class HDGsolution:
         # simple representation of a solution
         self._combined_simple_solution = False
         self._views = SolutionViews()
+        self._summary = SolutionSummaryState()
         self._magnetic_field_simple= None
         self._jtor_simple = None
         #physical solution flags
@@ -847,7 +869,7 @@ class HDGsolution:
     @property
     def ion_gain_iz_total(self):
         """Total ion energy sink due to ionization on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["ion_gain_iz"]["total"]
+        return self._summary.sources.ion_gain_iz_total
     
     @property
     def ion_sink_rec(self):
@@ -867,7 +889,7 @@ class HDGsolution:
     @property
     def ion_sink_rec_total(self):
         """Total ion energy sink due to recombination on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["ion_sink_rec"]["total"]
+        return self._summary.sources.ion_sink_rec_total
     
     @property
     def ion_sink_cx(self):
@@ -887,7 +909,7 @@ class HDGsolution:
     @property
     def ion_sink_cx_total(self):
         """Total ion energy sink due to charge exchange on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["ion_sink_cx"]["total"]
+        return self._summary.sources.ion_sink_cx_total
 
     @property
     def electron_sink_iz(self):
@@ -907,7 +929,7 @@ class HDGsolution:
     @property
     def electron_sink_iz_total(self):
         """Total electron energy sink due to ionization on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["electron_sink_iz"]["total"]
+        return self._summary.sources.electron_sink_iz_total
 
     @property
     def electron_sink_rec(self):
@@ -927,7 +949,7 @@ class HDGsolution:
     @property
     def electron_sink_rec_total(self):
         """Total electron energy sink due to recombination on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["electron_sink_rec"]["total"]
+        return self._summary.sources.electron_sink_rec_total
 
     @property
     def electron_gain_rec(self):
@@ -947,7 +969,7 @@ class HDGsolution:
     @property
     def electron_gain_rec_total(self):
         """Total ionization source on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["electron_gain_rec"]["total"]
+        return self._summary.sources.electron_gain_rec_total
     
     @property
     def electron_sink_cooling_factor(self):
@@ -1011,7 +1033,7 @@ class HDGsolution:
     @property
     def external_heating_total(self):
         """Total external heating source on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["external_heating"]["total"]
+        return self._summary.sources.external_heating_total
     
 
     @property
@@ -1029,7 +1051,7 @@ class HDGsolution:
     @property
     def external_heating_e_total(self):
         """Total external heating source on electrons on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["external_heating_e"]["total"]
+        return self._summary.sources.external_heating_e_total
 
     @property
     def external_heating_i(self):
@@ -1046,7 +1068,7 @@ class HDGsolution:
     @property
     def external_heating_i_total(self):
         """Total external heating source on ions on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["external_heating_i"]["total"]
+        return self._summary.sources.external_heating_i_total
 
     @property
     def ohmic_source(self):
@@ -1065,7 +1087,7 @@ class HDGsolution:
     @property
     def ohmic_source_total(self):
         """Total ohmic heating source on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["ohmic_source"]["total"]
+        return self._summary.sources.ohmic_source_total
     
     @property
     def ionization_rate_simple(self):
@@ -1173,16 +1195,16 @@ class HDGsolution:
     @property
     def boundary_summary(self):
         """A dictionary with boundary summary information"""
-        return self._boundary_summary
+        return self._summary.boundary.boundary_summary
 
     @property
     def ion_energy_sheath_loss_total(self):
         """Total ion energy loss in sheath on a full solution mesh using conservative values as inputs"""
-        return self._ion_energy_sheath_loss_total
+        return self._summary.boundary.ion_energy_sheath_loss_total
     @property
     def electron_energy_sheath_loss_total(self):
         """Total electron energy loss in sheath on a full solution mesh using conservative values as inputs"""
-        return self._electron_energy_sheath_loss_total
+        return self._summary.boundary.electron_energy_sheath_loss_total
     
 
 
