@@ -127,6 +127,18 @@ def test_grouped_caches_sync_sources_and_totals(manifest_path):
     assert sol._grouped_caches["sources"]["ohmic_source"]["gauss"] is sol.ohmic_source_gauss
     assert sol._grouped_caches["sources"]["ion_gain_iz"]["total"] == sol.ion_gain_iz_total
     assert sol._grouped_caches["sources"]["electron_sink_iz"]["total"] == sol.electron_sink_iz_total
+    assert sol._views.glob.sources.ionization_source is sol.ionization_source
+    assert sol._views.simple.sources.ionization_source is sol.ionization_source_simple
+    assert sol._views.gauss.sources.ionization_source is sol.ionization_source_gauss
+    assert sol._views.glob.sources.electron_sink_rec is sol.electron_sink_rec
+    assert sol._views.simple.sources.electron_sink_rec is sol.electron_sink_rec_simple
+    assert sol._views.gauss.sources.electron_sink_rec is sol.electron_sink_rec_gauss
+    assert sol._views.glob.sources.cx_source is sol.cx_source
+    assert sol._views.simple.sources.cx_source is sol.cx_source_simple
+    assert sol._views.gauss.sources.cx_source is sol.cx_source_gauss
+    assert sol._views.glob.sources.ohmic_source is sol.ohmic_source
+    assert sol._views.simple.sources.ohmic_source is sol.ohmic_source_simple
+    assert sol._views.gauss.sources.ohmic_source is sol.ohmic_source_gauss
 
 
 def test_grouped_caches_sync_representations(manifest_path):

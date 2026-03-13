@@ -93,6 +93,48 @@ class HDGsolution:
         "_dk_simple": ("simple", "derived", "dk"),
         "_dk_glob": ("glob", "derived", "dk"),
         "_mfp_simple": ("simple", "derived", "mfp"),
+        "_ionization_source": ("glob", "sources", "ionization_source"),
+        "_ionization_source_simple": ("simple", "sources", "ionization_source"),
+        "_ionization_source_gauss": ("gauss", "sources", "ionization_source"),
+        "_ion_gain_iz": ("glob", "sources", "ion_gain_iz"),
+        "_ion_gain_iz_simple": ("simple", "sources", "ion_gain_iz"),
+        "_ion_gain_iz_gauss": ("gauss", "sources", "ion_gain_iz"),
+        "_ion_sink_rec": ("glob", "sources", "ion_sink_rec"),
+        "_ion_sink_rec_simple": ("simple", "sources", "ion_sink_rec"),
+        "_ion_sink_rec_gauss": ("gauss", "sources", "ion_sink_rec"),
+        "_ion_sink_cx": ("glob", "sources", "ion_sink_cx"),
+        "_ion_sink_cx_simple": ("simple", "sources", "ion_sink_cx"),
+        "_ion_sink_cx_gauss": ("gauss", "sources", "ion_sink_cx"),
+        "_electron_sink_iz": ("glob", "sources", "electron_sink_iz"),
+        "_electron_sink_iz_simple": ("simple", "sources", "electron_sink_iz"),
+        "_electron_sink_iz_gauss": ("gauss", "sources", "electron_sink_iz"),
+        "_electron_sink_rec": ("glob", "sources", "electron_sink_rec"),
+        "_electron_sink_rec_simple": ("simple", "sources", "electron_sink_rec"),
+        "_electron_sink_rec_gauss": ("gauss", "sources", "electron_sink_rec"),
+        "_electron_gain_rec": ("glob", "sources", "electron_gain_rec"),
+        "_electron_gain_rec_simple": ("simple", "sources", "electron_gain_rec"),
+        "_electron_gain_rec_gauss": ("gauss", "sources", "electron_gain_rec"),
+        "_electron_sink_cooling_factor": ("glob", "sources", "electron_sink_cooling_factor"),
+        "_electron_sink_cooling_factor_simple": ("simple", "sources", "electron_sink_cooling_factor"),
+        "_electron_sink_cooling_factor_gauss": ("gauss", "sources", "electron_sink_cooling_factor"),
+        "_cooling_factor": ("glob", "sources", "cooling_factor"),
+        "_cooling_factor_simple": ("simple", "sources", "cooling_factor"),
+        "_cooling_factor_gauss": ("gauss", "sources", "cooling_factor"),
+        "_cx_source": ("glob", "sources", "cx_source"),
+        "_cx_source_simple": ("simple", "sources", "cx_source"),
+        "_cx_source_gauss": ("gauss", "sources", "cx_source"),
+        "_external_heating": ("glob", "sources", "external_heating"),
+        "_external_heating_simple": ("simple", "sources", "external_heating"),
+        "_external_heating_gauss": ("gauss", "sources", "external_heating"),
+        "_external_heating_e": ("glob", "sources", "external_heating_e"),
+        "_external_heating_e_simple": ("simple", "sources", "external_heating_e"),
+        "_external_heating_e_gauss": ("gauss", "sources", "external_heating_e"),
+        "_external_heating_i": ("glob", "sources", "external_heating_i"),
+        "_external_heating_i_simple": ("simple", "sources", "external_heating_i"),
+        "_external_heating_i_gauss": ("gauss", "sources", "external_heating_i"),
+        "_ohmic_source": ("glob", "sources", "ohmic_source"),
+        "_ohmic_source_simple": ("simple", "sources", "ohmic_source"),
+        "_ohmic_source_gauss": ("gauss", "sources", "ohmic_source"),
     }
     _GROUPED_CACHE_PATHS = {
         "_solution_simple": ("representations", "simple", "solution"),
@@ -775,32 +817,32 @@ class HDGsolution:
     @property
     def ionization_source(self):
         """Ionization source on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["ionization_source"]["full"]
+        return self._views.glob.sources.ionization_source
 
     @property
     def ionization_source_simple(self):
         """Ionization source on a simple solution mesh"""
-        return self._grouped_caches["sources"]["ionization_source"]["simple"]
+        return self._views.simple.sources.ionization_source
     
     @property
     def ionization_source_gauss(self):
         """Ionization source on gauss points"""
-        return self._grouped_caches["sources"]["ionization_source"]["gauss"]
+        return self._views.gauss.sources.ionization_source
 
     @property
     def ion_gain_iz(self):
         """Ion energy sink due to ionization"""
-        return self._grouped_caches["sources"]["ion_gain_iz"]["full"]
+        return self._views.glob.sources.ion_gain_iz
 
     @property
     def ion_gain_iz_simple(self):
         """Ion energy sink due to ionization on a simple solution mesh"""
-        return self._grouped_caches["sources"]["ion_gain_iz"]["simple"]
+        return self._views.simple.sources.ion_gain_iz
 
     @property
     def ion_gain_iz_gauss(self):
         """Ion energy sink due to ionization on gauss points"""
-        return self._grouped_caches["sources"]["ion_gain_iz"]["gauss"]
+        return self._views.gauss.sources.ion_gain_iz
     
     @property
     def ion_gain_iz_total(self):
@@ -810,17 +852,17 @@ class HDGsolution:
     @property
     def ion_sink_rec(self):
         """Ion energy sink due to recombination"""
-        return self._grouped_caches["sources"]["ion_sink_rec"]["full"]
+        return self._views.glob.sources.ion_sink_rec
     
     @property
     def ion_sink_rec_simple(self):
         """Ion energy sink due to recombination on a simple solution mesh"""
-        return self._grouped_caches["sources"]["ion_sink_rec"]["simple"]
+        return self._views.simple.sources.ion_sink_rec
     
     @property
     def ion_sink_rec_gauss(self):
         """Ion energy sink due to recombination on gauss points"""
-        return self._grouped_caches["sources"]["ion_sink_rec"]["gauss"]
+        return self._views.gauss.sources.ion_sink_rec
     
     @property
     def ion_sink_rec_total(self):
@@ -830,17 +872,17 @@ class HDGsolution:
     @property
     def ion_sink_cx(self):
         """Ion energy sink due to charge exchange"""
-        return self._grouped_caches["sources"]["ion_sink_cx"]["full"]
+        return self._views.glob.sources.ion_sink_cx
     
     @property
     def ion_sink_cx_simple(self):
         """Ion energy sink due to charge exchange on a simple solution mesh"""
-        return self._grouped_caches["sources"]["ion_sink_cx"]["simple"]
+        return self._views.simple.sources.ion_sink_cx
     
     @property
     def ion_sink_cx_gauss(self):
         """Ion energy sink due to charge exchange on gauss points"""
-        return self._grouped_caches["sources"]["ion_sink_cx"]["gauss"]
+        return self._views.gauss.sources.ion_sink_cx
     
     @property
     def ion_sink_cx_total(self):
@@ -850,17 +892,17 @@ class HDGsolution:
     @property
     def electron_sink_iz(self):
         """Electron energy sink due to ionization"""
-        return self._grouped_caches["sources"]["electron_sink_iz"]["full"]
+        return self._views.glob.sources.electron_sink_iz
         
     @property
     def electron_sink_iz_simple(self):
         """Electron energy sink due to ionization on a simple solution mesh"""
-        return self._grouped_caches["sources"]["electron_sink_iz"]["simple"]
+        return self._views.simple.sources.electron_sink_iz
 
     @property
     def electron_sink_iz_gauss(self):
         """Electron energy sink due to ionization on gauss points"""
-        return self._grouped_caches["sources"]["electron_sink_iz"]["gauss"]
+        return self._views.gauss.sources.electron_sink_iz
     
     @property
     def electron_sink_iz_total(self):
@@ -870,17 +912,17 @@ class HDGsolution:
     @property
     def electron_sink_rec(self):
         """Electron energy sink due to recombination"""
-        return self._grouped_caches["sources"]["electron_sink_rec"]["full"]
+        return self._views.glob.sources.electron_sink_rec
 
     @property
     def electron_sink_rec_simple(self):
         """Electron energy sink due to recombination on a simple solution mesh"""
-        return self._grouped_caches["sources"]["electron_sink_rec"]["simple"]
+        return self._views.simple.sources.electron_sink_rec
 
     @property
     def electron_sink_rec_gauss(self):
         """Electron energy sink due to recombination on gauss points"""
-        return self._grouped_caches["sources"]["electron_sink_rec"]["gauss"]
+        return self._views.gauss.sources.electron_sink_rec
     
     @property
     def electron_sink_rec_total(self):
@@ -890,17 +932,17 @@ class HDGsolution:
     @property
     def electron_gain_rec(self):
         """Ionization source on a simple solution mesh"""
-        return self._grouped_caches["sources"]["electron_gain_rec"]["full"]
+        return self._views.glob.sources.electron_gain_rec
 
     @property
     def electron_gain_rec_simple(self):
         """Ionization source on a simple solution mesh"""
-        return self._grouped_caches["sources"]["electron_gain_rec"]["simple"]
+        return self._views.simple.sources.electron_gain_rec
 
     @property
     def electron_gain_rec_gauss(self):
         """Ionization source on gauss points"""
-        return self._grouped_caches["sources"]["electron_gain_rec"]["gauss"]
+        return self._views.gauss.sources.electron_gain_rec
 
     @property
     def electron_gain_rec_total(self):
@@ -910,62 +952,62 @@ class HDGsolution:
     @property
     def electron_sink_cooling_factor(self):
         """Sink due to cooling factor on a solution mesh"""
-        return self._grouped_caches["sources"]["electron_sink_cooling_factor"]["full"]
+        return self._views.glob.sources.electron_sink_cooling_factor
 
     @property
     def electron_sink_cooling_factor_simple(self):
         """Sink due to cooling factor on a simple solution mesh"""
-        return self._grouped_caches["sources"]["electron_sink_cooling_factor"]["simple"]
+        return self._views.simple.sources.electron_sink_cooling_factor
 
     @property
     def electron_sink_cooling_factor_gauss(self):
         """Sink due to cooling factor on gauss points"""
-        return self._grouped_caches["sources"]["electron_sink_cooling_factor"]["gauss"]
+        return self._views.gauss.sources.electron_sink_cooling_factor
     
     @property
     def cooling_factor(self):
         """Cooling factor on a solution mesh"""
-        return self._grouped_caches["sources"]["cooling_factor"]["full"]
+        return self._views.glob.sources.cooling_factor
     
     @property
     def cooling_factor_simple(self):
         """Cooling factor on a simple solution mesh"""
-        return self._grouped_caches["sources"]["cooling_factor"]["simple"]
+        return self._views.simple.sources.cooling_factor
     
     @property
     def cooling_factor_gauss(self):
         """Cooling factor on gauss points"""
-        return self._grouped_caches["sources"]["cooling_factor"]["gauss"]
+        return self._views.gauss.sources.cooling_factor
     
 
 
     @property
     def cx_source(self):
         """Charge-exchange source on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["cx_source"]["full"]
+        return self._views.glob.sources.cx_source
 
     @property
     def cx_source_simple(self):
         """Charge-exchange source on a simple solution mesh"""
-        return self._grouped_caches["sources"]["cx_source"]["simple"]
+        return self._views.simple.sources.cx_source
     
     @property
     def cx_source_gauss(self):
         """Charge-exchange source on gauss points"""
-        return self._grouped_caches["sources"]["cx_source"]["gauss"]
+        return self._views.gauss.sources.cx_source
 
     @property
     def external_heating(self):
         """External heating source on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["external_heating"]["full"]
+        return self._views.glob.sources.external_heating
     @property
     def external_heating_simple(self):
         """External heating source on a simple solution mesh"""
-        return self._grouped_caches["sources"]["external_heating"]["simple"]
+        return self._views.simple.sources.external_heating
     @property
     def external_heating_gauss(self):
         """External heating source on gauss points"""
-        return self._grouped_caches["sources"]["external_heating"]["gauss"]
+        return self._views.gauss.sources.external_heating
     @property
     def external_heating_total(self):
         """Total external heating source on a full solution mesh using conservative values as inputs"""
@@ -975,15 +1017,15 @@ class HDGsolution:
     @property
     def external_heating_e(self):
         """External heating source on electrons on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["external_heating_e"]["full"]
+        return self._views.glob.sources.external_heating_e
     @property
     def external_heating_e_simple(self):
         """External heating source on electrons on a simple solution mesh"""
-        return self._grouped_caches["sources"]["external_heating_e"]["simple"]
+        return self._views.simple.sources.external_heating_e
     @property
     def external_heating_e_gauss(self): 
         """External heating source on electrons on gauss points"""
-        return self._grouped_caches["sources"]["external_heating_e"]["gauss"]
+        return self._views.gauss.sources.external_heating_e
     @property
     def external_heating_e_total(self):
         """Total external heating source on electrons on a full solution mesh using conservative values as inputs"""
@@ -992,15 +1034,15 @@ class HDGsolution:
     @property
     def external_heating_i(self):
         """External heating source on ions on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["external_heating_i"]["full"]
+        return self._views.glob.sources.external_heating_i
     @property
     def external_heating_i_simple(self):
         """External heating source on ions on a simple solution mesh"""
-        return self._grouped_caches["sources"]["external_heating_i"]["simple"]
+        return self._views.simple.sources.external_heating_i
     @property
     def external_heating_i_gauss(self):
         """External heating source on ions on gauss points"""
-        return self._grouped_caches["sources"]["external_heating_i"]["gauss"]
+        return self._views.gauss.sources.external_heating_i
     @property
     def external_heating_i_total(self):
         """Total external heating source on ions on a full solution mesh using conservative values as inputs"""
@@ -1009,17 +1051,17 @@ class HDGsolution:
     @property
     def ohmic_source(self):
         """Ohmic heating source on a full solution mesh using conservative values as inputs"""
-        return self._grouped_caches["sources"]["ohmic_source"]["full"]
+        return self._views.glob.sources.ohmic_source
 
     @property
     def ohmic_source_simple(self):
         """Ohmic heating source on a simple solution mesh"""
-        return self._grouped_caches["sources"]["ohmic_source"]["simple"]
+        return self._views.simple.sources.ohmic_source
 
     @property
     def ohmic_source_gauss(self):
         """Ohmic heating source on gauss points mesh"""
-        return self._grouped_caches["sources"]["ohmic_source"]["gauss"]
+        return self._views.gauss.sources.ohmic_source
     @property
     def ohmic_source_total(self):
         """Total ohmic heating source on a full solution mesh using conservative values as inputs"""

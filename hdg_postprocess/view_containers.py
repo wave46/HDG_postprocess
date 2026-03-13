@@ -24,12 +24,31 @@ class DerivedViewState:
 
 
 @dataclass
+class SourceViewState:
+    ionization_source: object = None
+    ion_gain_iz: object = None
+    ion_sink_rec: object = None
+    ion_sink_cx: object = None
+    electron_sink_iz: object = None
+    electron_sink_rec: object = None
+    electron_gain_rec: object = None
+    electron_sink_cooling_factor: object = None
+    cooling_factor: object = None
+    cx_source: object = None
+    external_heating: object = None
+    external_heating_e: object = None
+    external_heating_i: object = None
+    ohmic_source: object = None
+
+
+@dataclass
 class SolutionViewState:
     solution: SolutionFieldState = field(default_factory=SolutionFieldState)
     solution_skeleton: SolutionFieldState = field(default_factory=SolutionFieldState)
     gradient: SolutionFieldState = field(default_factory=SolutionFieldState)
     equilibrium: EquilibriumViewState = field(default_factory=EquilibriumViewState)
     derived: DerivedViewState = field(default_factory=DerivedViewState)
+    sources: SourceViewState = field(default_factory=SourceViewState)
 
 
 @dataclass
