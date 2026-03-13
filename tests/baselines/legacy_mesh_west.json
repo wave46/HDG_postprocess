@@ -1,0 +1,34 @@
+{
+  "connectivity_big_shape": [
+    1303136,
+    3
+  ],
+  "connectivity_shape": [
+    81446,
+    15
+  ],
+  "element_probe": {
+    "element_number": 55804,
+    "point": [
+      2.948,
+      -0.469
+    ]
+  },
+  "gauss_volumes": {
+    "first_element_sum": 0.00663035299907515,
+    "shape": [
+      81446,
+      54
+    ],
+    "total": 26.74786456723748
+  },
+  "mesh_extent": {
+    "maxr": 3.1984999999999997,
+    "maxz": 0.7986000000000006,
+    "minr": 1.8342999999999983,
+    "minz": -0.796400000000001
+  },
+  "nelems_glob": 81446,
+  "nvertices_glob": 657065,
+  "p_order": 4
+}
