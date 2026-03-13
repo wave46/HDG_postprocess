@@ -52,6 +52,24 @@ from hdg_postprocess.solution_operations import (
 import os
 class HDGsolution:
     ""
+    _GROUPED_CACHE_PATHS = {
+        "_solution_simple_phys": ("physical", "simple", "solution"),
+        "_gradient_simple_phys": ("physical", "simple", "gradient"),
+        "_solution_glob_phys": ("physical", "glob", "solution"),
+        "_gradient_glob_phys": ("physical", "glob", "gradient"),
+        "_r_axis": ("equilibrium", "axis", "r"),
+        "_z_axis": ("equilibrium", "axis", "z"),
+        "_a_simple": ("equilibrium", "simple", "a"),
+        "_a_glob": ("equilibrium", "glob", "a"),
+        "_qcyl_simple": ("equilibrium", "simple", "qcyl"),
+        "_qcyl_glob": ("equilibrium", "glob", "qcyl"),
+        "_dnn_simple": ("derived", "simple", "dnn"),
+        "_dnn_simple_with_nn_collision": ("derived", "glob", "dnn_with_nn_collision_legacy"),
+        "_dnn_simple_with_nn_collision_simple": ("derived", "simple", "dnn_with_nn_collision"),
+        "_mfp_simple": ("derived", "simple", "mfp"),
+        "_dk_simple": ("derived", "simple", "dk"),
+        "_dk_glob": ("derived", "glob", "dk"),
+    }
     
     def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters, 
@@ -81,6 +99,17 @@ class HDGsolution:
 
         self._initial_setup()
 
+    def __setattr__(self, name, value):
+        object.__setattr__(self, name, value)
+        grouped_caches = self.__dict__.get("_grouped_caches")
+        cache_path = self._GROUPED_CACHE_PATHS.get(name)
+        if grouped_caches is None or cache_path is None:
+            return
+        target = grouped_caches
+        for key in cache_path[:-1]:
+            target = target[key]
+        target[cache_path[-1]] = value
+
     def _initial_setup(self):
         # simple representation of a solution
         self._combined_simple_solution = False
@@ -91,6 +120,29 @@ class HDGsolution:
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
+        self._grouped_caches = {
+            "physical": {
+                "simple": {"solution": None, "gradient": None},
+                "glob": {"solution": None, "gradient": None},
+            },
+            "equilibrium": {
+                "axis": {"r": None, "z": None},
+                "simple": {"a": None, "qcyl": None},
+                "glob": {"a": None, "qcyl": None},
+            },
+            "derived": {
+                "simple": {
+                    "dnn": None,
+                    "dnn_with_nn_collision": None,
+                    "mfp": None,
+                    "dk": None,
+                },
+                "glob": {
+                    "dnn_with_nn_collision_legacy": None,
+                    "dk": None,
+                },
+            },
+        }
 
         self._solution_simple_phys = None
         self._gradient_simple_phys = None
@@ -350,12 +402,12 @@ class HDGsolution:
     @property
     def solution_simple_phys(self):
         """physical solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys]"""
-        return self._solution_simple_phys
+        return self._grouped_caches["physical"]["simple"]["solution"]
     
     @property
     def gradient_simple_phys(self):
         """phisical gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys x ndim]"""
-        return self._gradient_simple_phys
+        return self._grouped_caches["physical"]["simple"]["gradient"]
 
     @property
     def magnetic_field_simple(self):
@@ -519,12 +571,12 @@ class HDGsolution:
     @property
     def solution_glob_phys(self):
         """Physical solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys]"""
-        return self._solution_glob_phys
+        return self._grouped_caches["physical"]["glob"]["solution"]
 
     @property
     def gradient_glob_phys(self):
         """Physical gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys x ndim]"""
-        return self._gradient_glob_phys
+        return self._grouped_caches["physical"]["glob"]["gradient"]
     
     @property
     def e(self):
@@ -812,32 +864,32 @@ class HDGsolution:
     @property
     def dnn_simple(self):
         """Neutral diffusion on a simple solution mesh"""
-        return self._dnn_simple
+        return self._grouped_caches["derived"]["simple"]["dnn"]
 
     @property
     def dnn_simple_with_nn_collision(self):
         """Neutral diffusion with neutral-neutral diffusions on a global solution mesh"""
-        return self._dnn_simple_with_nn_collision
+        return self._grouped_caches["derived"]["glob"]["dnn_with_nn_collision_legacy"]
     
     @property
     def dnn_simple_with_nn_collision_simple(self):
         """Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"""
-        return self._dnn_simple_with_nn_collision_simple
+        return self._grouped_caches["derived"]["simple"]["dnn_with_nn_collision"]
 
     @property
     def dk_simple(self):
         """Turbulent diffusion on a simple solution mesh"""
-        return self._dk_simple
+        return self._grouped_caches["derived"]["simple"]["dk"]
     
     @property
     def dk_glob(self):
         """Turbulent diffusion on a full solution mesh"""
-        return self._dk_glob
+        return self._grouped_caches["derived"]["glob"]["dk"]
     
     @property
     def mfp_simple(self):
         """Neutral mean free path on a simple solution mesh"""
-        return self._mfp_simple
+        return self._grouped_caches["derived"]["simple"]["mfp"]
         
     @property
     def sample_interpolator(self):
@@ -870,32 +922,32 @@ class HDGsolution:
     @property
     def r_axis(self):
         """R coordinate of magnetic axis"""
-        return self._r_axis
+        return self._grouped_caches["equilibrium"]["axis"]["r"]
     
     @property
     def z_axis(self):
         """Z coordinate of magnetic axis"""
-        return self._z_axis
+        return self._grouped_caches["equilibrium"]["axis"]["z"]
 
     @property
     def a_glob(self):
         """minor radii on global mesh"""
-        return self._a_glob
+        return self._grouped_caches["equilibrium"]["glob"]["a"]
     
     @property
     def a_simple(self):
         """minor radii on simple mesh"""
-        return self._a_simple
+        return self._grouped_caches["equilibrium"]["simple"]["a"]
 
     @property
     def qcyl_glob(self):
         """Cylindrical safety factor on global mesh"""
-        return self._qcyl_glob
+        return self._grouped_caches["equilibrium"]["glob"]["qcyl"]
     
     @property
     def qcyl_simple(self):
         """Cylindrical safety factor on simple mesh"""
-        return self._qcyl_simple
+        return self._grouped_caches["equilibrium"]["simple"]["qcyl"]
 
     @property
     def boundary_summary(self):
