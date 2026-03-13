@@ -86,3 +86,34 @@ def test_grouped_caches_sync_neutral_derived_fields(manifest_path):
     assert sol._grouped_caches["derived"]["simple"]["dnn_with_nn_collision"] is sol.dnn_simple_with_nn_collision_simple
     assert sol._grouped_caches["derived"]["glob"]["dnn_with_nn_collision_legacy"] is sol.dnn_simple_with_nn_collision
     assert sol._grouped_caches["derived"]["simple"]["mfp"] is sol.mfp_simple
+
+
+def test_grouped_caches_sync_sources_and_totals(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
+    sol.dnn_parameters = generate_baselines._make_dnn_params()
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    sol.recombine_full_solution()
+    sol.recombine_simple_full_solution()
+    sol.calculate_ionization_source("simple")
+    sol.calculate_electron_sink_due_to_rec("simple")
+    sol.calculate_cx_source("simple")
+    sol.calculate_power_balance()
+
+    assert sol._grouped_caches["sources"]["ionization_source"]["simple"] is sol.ionization_source_simple
+    assert sol._grouped_caches["sources"]["electron_sink_rec"]["simple"] is sol.electron_sink_rec_simple
+    assert sol._grouped_caches["sources"]["cx_source"]["simple"] is sol.cx_source_simple
+    assert sol._grouped_caches["sources"]["ohmic_source"]["gauss"] is sol.ohmic_source_gauss
+    assert sol._grouped_caches["sources"]["ion_gain_iz"]["total"] == sol.ion_gain_iz_total
+    assert sol._grouped_caches["sources"]["electron_sink_iz"]["total"] == sol.electron_sink_iz_total
