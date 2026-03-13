@@ -31,6 +31,7 @@ from .sampling import (
     define_interpolators,
     save_summary_line,
 )
+from .turbulent_model import calculate_dk
 
 __all__ = [
     "calculate_in_boundary_gauss_points",
@@ -38,6 +39,7 @@ __all__ = [
     "calculate_boundary_summary",
     "calculate_dnn",
     "calculate_dnn_with_nn_collision",
+    "calculate_dk",
     "calculate_cooling_factor",
     "calculate_cx_rate",
     "calculate_cx_source",

@@ -9,6 +9,7 @@ from hdg_postprocess.solution_operations import (
     calculate_boundary_summary as calculate_boundary_summary_impl,
     calculate_dnn as calculate_dnn_impl,
     calculate_dnn_with_nn_collision as calculate_dnn_with_nn_collision_impl,
+    calculate_dk as calculate_dk_impl,
     calculate_cooling_factor as calculate_cooling_factor_impl,
     calculate_cx_rate as calculate_cx_rate_impl,
     calculate_cx_source as calculate_cx_source_impl,
@@ -1388,48 +1389,7 @@ class HDGsolution:
         return calculate_dnn_with_nn_collision_impl(self, which)
 
     def calculate_dk(self,which="simple"):
-        """
-            calculate neutral diffusion
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-
-        """    
-
-        if which=="simple":
-            if self.dk_parameters is None:
-                raise ValueError("Please, provide neutral diffusion settings for the simulation")
-
-            if not self._combined_simple_solution:
-                print('Initializing physical solution first')
-                self.recombine_simple_full_solution()
-            if (self.r_axis is None) or (self.z_axis is None):
-                    self.define_magnetic_axis()
-            if (self.a_simple is None):
-                self.define_minor_radii(which='simple')
-            if (self.qcyl_simple is None):
-                self.define_qcyl(which='simple')
-            self.calculate_dk(which='full')
-            self._dk_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._dk_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dk_glob.reshape(self._dk_glob.shape[0]*self._dk_glob.shape[1])
-            
-        if which =="full":
-            if self.dk_parameters is None:
-                raise ValueError("Please, provide neutral diffusion settings for the simulation")
-
-            if not self._combined_simple_solution:
-                print('Initializing physical solution first')
-                self.recombine_simple_full_solution()
-            if (self.r_axis is None) or (self.z_axis is None):
-                    self.define_magnetic_axis()
-            if (self.a_glob is None):
-                self.define_minor_radii(which='full')
-            if (self.qcyl_glob is None):
-                self.define_qcyl(which='full')
-
-            self._dk_glob = calculate_dk_cons(self.solution_glob,self.dk_parameters,self.qcyl_glob,self.mesh.vertices_glob[self.mesh.connectivity_glob][:,:,0]/self.parameters['adimensionalization']['length_scale'],
-                                                self.parameters['adimensionalization']['length_scale']**2/self.parameters['adimensionalization']['time_scale'],
-                                                self.cons_idx)
+        return calculate_dk_impl(self, which)
 
     
     def calculate_mfp(self,which="simple"):
