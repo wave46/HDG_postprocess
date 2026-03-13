@@ -10,3 +10,5 @@ hdg_postprocess.egg-info/
 hdg_postprocess.egg-info/SOURCES.txt
 *__pycache__*
 demos/data/*
+.venv*
+.vscode
