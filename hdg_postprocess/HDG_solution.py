@@ -7,8 +7,21 @@ from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
 from hdg_postprocess.solution_operations import (
     calculate_boundary_summary as calculate_boundary_summary_impl,
+    calculate_cooling_factor as calculate_cooling_factor_impl,
+    calculate_cx_rate as calculate_cx_rate_impl,
+    calculate_cx_source as calculate_cx_source_impl,
+    calculate_electron_gain_due_to_rec as calculate_electron_gain_due_to_rec_impl,
+    calculate_electron_sink_due_to_cooling_factor as calculate_electron_sink_due_to_cooling_factor_impl,
+    calculate_electron_sink_due_to_iz as calculate_electron_sink_due_to_iz_impl,
+    calculate_electron_sink_due_to_rec as calculate_electron_sink_due_to_rec_impl,
     calculate_in_boundary_gauss_points as calculate_in_boundary_gauss_points_impl,
     calculate_in_gauss_points as calculate_in_gauss_points_impl,
+    calculate_ion_gain_due_to_iz as calculate_ion_gain_due_to_iz_impl,
+    calculate_ion_sink_due_to_cx as calculate_ion_sink_due_to_cx_impl,
+    calculate_ion_sink_due_to_rec as calculate_ion_sink_due_to_rec_impl,
+    calculate_ionization_rate as calculate_ionization_rate_impl,
+    calculate_ionization_source as calculate_ionization_source_impl,
+    calculate_ohmic_source as calculate_ohmic_source_impl,
     calculate_power_balance as calculate_power_balance_impl,
     calculate_power_losses_to_wall as calculate_power_losses_to_wall_impl,
     calculate_variables_along_line as calculate_variables_along_line_impl,
@@ -19,6 +32,7 @@ from hdg_postprocess.solution_operations import (
     define_minor_radii as define_minor_radii_impl,
     define_qcyl as define_qcyl_impl,
     init_phys_variables as init_phys_variables_impl,
+    calculate_recombination_rate as calculate_recombination_rate_impl,
     recombine_boundary_solution as recombine_boundary_solution_impl,
     recombine_full_solution as recombine_full_solution_impl,
     recombine_simple_full_solution as recombine_simple_full_solution_impl,
@@ -1332,45 +1346,7 @@ class HDGsolution:
 
 
     def calculate_ohmic_source(self, which='simple'):
-        """
-            calculate the ionization rate
-        """
-
-        if 'ohmic_coeff' not in  self.parameters['physics'].keys():
-            raise KeyError('Please, provide ohmic heating adimensionalized coefficient to self.parameters["physics"]')
-        if 'Zeff' not in  self.parameters['physics'].keys():
-            raise KeyError('Please, effective charge to self.parameters["physics"]')
-        
-        if which=="simple":
-            self.calculate_ohmic_source(which="full")
-
-            self._ohmic_source_simple_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._ohmic_source_simple_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ohmic_source.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-        elif which == 'full':
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._ohmic_source = calculate_ohmic_source_cons(self.solution_glob,self.jtor_glob,
-                                                            self.parameters['physics']['Mref'],
-                                                            self.parameters['adimensionalization']['mass_scale'],
-                                                            self.parameters['adimensionalization']['density_scale'],
-                                                            self.parameters['adimensionalization']['length_scale'],
-                                                            self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'],
-                                                            self.parameters['physics']['Zeff'])
-        elif which == 'gauss':
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            if self._jtor_gauss is None:
-                print('Calculating on gauss points first')
-                self.calculate_in_gauss_points()
-            self._ohmic_source_gauss = calculate_ohmic_source_cons(self.solution_gauss,self.jtor_gauss,
-                                                            self.parameters['physics']['Mref'],
-                                                            self.parameters['adimensionalization']['mass_scale'],
-                                                            self.parameters['adimensionalization']['density_scale'],
-                                                            self.parameters['adimensionalization']['length_scale'],
-                                                            self.parameters['adimensionalization']['time_scale'],
-                                                            self.parameters['physics']['ohmic_coeff'],
-                                                            self.parameters['physics']['Zeff'])
+        return calculate_ohmic_source_impl(self, which)
             
             
 
@@ -1394,95 +1370,13 @@ class HDGsolution:
 
 
     def calculate_ionization_rate(self,which="simple"):
-        """
-            calculate the ionization rate
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-            gauss_points: on gauss points (to be done)
-        """    
-
-        if which=="simple":
-            if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-            if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_ionization_rate(which="full")
-
-            self._ionization_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._ionization_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ionization_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        elif which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._ionization_rate = calculate_iz_rate_cons(self.solution_glob,self.atomic_parameters['iz'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'])
+        return calculate_ionization_rate_impl(self, which)
 
     def calculate_recombination_rate(self,which="simple"):
-        """
-            calculate the recombination rate
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-            gauss_points: on gauss points (to be done)
-        """    
-
-        if which=="simple":
-            if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-            if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_recombination_rate(which="full")
-
-            self._recombination_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._recombination_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._recombination_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        elif which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._recombination_rate = calculate_rec_rate_cons(self.solution_glob,self.atomic_parameters['rec'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'])
+        return calculate_recombination_rate_impl(self, which)
 
     def calculate_cx_rate(self,which="simple"):
-        """
-            calculate the charge exchange rate
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-        """    
-
-        if which=="simple":
-            if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-            if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_cx_rate(which="full")
-
-            self._cx_rate_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._cx_rate_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._cx_rate.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._cx_rate = calculate_cx_rate_cons(self.solution_glob,self.atomic_parameters['cx'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['physics']['Mref'])
+        return calculate_cx_rate_impl(self, which)
 
     def calculate_dnn(self,which="simple"):
         """
@@ -1649,428 +1543,32 @@ class HDGsolution:
 
 
     def calculate_ionization_source(self,which="simple"):
-        """
-            calculate the ionization source
-            simple: for simple mesh solution
-            full: on full mesh solution (to be done)
-            coordinates: on a line with provided coordinates (to be done)
-            gauss: on gauss points
-        """    
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if which=="simple":
-            
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_ionization_source(which="full")
-
-            self._ionization_source_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._ionization_source_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ionization_source.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._ionization_source = calculate_iz_source_cons(self.solution_glob,self.atomic_parameters['iz'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self._cons_idx)
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._ionization_source_gauss = calculate_iz_source_cons(self.solution_gauss,self.atomic_parameters['iz'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self._cons_idx)
+        return calculate_ionization_source_impl(self, which)
     def calculate_ion_gain_due_to_iz(self,which="simple"):
-        """
-            calculate the ion gain rate due to ionization
-            simple: for simple mesh solution
-            full: on full mesh solution
-            gauss: on gauss points
-        """
-
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if "R_E" not in self.parameters['physics'].keys():
-            raise ValueError("Please, provide effective energy transfer from neutrals to ions R_E to self.parameters['physics']")
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_ion_gain_due_to_iz(which="full")
-
-            self._ion_gain_iz_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._ion_gain_iz_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ion_gain_iz.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._ion_gain_iz = calculate_ion_gain_due_to_iz_cons(self.solution_glob,self.atomic_parameters['iz'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['physics']['R_E'],
-                                                                self.parameters['adimensionalization']['charge_scale'],
-                                                                self._cons_idx)
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._ion_gain_iz_gauss = calculate_ion_gain_due_to_iz_cons(self.solution_gauss,self.atomic_parameters['iz'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['physics']['R_E'],
-                                                                self.parameters['adimensionalization']['charge_scale'],
-                                                                self._cons_idx)
+        return calculate_ion_gain_due_to_iz_impl(self, which)
 
     def calculate_ion_sink_due_to_rec(self,which="simple"):
-        """
-            calculate the ion loss rate due to recombination
-            simple: for simple mesh solution
-            full: on full mesh solution
-            gauss: on gauss points
-        """
-
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "rec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide atomic settings for ion losses due to recombination for the simulation")
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_ion_sink_due_to_rec(which="full")
-
-            self._ion_sink_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._ion_sink_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ion_sink_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._ion_sink_rec = calculate_ion_sink_due_to_rec_cons(self.solution_glob,self.atomic_parameters['rec'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'])
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._ion_sink_rec_gauss = calculate_ion_sink_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['rec'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'])
+        return calculate_ion_sink_due_to_rec_impl(self, which)
     def calculate_ion_sink_due_to_cx(self,which="simple"):
-        """
-            calculate the ion loss rate due to charge exchange
-            simple: for simple mesh solution
-            full: on full mesh solution
-            gauss: on gauss points
-        """
-
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide atomic settings for ion losses due to charge exchange for the simulation")
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_ion_sink_due_to_cx(which="full")
-
-            self._ion_sink_cx_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._ion_sink_cx_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._ion_sink_cx.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._ion_sink_cx = calculate_ion_sink_due_to_cx_cons(self.solution_glob,self.atomic_parameters['cx'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['speed_scale'],
-                                                                self.parameters['adimensionalization']['mass_scale'],
-                                                                self._cons_idx)
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._ion_sink_cx_gauss = calculate_ion_sink_due_to_cx_cons(self.solution_gauss,self.atomic_parameters['cx'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['speed_scale'],
-                                                                self.parameters['adimensionalization']['mass_scale'],
-                                                                self._cons_idx)
+        return calculate_ion_sink_due_to_cx_impl(self, which)
             
         
     def calculate_electron_sink_due_to_iz(self,which="simple"):
-        """
-            calculate the electron loss rate due to ionization
-            simple: for simple mesh solution
-            full: on full mesh solution 
-            gauss: on gauss points
-        """
-
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "Eiz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide atomic settings for electron losses due to ionization for the simulation")
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_electron_sink_due_to_iz(which="full")
-
-            self._electron_sink_iz_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._electron_sink_iz_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_sink_iz.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._electron_sink_iz = calculate_electron_sink_due_to_iz_cons(self.solution_glob,self.atomic_parameters['Eiz'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'],
-                                                                self._cons_idx)
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._electron_sink_iz_gauss = calculate_electron_sink_due_to_iz_cons(self.solution_gauss,self.atomic_parameters['Eiz'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'],
-                                                                self._cons_idx)
+        return calculate_electron_sink_due_to_iz_impl(self, which)
 
 
     def calculate_electron_sink_due_to_rec(self,which="simple"):
-        """
-            calculate the electron loss rate due to recombination
-            simple: for simple mesh solution
-            full: on full mesh solution
-            gauss: on gauss points
-        """
-
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "Erec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide atomic settings for electron losses due to recombination for the simulation")
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_electron_sink_due_to_rec(which="full")
-
-            self._electron_sink_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._electron_sink_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_sink_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._electron_sink_rec = calculate_electron_sink_due_to_rec_cons(self.solution_glob,self.atomic_parameters['Erec'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._electron_sink_rec_gauss = calculate_electron_sink_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['Erec'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
+        return calculate_electron_sink_due_to_rec_impl(self, which)
                                                                 
     def calculate_electron_gain_due_to_rec(self,which="simple"):
-        """
-            calculate the electron gain rate due to recombination
-            simple: for simple mesh solution
-            full: on full mesh solution
-            gauss: on gauss points
-        """
-
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "rec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide recombination atomic settings for the simulation")
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_electron_gain_due_to_rec(which="full")
-
-            self._electron_gain_rec_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._electron_gain_rec_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_gain_rec.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._electron_gain_rec = calculate_electron_gain_due_to_rec_cons(self.solution_glob,self.atomic_parameters['rec'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._electron_gain_rec_gauss = calculate_electron_gain_due_to_rec_cons(self.solution_gauss,self.atomic_parameters['rec'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
+        return calculate_electron_gain_due_to_rec_impl(self, which)
     def calculate_electron_sink_due_to_cooling_factor(self,which="simple"):
-        """
-            calculate the electron loss rate due to cooling factor
-            simple: for simple mesh solution
-            full: on full mesh solution
-            gauss: on gauss points
-        """
-
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "cooling_factor" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide atomic settings for electron losses due to cooling factor for the simulation")
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_electron_sink_due_to_cooling_factor(which="full")
-
-            self._electron_sink_cooling_factor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._electron_sink_cooling_factor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._electron_sink_cooling_factor.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(self.solution_glob,self.atomic_parameters['cooling_factor'],
-                                                                self.parameters['physics']['impurity_concentration'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._electron_sink_cooling_factor_gauss = calculate_electron_sink_due_to_cooling_factor_cons(self.solution_gauss,self.atomic_parameters['cooling_factor'],
-                                                                self.parameters['physics']['impurity_concentration'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
+        return calculate_electron_sink_due_to_cooling_factor_impl(self, which)
 
     def calculate_cooling_factor(self,which="simple"):
-        """
-            calculate the cooling factor
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-            gauss: on gauss points
-        """    
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "cooling_factor" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide atomic settings for the cooling factor for the simulation")
-        if which=="simple":
-            
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_cooling_factor(which="full")
-
-            self._cooling_factor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._cooling_factor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._cooling_factor.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._cooling_factor = calculate_cooling_factor_cons(self.solution_glob,self.atomic_parameters['cooling_factor'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['charge_scale'])
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._cooling_factor_gauss = calculate_cooling_factor_cons(self.solution_gauss,self.atomic_parameters['cooling_factor'],
-                                                                self.parameters['physics']['impurity_concentration'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'])
+        return calculate_cooling_factor_impl(self, which)
     def calculate_cx_source(self,which="simple"):
-        """
-            calculate the charge-exchange source
-            simple: for simple mesh solution
-            full: on full mesh solution (to be done)
-            coordinates: on a line with provided coordinates (to be done)
-            gauss: on gauss points
-        """    
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if which=="simple":
-            
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_cx_source(which="full")
-
-            self._cx_source_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._cx_source_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._cx_source.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._cx_source = calculate_cx_source_cons(self.solution_glob,self.atomic_parameters['cx'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self._cons_idx)
-
-        if which == 'gauss':
-            if self.solution_gauss is None:
-                print('Initializing values in gauss points first')
-                self.calculate_in_gauss_points()
-            self._cx_source_gauss = calculate_cx_source_cons(self.solution_gauss,self.atomic_parameters['cx'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self._cons_idx)
+        return calculate_cx_source_impl(self, which)
     def define_interpolators(self):
         """
         defines interpolators for full solutions and gradients based on shape functions

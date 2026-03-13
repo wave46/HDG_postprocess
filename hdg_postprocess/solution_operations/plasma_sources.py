@@ -1,0 +1,441 @@
+import numpy as np
+
+from hdg_postprocess.routines.atomic import *
+from hdg_postprocess.routines.plasma import *
+
+
+def calculate_ohmic_source(solution, which="simple"):
+    """
+    Calculate the ohmic heating source.
+    """
+    if "ohmic_coeff" not in solution.parameters["physics"].keys():
+        raise KeyError('Please, provide ohmic heating adimensionalized coefficient to self.parameters["physics"]')
+    if "Zeff" not in solution.parameters["physics"].keys():
+        raise KeyError('Please, effective charge to self.parameters["physics"]')
+
+    if which == "simple":
+        solution.calculate_ohmic_source(which="full")
+        solution._ohmic_source_simple_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution._ohmic_source_simple_simple[
+            solution.mesh.connectivity_glob.reshape(-1, 1).ravel()
+        ] = solution._ohmic_source.reshape(solution.solution_glob.shape[0] * solution.solution_glob.shape[1])
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._ohmic_source = calculate_ohmic_source_cons(
+            solution.solution_glob,
+            solution.jtor_glob,
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["mass_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["adimensionalization"]["length_scale"],
+            solution.parameters["adimensionalization"]["time_scale"],
+            solution.parameters["physics"]["ohmic_coeff"],
+            solution.parameters["physics"]["Zeff"],
+        )
+    elif which == "gauss":
+        _ensure_full_solution(solution)
+        if solution._jtor_gauss is None:
+            print("Calculating on gauss points first")
+            solution.calculate_in_gauss_points()
+        solution._ohmic_source_gauss = calculate_ohmic_source_cons(
+            solution.solution_gauss,
+            solution.jtor_gauss,
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["mass_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["adimensionalization"]["length_scale"],
+            solution.parameters["adimensionalization"]["time_scale"],
+            solution.parameters["physics"]["ohmic_coeff"],
+            solution.parameters["physics"]["Zeff"],
+        )
+
+
+def calculate_ionization_rate(solution, which="simple"):
+    if which == "simple":
+        _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
+        _ensure_simple_phys(solution)
+        solution.calculate_ionization_rate(which="full")
+        _assign_simple_view(solution, "_ionization_rate_simple", solution._ionization_rate)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._ionization_rate = calculate_iz_rate_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["iz"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+        )
+
+
+def calculate_recombination_rate(solution, which="simple"):
+    if which == "simple":
+        _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
+        _ensure_simple_phys(solution)
+        solution.calculate_recombination_rate(which="full")
+        _assign_simple_view(solution, "_recombination_rate_simple", solution._recombination_rate)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._recombination_rate = calculate_rec_rate_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["rec"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+        )
+
+
+def calculate_cx_rate(solution, which="simple"):
+    if which == "simple":
+        _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
+        _ensure_simple_phys(solution)
+        solution.calculate_cx_rate(which="full")
+        _assign_simple_view(solution, "_cx_rate_simple", solution._cx_rate)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._cx_rate = calculate_cx_rate_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["cx"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["physics"]["Mref"],
+        )
+
+
+def calculate_ionization_source(solution, which="simple"):
+    _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_ionization_source(which="full")
+        _assign_simple_view(solution, "_ionization_source_simple", solution._ionization_source)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._ionization_source = calculate_iz_source_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["iz"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._ionization_source_gauss = calculate_iz_source_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["iz"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        )
+
+
+def calculate_ion_gain_due_to_iz(solution, which="simple"):
+    _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
+    if "R_E" not in solution.parameters["physics"].keys():
+        raise ValueError("Please, provide effective energy transfer from neutrals to ions R_E to self.parameters['physics']")
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_ion_gain_due_to_iz(which="full")
+        _assign_simple_view(solution, "_ion_gain_iz_simple", solution._ion_gain_iz)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["iz"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["physics"]["R_E"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._ion_gain_iz_gauss = calculate_ion_gain_due_to_iz_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["iz"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["physics"]["R_E"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
+        )
+
+
+def calculate_ion_sink_due_to_rec(solution, which="simple"):
+    _require_atomic_key(
+        solution, "rec", "Please, provide atomic settings for ion losses due to recombination for the simulation"
+    )
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_ion_sink_due_to_rec(which="full")
+        _assign_simple_view(solution, "_ion_sink_rec_simple", solution._ion_sink_rec)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["rec"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["speed_scale"] ** 2
+            * solution.parameters["adimensionalization"]["mass_scale"],
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._ion_sink_rec_gauss = calculate_ion_sink_due_to_rec_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["rec"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["speed_scale"] ** 2
+            * solution.parameters["adimensionalization"]["mass_scale"],
+        )
+
+
+def calculate_ion_sink_due_to_cx(solution, which="simple"):
+    _require_atomic_key(
+        solution, "cx", "Please, provide atomic settings for ion losses due to charge exchange for the simulation"
+    )
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_ion_sink_due_to_cx(which="full")
+        _assign_simple_view(solution, "_ion_sink_cx_simple", solution._ion_sink_cx)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["cx"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["speed_scale"],
+            solution.parameters["adimensionalization"]["mass_scale"],
+            solution._cons_idx,
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._ion_sink_cx_gauss = calculate_ion_sink_due_to_cx_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["cx"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["speed_scale"],
+            solution.parameters["adimensionalization"]["mass_scale"],
+            solution._cons_idx,
+        )
+
+
+def calculate_electron_sink_due_to_iz(solution, which="simple"):
+    _require_atomic_key(
+        solution, "Eiz", "Please, provide atomic settings for electron losses due to ionization for the simulation"
+    )
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_electron_sink_due_to_iz(which="full")
+        _assign_simple_view(solution, "_electron_sink_iz_simple", solution._electron_sink_iz)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["Eiz"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._electron_sink_iz_gauss = calculate_electron_sink_due_to_iz_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["Eiz"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
+        )
+
+
+def calculate_electron_sink_due_to_rec(solution, which="simple"):
+    _require_atomic_key(
+        solution, "Erec", "Please, provide atomic settings for electron losses due to recombination for the simulation"
+    )
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_electron_sink_due_to_rec(which="full")
+        _assign_simple_view(solution, "_electron_sink_rec_simple", solution._electron_sink_rec)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["Erec"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._electron_sink_rec_gauss = calculate_electron_sink_due_to_rec_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["Erec"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+        )
+
+
+def calculate_electron_gain_due_to_rec(solution, which="simple"):
+    _require_atomic_key(solution, "rec", "Please, provide recombination atomic settings for the simulation")
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_electron_gain_due_to_rec(which="full")
+        _assign_simple_view(solution, "_electron_gain_rec_simple", solution._electron_gain_rec)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["rec"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._electron_gain_rec_gauss = calculate_electron_gain_due_to_rec_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["rec"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+        )
+
+
+def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
+    _require_atomic_key(
+        solution,
+        "cooling_factor",
+        "Please, provide atomic settings for electron losses due to cooling factor for the simulation",
+    )
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_electron_sink_due_to_cooling_factor(which="full")
+        _assign_simple_view(
+            solution, "_electron_sink_cooling_factor_simple", solution._electron_sink_cooling_factor
+        )
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["cooling_factor"],
+            solution.parameters["physics"]["impurity_concentration"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._electron_sink_cooling_factor_gauss = calculate_electron_sink_due_to_cooling_factor_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["cooling_factor"],
+            solution.parameters["physics"]["impurity_concentration"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+        )
+
+
+def calculate_cooling_factor(solution, which="simple"):
+    _require_atomic_key(solution, "cooling_factor", "Please, provide atomic settings for the cooling factor for the simulation")
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_cooling_factor(which="full")
+        _assign_simple_view(solution, "_cooling_factor_simple", solution._cooling_factor)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._cooling_factor = calculate_cooling_factor_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["cooling_factor"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution.parameters["adimensionalization"]["charge_scale"],
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._cooling_factor_gauss = calculate_cooling_factor_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["cooling_factor"],
+            solution.parameters["physics"]["impurity_concentration"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+        )
+
+
+def calculate_cx_source(solution, which="simple"):
+    _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
+    if which == "simple":
+        _ensure_simple_phys(solution)
+        solution.calculate_cx_source(which="full")
+        _assign_simple_view(solution, "_cx_source_simple", solution._cx_source)
+    elif which == "full":
+        _ensure_full_solution(solution)
+        solution._cx_source = calculate_cx_source_cons(
+            solution.solution_glob,
+            solution.atomic_parameters["cx"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        )
+    elif which == "gauss":
+        _ensure_gauss_solution(solution)
+        solution._cx_source_gauss = calculate_cx_source_cons(
+            solution.solution_gauss,
+            solution.atomic_parameters["cx"],
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        )
+
+
+def _require_atomic_key(solution, key, message):
+    if solution.atomic_parameters is None:
+        raise ValueError("Please, provide atomic settings for the simulation")
+    if key not in solution.atomic_parameters.keys():
+        raise ValueError(message)
+
+
+def _ensure_simple_phys(solution):
+    if not solution._simple_phys_initialized:
+        print("Initializing physical solution first")
+        solution.init_phys_variables("simple")
+
+
+def _ensure_full_solution(solution):
+    if not solution._combined_to_full:
+        solution.recombine_full_solution()
+
+
+def _ensure_gauss_solution(solution):
+    if solution.solution_gauss is None:
+        print("Initializing values in gauss points first")
+        solution.calculate_in_gauss_points()
+
+
+def _assign_simple_view(solution, attribute_name, full_values):
+    simple_values = np.zeros(solution.mesh.vertices_glob.shape[0])
+    simple_values[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = full_values.reshape(
+        solution.solution_glob.shape[0] * solution.solution_glob.shape[1]
+    )
+    setattr(solution, attribute_name, simple_values)
