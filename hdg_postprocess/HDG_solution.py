@@ -27,6 +27,11 @@ from hdg_postprocess.solution_operations import (
     calculate_ionization_source as calculate_ionization_source_impl,
     calculate_mfp as calculate_mfp_impl,
     calculate_ohmic_source as calculate_ohmic_source_impl,
+    plot_overview as plot_overview_impl,
+    plot_overview_difference as plot_overview_difference_impl,
+    plot_overview_physical as plot_overview_physical_impl,
+    plot_overview_physical_difference as plot_overview_physical_difference_impl,
+    plot_variables_overview as plot_variables_overview_impl,
     calculate_power_balance as calculate_power_balance_impl,
     calculate_power_losses_to_wall as calculate_power_losses_to_wall_impl,
     calculate_variables_along_line as calculate_variables_along_line_impl,
@@ -948,126 +953,10 @@ class HDGsolution:
 
 
     def plot_overview(self,n_levels=100):
-        """
-        Plot all conservative variables (dimensional) to have a view on our data
-        We also leave the solutions adimensional, providing the dimensional ones as outputs
-        """
-
-        if not self._combined_simple_solution:
-            print('Comibining first simple solution full')
-            self.recombine_simple_full_solution()
-        
-        solutions_dimensional = self.solution_simple.copy()
-
-        colorbar_labels = []
-        
-        #in fact for dimensionalization there is field 'reference_values_conservative_variables' but it's not completely correct
-        for i in range(self.neq):
-            cons_variable =self.parameters['physics']['conservative_variable_names'][i]
-            if cons_variable == b'rho':
-                solutions_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']
-                colorbar_labels.append(r'n, m$^{-3}$')
-                solutions_dimensional[solutions_dimensional[:,i]<1e8,i] = 1e8
-            elif cons_variable == b'Gamma':
-                solutions_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']*self.parameters['adimensionalization']['speed_scale']
-                colorbar_labels.append(r'$\Gamma$, m$^{-2}$ s$^{-1}$')
-            elif cons_variable == b'nEi':
-                solutions_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']*self.parameters['adimensionalization']['specific_energy_scale']
-                colorbar_labels.append(r'nE$_i$, m$^{-1}$ s$^{-2}$')
-            elif cons_variable == b'nEe':
-                solutions_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']*self.parameters['adimensionalization']['specific_energy_scale']
-                colorbar_labels.append(r'nE$_e$, m$^{-1}$ s$^{-2}$')
-            elif cons_variable == b'rhon':
-                solutions_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']
-                colorbar_labels.append(r'$n_n$, m$^{-3}$')
-                solutions_dimensional[solutions_dimensional[:,i]<1e8,i] = 1e8
-            elif cons_variable == b'k':
-                solutions_dimensional[:,i]*=self.parameters['adimensionalization']['speed_scale']**2
-                colorbar_labels.append(r'$k$, m$^{-2}$/s$^{-2}$')
-                #solutions_dimensional[solutions_dimensional[:,i]<1e-5,i] = 1e-5
-            else:
-                raise NameError('Unknown conservative varibale')
-
-        #additional triangulaton: since we have more than 3 points in each element, we can triangulate it
-        #take any triangle from the mesh
-        if self.mesh.connectivity_big is None:
-            self.mesh.create_connectivity_big()
-       
-
-        n_lines = int(np.floor(self.neq/2+0.5))
-        fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
-
-        for i in range(self.neq):
-            cons_variable =self.parameters['physics']['conservative_variable_names'][i]
-            if (cons_variable != b'Gamma') and (cons_variable != b'k') :
-                axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_dimensional[:,i],ax=axes[i//2,i%2],
-                                                          log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,cmap='bwr')
-            else:
-                axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_dimensional[:,i],ax=axes[i//2,i%2],
-                                                          log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
-  
-
-        return fig,axes, solutions_dimensional    
+        return plot_overview_impl(self, n_levels=n_levels)
         
     def plot_overview_difference(self,second_solution,n_levels=100):
-        """
-        plots the difference between this and given solution
-        """
-
-        if not self._combined_simple_solution:
-            print('Comibining first simple solution full')
-            self.recombine_simple_full_solution()
-        if not second_solution._combined_simple_solution:
-            print('Comibining first simple solution of the second one full')
-            second_solution.recombine_simple_full_solution()
-        
-        difference_dimensional = self.solution_simple.copy()-second_solution.solution_simple.copy()
-        colorbar_labels = []
-        #in fact for dimensionalization there is field 'reference_values_conservative_variables' but it's not completely correct
-        for i in range(self.neq):
-            cons_variable =self.parameters['physics']['conservative_variable_names'][i]
-            if cons_variable == b'rho':
-                difference_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']
-                colorbar_labels.append(r'n, m$^{-3}$')
-            elif cons_variable == b'Gamma':
-                difference_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']*self.parameters['adimensionalization']['speed_scale']
-                colorbar_labels.append(r'$\Gamma$, m$^{-2}$ s$^{-1}$')
-            elif cons_variable == b'nEi':
-                difference_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']*self.parameters['adimensionalization']['specific_energy_scale']
-                colorbar_labels.append(r'nE$_i$, m$^{-1}$ s$^{-2}$')
-            elif cons_variable == b'nEe':
-                difference_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']*self.parameters['adimensionalization']['specific_energy_scale']
-                colorbar_labels.append(r'nE$_e$, m$^{-1}$ s$^{-2}$')
-            elif cons_variable == b'rhon':
-                difference_dimensional[:,i]*=self.parameters['adimensionalization']['density_scale']
-                colorbar_labels.append(r'$n_n$, m$^{-3}$')
-            elif cons_variable == b'k':
-                difference_dimensional[:,i]*=self.parameters['adimensionalization']['speed_scale']**2
-                colorbar_labels.append(r'$k$, m$^{-2}$/s$^{-2}$')
-                #difference_dimensional[difference_dimensional[:,i]<1e-5,i] = 1e-5
-            else:
-                raise NameError('Unknown conservative varibale')
-
-        
-
-        #additional triangulaton: since we have more than 3 points in each element, we can triangulate it
-        #take any triangle from the mesh
-        if self.mesh.connectivity_big is None:
-            self.mesh.create_connectivity_big()
-       
-
-        n_lines = int(np.floor(self.neq/2+0.5))
-        fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
-
-        for i in range(self.neq):
-            cons_variable =self.parameters['physics']['conservative_variable_names'][i]
-            if (cons_variable != b'Gamma'):
-                axes[i//2,i%2] = self.mesh.plot_full_mesh(difference_dimensional[:,i],ax=axes[i//2,i%2],
-                                                          log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
-            else:
-                axes[i//2,i%2] = self.mesh.plot_full_mesh(difference_dimensional[:,i],ax=axes[i//2,i%2],
-                                                          log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,cmap='bwr')
-        return fig,axes, difference_dimensional    
+        return plot_overview_difference_impl(self, second_solution, n_levels=n_levels)
     
     def init_phys_variables(self, which='both'):
         ''' 
@@ -1105,207 +994,16 @@ class HDGsolution:
         cons2phys_impl(self, data)
                                                     
     def plot_overview_physical(self,n_levels=100, limits=None,ticks=None):
-            """
-            Plot n, n_n, Ti, Te, M,k,....
-            As a physical overview legacy
-            """
-
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-
-
-
-            colorbar_labels = [r'n [m$^{-3}$]',r'$n_n$ [m$^{-3}$]',r'$T_i [eV]$',r'$T_e [eV] $',r'M', r'$k$ [m$^2$/s$^2$]']
-            solutions_plot = np.zeros_like(self.solution_simple)
-            solutions_plot[:,0] = self.solution_simple_phys[:,0] #ne
-            solutions_plot[:,1] = self.solution_simple_phys[:,-1] #n_n
-            if self.neq>2:
-                solutions_plot[:,2] = self.solution_simple_phys[:,6] #Ti
-                solutions_plot[:,3] = self.solution_simple_phys[:,7] #Te
-            if self.neq>4:
-                solutions_plot[:,1] = self.solution_simple_phys[:,10] #n_n
-            if self.neq>5:
-                solutions_plot[:,5] = self.solution_simple_phys[:,11] #k
-            solutions_plot[:,4] = self.solution_simple_phys[:,9] #M
-
-
-
-
-            #additional triangulaton: since we have more than 3 points in each element, we can triangulate it
-            #take any triangle from the mesh
-            if self.mesh.connectivity_big is None:
-                self.mesh.create_connectivity_big()
-
-
-            n_lines = int(np.floor(self.neq/2+0.5))
-            fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
-
-            for i in range(self.neq):
-                if limits == None:
-                    limit = None
-                else:
-                    limit = limits[i]
-                if ticks == None:
-                    tick = None
-                else:
-                    tick = ticks[i]
-                if ((i!=4)and(i!=5)) :
-                    data = solutions_plot[:,i].copy()
-                    if (i == 0) or (i == 1):
-                        data[data<0] = 1e8
-                    else:
-                        data[data<0] = 1e-3
-                    axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
-                                                              log=True,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit,ticks=tick)
-                else:
-                    data = solutions_plot[:,i].copy()
-                    data[np.where(np.isnan(data))] = 0
-                    if (i == 4):
-                        axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
-                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit,cmap='bwr')
-                    else:
-                        axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
-                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,limits=limit)
-    
-
-            return fig,axes, solutions_plot    
+            return plot_overview_physical_impl(self, n_levels=n_levels, limits=limits, ticks=ticks)
 
 
     def plot_overview_physical_difference(self,second_solution,n_levels=100):
-            """
-            Plot difference for n, n_n, Ti, Te, M for this solution and given
-            As a physical overview legacy
-            """
-
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            if not second_solution._simple_phys_initialized:
-                print('Initializing physical solution first')
-                second_solution.init_phys_variables('simple')
-
-
-            colorbar_labels = [r'n, m$^{-3}$',r'$n_n$, m$^{-3}$',r'$T_i$',r'$T_e$',r'M', r'k']
-            solutions_plot = np.zeros_like(self.solution_simple)
-            solutions_plot[:,0] = self.solution_simple_phys[:,0]-second_solution.solution_simple_phys[:,0] #ne
-           
-            solutions_plot[:,4] = self.solution_simple_phys[:,9]-second_solution.solution_simple_phys[:,9] #M
-            if self.neq>2:
-                solutions_plot[:,2] = self.solution_simple_phys[:,6]-second_solution.solution_simple_phys[:,6] #Ti
-                solutions_plot[:,3] = self.solution_simple_phys[:,7]-second_solution.solution_simple_phys[:,7] #Te
-            if self.neq>4:
-                solutions_plot[:,1] = self.solution_simple_phys[:,10]-second_solution.solution_simple_phys[:,10] #n_n
-            if self.neq>5:
-                solutions_plot[:,5] = self.solution_simple_phys[:,11]-second_solution.solution_simple_phys[:,11] #k
-
-
-
-
-            #additional triangulaton: since we have more than 3 points in each element, we can triangulate it
-            #take any triangle from the mesh
-            if self.mesh.connectivity_big is None:
-                self.mesh.create_connectivity_big()
-
-
-            n_lines = int(np.floor(self.neq/2+0.5))
-            fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
-
-            for i in range(self.neq):
-                if (i==4):
-                    axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
-                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels,cmap='bwr')
-                else:
-                    axes[i//2,i%2] = self.mesh.plot_full_mesh(solutions_plot[:,i],ax=axes[i//2,i%2],
-                                                              log=False,label=colorbar_labels[i],connectivity=self.mesh.connectivity_big,n_levels=n_levels)
-    
-
-            return fig,axes,solutions_plot
+            return plot_overview_physical_difference_impl(self, second_solution, n_levels=n_levels)
 
     def plot_variables_overview(self,variable_list,labels,limits,n_levels,ticks,tick_lables,logs,title=None):
-        """
-        plots 2D plots of desired varibales
-        """
-        defined_variables = ['n','nn','te','ti','M','dnn','k','dk']
-        for variable in variable_list:
-            if variable not in defined_variables:
-                raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
-        #additional triangulaton: since we have more than 3 points in each element, we can triangulate it
-        #take any triangle from the mesh
-        if self.mesh.connectivity_big is None:
-            self.mesh.create_connectivity_big()
-
-        if not self._combined_simple_solution:
-            print('Comibining first simple solution full')
-            self.recombine_simple_full_solution()
-
-        #collect dictionary to plot
-        var_to_plot = len(variable_list)
-        if var_to_plot == 1:
-            fig, axes = plt.subplots(1,1, figsize = (7.5,7.5))
-        else:
-            n_lines = int(np.floor(var_to_plot/2+0.5))
-            fig, axes = plt.subplots(n_lines,2, figsize = (15,7.5*n_lines))
-        if title is not None:
-            fig.suptitle(title)
-        res = {}
-        for i,(variable,label,limit,tick,tick_label,log) \
-            in enumerate(zip(variable_list,labels,limits,ticks,tick_lables,logs)):
-            if variable == 'n':
-                data = calculate_n_cons(self.solution_simple,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
-            elif variable == 'nn':
-                data = calculate_nn_cons(self.solution_simple,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
-            elif variable == 'te':
-                data = calculate_Te_cons(self.solution_simple,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
-            elif variable == 'ti':
-                data = calculate_Ti_cons(self.solution_simple,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
-            elif variable == 'M':
-                data = calculate_M_cons(self.solution_simple,self.cons_idx)
-            elif variable == 'dnn':
-                data = calculate_dnn_cons(self.solution_simple,self.dnn_parameters,self.atomic_parameters,
-                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['length_scale'],
-                                                                self.parameters['adimensionalization']['time_scale'])
-            elif variable == 'k':
-                data = calculate_k_cons(self.solution_simple,self.parameters['adimensionalization']['speed_scale']**2,self.cons_idx)  
-            elif variable == 'dk':
-                if self.dk_parameters is None:
-                    raise ValueError("Please, provide turbulent diffusion settings for the simulation")
-
-                if (self.r_axis is None) or (self.z_axis is None):
-                    self.define_magnetic_axis()
-                if (self.a_simple is None):
-                    self.define_minor_radii(which='simple')
-                if (self.qcyl_simple is None):
-                    self.define_qcyl(which='simple')
-                data = calculate_dk_cons(self.solution_simple,self.dk_parameters,self.qcyl_simple,self.mesh.vertices_glob[:,0]/self.parameters['adimensionalization']['length_scale'],
-                                         self.parameters['adimensionalization']['length_scale']**2/self.parameters['adimensionalization']['time_scale'],
-                                         self.cons_idx)                               
-            data[np.isnan(data)] = limit[0]
-            if log:
-                data[data<0] = 10.**limit[0]
-            res[variable] = data
-            if variable == 'M':
-                cmap = 'bwr'
-            else:
-                cmap = 'jet'
-            if var_to_plot>2:
-                axes[i//2,i%2] = self.mesh.plot_full_mesh(data,ax=axes[i//2,i%2],
-                             log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
-                             ticks=tick,tick_labels=tick_label,limits=limit,cmap=cmap)
-            elif var_to_plot==2:
-                axes[i%2] = self.mesh.plot_full_mesh(data,ax=axes[i%2],
-                             log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
-                             ticks=tick,tick_labels=tick_label,limits=limit,cmap=cmap)
-            else:
-                axes = self.mesh.plot_full_mesh(data,ax=axes,
-                             log=log,label=label,connectivity=self.mesh.connectivity_big,n_levels=n_levels,
-                             ticks=tick,tick_labels=tick_label,limits=limit,cmap=cmap)
-        plt.tight_layout()
-        return fig,axes,res
+        return plot_variables_overview_impl(
+            self, variable_list, labels, limits, n_levels, ticks, tick_lables, logs, title=title
+        )
 
 
     def define_magnetic_axis(self):

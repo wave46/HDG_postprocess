@@ -26,6 +26,13 @@ from .plasma_sources import (
     calculate_ohmic_source,
     calculate_recombination_rate,
 )
+from .plotting import (
+    plot_overview,
+    plot_overview_difference,
+    plot_overview_physical,
+    plot_overview_physical_difference,
+    plot_variables_overview,
+)
 from .sampling import (
     calculate_variables_along_line,
     define_interpolators,
@@ -68,6 +75,11 @@ __all__ = [
     "recombine_boundary_solution",
     "recombine_full_solution",
     "recombine_simple_full_solution",
+    "plot_overview",
+    "plot_overview_difference",
+    "plot_overview_physical",
+    "plot_overview_physical_difference",
+    "plot_variables_overview",
     "save_summary_line",
     "summary_along_the_wall",
 ]

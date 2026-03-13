@@ -35,7 +35,7 @@ def plot_raw_meshes(mesh, data=None, ax=None):
 
 
 def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity=None,
-                   n_levels=100, limits=None, ticks=None, tick_labels=None, cmap="jet"):
+                   n_levels=100, limits=None, ticks=None, tick_labels=None, cmap="jet", linewidth=1.0):
     if not mesh._combined_to_full:
         print("Comibining to full mesh")
         mesh.recombine_full_mesh()
@@ -57,7 +57,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
 
     if data is None:
         verts = mesh.vertices_glob[connectivity]
-        collection = PolyCollection(verts, facecolor="none", edgecolor=colors, linewidth=1.0)
+        collection = PolyCollection(verts, facecolor="none", edgecolor=colors, linewidth=linewidth)
         ax.add_collection(collection)
     else:
         if data.shape[0] == connectivity.shape[0]:

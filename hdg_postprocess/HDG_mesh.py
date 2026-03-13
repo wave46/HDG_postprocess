@@ -324,7 +324,7 @@ class HDGmesh:
         return plot_raw_meshes_impl(self, data=data, ax=ax)
 
     def plot_full_mesh(self, data=None, ax=None, log=False, label=None, connectivity=None, 
-                        n_levels=100,limits = None,ticks=None,tick_labels=None,cmap='jet'):
+                        n_levels=100,limits = None,ticks=None,tick_labels=None,cmap='jet', linewidth=1.0):
         """
         Plot all raw meshes to a matplotlib figure.
         :param data: Data array defined on the soledgehdg mesh
@@ -335,7 +335,7 @@ class HDGmesh:
         """
         return plot_full_mesh_impl(
             self, data=data, ax=ax, log=log, label=label, connectivity=connectivity,
-            n_levels=n_levels, limits=limits, ticks=ticks, tick_labels=tick_labels, cmap=cmap,
+            n_levels=n_levels, limits=limits, ticks=ticks, tick_labels=tick_labels, cmap=cmap, linewidth=linewidth,
         )
 
     def plot_mesh_outline(self,raw_boundary_info=None, ax=None):
