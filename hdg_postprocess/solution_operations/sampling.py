@@ -1,0 +1,227 @@
+import numpy as np
+
+from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
+from hdg_postprocess.routines.plasma import calculate_a, calculate_q_cyl
+
+
+def define_magnetic_axis(solution):
+    if not solution.combined_simple_solution:
+        print("Comibining first simple solution full")
+        solution.recombine_simple_full_solution()
+    solution._r_axis, solution._z_axis = solution.mesh.vertices_glob[
+        np.where(solution.poloidal_flux_simple == solution.poloidal_flux_simple.min())
+    ][0]
+
+
+def define_minor_radii(solution, which="simple"):
+    if which == "simple":
+        if (solution._r_axis is None) or (solution._z_axis is None):
+            solution.define_magnetic_axis()
+        if not solution.mesh._combined_to_full:
+            print("Comibining to full mesh")
+            solution.mesh.recombine_full_mesh()
+        solution.define_minor_radii(which="full")
+        solution._a_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution._a_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution._a_glob.reshape(
+            solution._a_glob.shape[0] * solution._a_glob.shape[1]
+        )
+    if which == "full":
+        if (solution._r_axis is None) or (solution._z_axis is None):
+            solution.define_magnetic_axis()
+        if not solution.mesh._combined_to_full:
+            print("Comibining to full mesh")
+            solution.mesh.recombine_full_mesh()
+        solution._a_glob = calculate_a(solution.mesh.vertices_glob[solution.mesh.connectivity_glob], solution.r_axis, solution.z_axis)
+
+
+def define_qcyl(solution, which="simple"):
+    if which == "simple":
+        if not solution.mesh._combined_to_full:
+            print("Comibining to full mesh")
+            solution.mesh.recombine_full_mesh()
+        if not solution.combined_simple_solution:
+            print("Comibining first simple solution full")
+            solution.recombine_simple_full_solution()
+        if solution.a_simple is None:
+            solution.define_minor_radii()
+        solution.define_qcyl(which="full")
+        solution._qcyl_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution._qcyl_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution._qcyl_glob.reshape(
+            solution._qcyl_glob.shape[0] * solution._qcyl_glob.shape[1]
+        )
+    elif which == "full":
+        if not solution.mesh._combined_to_full:
+            print("Comibining to full mesh")
+            solution.mesh.recombine_full_mesh()
+        if solution.a_glob is None:
+            solution.define_minor_radii("full")
+        solution._qcyl_glob = calculate_q_cyl(
+            solution.mesh.vertices_glob[solution.mesh.connectivity_glob][:, :, 0],
+            solution.magnetic_field_glob[:, :, 0],
+            solution.magnetic_field_glob[:, :, 1],
+            solution.magnetic_field_glob[:, :, 2],
+            solution.a_glob,
+        )
+
+
+def calculate_variables_along_line(solution, r_line, z_line, variable_list):
+    defined_variables = [
+        "n", "nn", "te", "ti", "M", "dnn", "mfp", "cx_rate", "iz_rate", "u", "cs",
+        "p_dyn", "pi", "dpi_dx", "dpi_dy", "q_i_par", "q_e_par", "gamma",
+        "q_i_par_conv", "q_i_par_cond", "q_e_par_conv", "q_e_par_cond", "dk",
+        "btor", "dbtor_dx", "dbtor_dy", "k", "psi", "Q_e_loss_iz", "Q_e_loss_rec",
+        "Q_e_gain_rec", "Q_i_gain_iz", "Q_i_loss_rec", "Q_i_loss_cx", "Q_e_loss_tot",
+        "Q_i_loss_tot", "Q_loss_tot", "Siz",
+    ]
+    for variable in variable_list:
+        if variable not in defined_variables:
+            raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
+    result = {}
+    for variable in variable_list:
+        temp = np.zeros_like(z_line)
+        for i, (r, z) in enumerate(zip(r_line, z_line)):
+            if variable == "n":
+                temp[i] = solution.n(r, z)
+            elif variable == "nn":
+                temp[i] = solution.nn(r, z)
+            elif variable == "ti":
+                temp[i] = solution.ti(r, z)
+            elif variable == "te":
+                temp[i] = solution.te(r, z)
+            elif variable == "M":
+                temp[i] = solution.M(r, z)
+            elif variable == "dnn":
+                temp[i] = solution.dnn(r, z)
+            elif variable == "mfp":
+                temp[i] = solution.mfp_nn(r, z)
+            elif variable == "p_dyn":
+                temp[i] = solution.p_dyn(r, z)
+            elif variable == "pi":
+                temp[i] = solution.pi(r, z)
+            elif variable == "dpi_dx":
+                temp[i] = solution.grad_pi(r, z, "x")
+            elif variable == "dpi_dy":
+                temp[i] = solution.grad_pi(r, z, "y")
+            elif variable == "q_i_par":
+                temp[i] = solution.ion_heat_flux_par(r, z)
+            elif variable == "q_i_par_conv":
+                temp[i] = solution.ion_heat_flux_par_conv(r, z)
+            elif variable == "q_i_par_cond":
+                temp[i] = solution.ion_heat_flux_par_cond(r, z)
+            elif variable == "q_e_par":
+                temp[i] = solution.electron_heat_flux_par(r, z)
+            elif variable == "q_e_par_conv":
+                temp[i] = solution.electron_heat_flux_par_conv(r, z)
+            elif variable == "q_e_par_cond":
+                temp[i] = solution.electron_heat_flux_par_cond(r, z)
+            elif variable == "gamma":
+                temp[i] = solution.particle_flux_par(r, z)
+            elif variable == "u":
+                temp[i] = solution.u(r, z)
+            elif variable == "cs":
+                temp[i] = solution.cs(r, z)
+            elif variable == "dk":
+                temp[i] = solution.dk(r, z)
+            elif variable == "cx_rate":
+                temp[i] = solution.cx_rate(r, z)
+            elif variable == "iz_rate":
+                temp[i] = solution.iz_rate(r, z)
+            elif variable == "btor":
+                temp[i] = solution.B(r, z, "theta")
+            elif variable == "dbtor_dx":
+                temp[i] = solution.grad_B(r, z, "theta", "x")
+            elif variable == "dbtor_dy":
+                temp[i] = solution.grad_B(r, z, "theta", "y")
+            elif variable == "k":
+                temp[i] = solution.k(r, z)
+            elif variable == "psi":
+                temp[i] = solution.psi(r, z)
+            elif variable == "Q_e_loss_iz":
+                temp[i] = solution.Q_e_loss_iz(r, z)
+            elif variable == "Q_e_loss_rec":
+                temp[i] = solution.Q_e_loss_rec(r, z)
+            elif variable == "Q_e_gain_rec":
+                temp[i] = solution.Q_e_gain_rec(r, z)
+            elif variable == "Q_i_gain_iz":
+                temp[i] = solution.Q_i_gain_iz(r, z)
+            elif variable == "Q_i_loss_rec":
+                temp[i] = solution.Q_i_loss_rec(r, z)
+            elif variable == "Q_i_loss_cx":
+                temp[i] = solution.Q_i_loss_cx(r, z)
+            elif variable == "Q_e_loss_tot":
+                temp[i] = solution.Q_e_loss_tot(r, z)
+            elif variable == "Q_i_loss_tot":
+                temp[i] = solution.Q_i_loss_tot(r, z)
+            elif variable == "Q_loss_tot":
+                temp[i] = solution.Q_loss_tot(r, z)
+            elif variable == "Siz":
+                temp[i] = solution.ionization_source_interp(r, z)
+            else:
+                raise KeyError(f"{variable} is not in the list of posible variables:  {defined_variables}")
+        result[variable] = temp
+    return result
+
+
+def save_summary_line(solution, save_folder, r_line, z_line, variable_list):
+    defined_variables = [
+        "n", "nn", "te", "ti", "M", "dnn", "mfp", "cx_rate", "iz_rate", "u", "cs",
+        "p_dyn", "pi", "dpi_dx", "dpi_dy", "q_i_par", "q_e_par", "gamma",
+        "q_i_par_conv", "q_i_par_cond", "q_e_par_conv", "q_e_par_cond", "btor",
+        "dbtor_dx", "dbtor_dy", "k", "dk", "Q_e_loss_iz", "Q_e_loss_rec",
+        "Q_e_gain_rec", "Q_i_gain_iz", "Q_i_loss_rec", "Q_i_loss_cx", "Q_e_loss_tot",
+        "Q_i_loss_tot", "Q_loss_tot", "Siz",
+    ]
+    for variable in variable_list:
+        if variable not in defined_variables:
+            raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
+    vertices = np.stack([r_line, z_line]).T
+    np.save(f"{save_folder}vertices.npy", vertices)
+    values_on_line = solution.calculate_variables_along_line(r_line, z_line, variable_list)
+    for variable, values in values_on_line.items():
+        np.save(f"{save_folder}{variable}.npy", values)
+    return values_on_line
+
+
+def define_interpolators(solution):
+    if not solution._combined_simple_solution:
+        print("Comibining first simple solution full")
+        solution.recombine_simple_full_solution()
+    if solution.mesh.connectivity_big is None:
+        print("Comibining first big connectivity")
+        solution.mesh.create_connectivity_big()
+    if solution.mesh.reference_element is None:
+        raise ValueError("Please, provide reference element")
+    if solution.mesh.element_number is None:
+        print("Defining an element number mask")
+        solution.mesh.make_element_number_funtion()
+    if solution._qcyl_glob is None:
+        solution.define_qcyl(which="full")
+    if solution._sample_interpolator is None:
+        if solution.mesh.mesh_parameters["element_type"] == "triangle":
+            solution._sample_interpolator = SoledgeHDG2DInterpolator(
+                solution.mesh.vertices_glob, np.ones_like(solution.solution_glob[:, :, 0]), solution.mesh.connectivity_glob,
+                solution.mesh.element_number, solution.mesh.reference_element["NodesCoord"],
+                solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
+            )
+        elif solution.mesh.mesh_parameters["element_type"] == "quadrilateral":
+            solution._sample_interpolator = SoledgeHDG2DInterpolator(
+                solution.mesh.vertices_glob, np.ones_like(solution.solution_glob[:, :, 0]), solution.mesh.connectivity_glob,
+                solution.mesh.element_number, solution.mesh.reference_element["NodesCoord1d"],
+                solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
+            )
+
+    solution._solution_interpolators = []
+    solution._gradient_interpolators = []
+    for i in range(solution.neq):
+        solution._solution_interpolators.append(SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, solution.solution_glob[:, :, i]))
+        grad = [
+            SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, solution.gradient_glob[:, :, i, 0]),
+            SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, solution.gradient_glob[:, :, i, 1]),
+        ]
+        solution._gradient_interpolators.append(grad)
+
+    solution._field_interpolators = []
+    for i in range(3):
+        solution._field_interpolators.append(SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, solution.magnetic_field_glob[:, :, i]))
+    solution._qcyl_interpolator = SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, solution.qcyl_glob)
+    solution._psi_interpolator = SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, solution.poloidal_flux_glob)

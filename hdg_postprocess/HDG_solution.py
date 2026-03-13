@@ -5,6 +5,21 @@ from hdg_postprocess.routines.plasma import *
 from hdg_postprocess.routines.neutrals import *
 from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
+from hdg_postprocess.solution_operations import (
+    calculate_in_boundary_gauss_points as calculate_in_boundary_gauss_points_impl,
+    calculate_in_gauss_points as calculate_in_gauss_points_impl,
+    calculate_variables_along_line as calculate_variables_along_line_impl,
+    cons2phys as cons2phys_impl,
+    define_interpolators as define_interpolators_impl,
+    define_magnetic_axis as define_magnetic_axis_impl,
+    define_minor_radii as define_minor_radii_impl,
+    define_qcyl as define_qcyl_impl,
+    init_phys_variables as init_phys_variables_impl,
+    recombine_boundary_solution as recombine_boundary_solution_impl,
+    recombine_full_solution as recombine_full_solution_impl,
+    recombine_simple_full_solution as recombine_simple_full_solution_impl,
+    save_summary_line as save_summary_line_impl,
+)
 import os
 class HDGsolution:
     ""
@@ -874,76 +889,7 @@ class HDGsolution:
         """ 
         Recombine raw solutions into one single mesh
         """
-        if not self.mesh.combined_to_full:
-            print('Comibining first mesh full')
-            self.mesh.recombine_full_mesh()
-
-        self._solution_glob = \
-            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],self.neq))
-        self._gradient_glob = \
-            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim))
-        self._magnetic_field_glob = \
-            np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element'],3))
-        if 'poloidal_flux' in self.raw_equilibriums[0].keys():
-            self._poloidal_flux_glob = \
-                np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
-        if self.parameters['switches']['ohmicsrc'][0]==1:
-            self._jtor_glob = \
-                np.zeros((self.mesh._nelems_glob,self.mesh.mesh_parameters['nodes_per_element']))
-
-        for i in range(self.n_partitions):
-            # reshape to the shape of elements
-            raw_solution = self.raw_solutions[i].reshape(self.raw_solutions[i].shape[0]//self.mesh.mesh_parameters['nodes_per_element'],self.mesh.mesh_parameters['nodes_per_element'],self.neq)            
-
-            # reshape to the shape of the elements
-            raw_gradient = self.raw_gradients[i].reshape(self.raw_gradients[i].shape[0]//self.mesh.mesh_parameters['nodes_per_element'],self.mesh.mesh_parameters['nodes_per_element'],self.neq,self.ndim)            
-
-            #magnetic field
-            raw_field = self.raw_equilibriums[i]['magnetic_field'][self.mesh.raw_connectivity[i]] 
-
-            if 'poloidal_flux' in self.raw_equilibriums[0].keys():
-                #poloidal flux
-                raw_poloidal_flux = self.raw_equilibriums[i]['poloidal_flux'][self.mesh.raw_connectivity[i]] 
-
-            if self.parameters['switches']['ohmicsrc'][0]==1:
-                #plasma current
-                raw_jtor = self.raw_equilibriums[i]['plasma_current'][self.mesh.raw_connectivity[i]]
-            
-            if self.n_partitions>1:
-                # removing ghost elements
-                raw_solution = raw_solution[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
-                self._solution_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]] = raw_solution
-
-                raw_gradient = raw_gradient[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:,:]
-                self._gradient_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]] = raw_gradient
-
-                raw_field = raw_field[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
-                self._magnetic_field_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_field
-                if 'poloidal_flux' in self.raw_equilibriums[0].keys():
-                    raw_poloidal_flux = raw_poloidal_flux[~self.mesh.raw_ghost_elements[i].astype(bool).flatten()]
-                    self._poloidal_flux_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_poloidal_flux
-
-                if self.parameters['switches']['ohmicsrc'][0]==1:
-                    raw_jtor = raw_jtor[~self.mesh.raw_ghost_elements[i].astype(bool).flatten(),:]
-                    self._jtor_glob[self.mesh.raw_rest_mesh_data[i]['loc2glob_el'][~self.mesh.raw_ghost_elements[i].flatten()]]  = raw_jtor
-            else:
-                self._solution_glob = raw_solution
-                self._gradient_glob = raw_gradient
-                self._magnetic_field_glob = raw_field
-                if 'poloidal_flux' in self.raw_equilibriums[0].keys():
-                    self._poloidal_flux_glob = raw_poloidal_flux
-                if self.parameters['switches']['ohmicsrc'][0]==1:
-                    self._jtor_glob = raw_jtor
-
-        if 'external_heating' in self.parameters['physics']:
-            self._external_heating = self.parameters['physics']['external_heating'][self.mesh._connectivity_glob]
-        if 'external_heating_e' in self.parameters['physics']:
-            self._external_heating_e = self.parameters['physics']['external_heating_e'][self.mesh._connectivity_glob]
-        if 'external_heating_i' in self.parameters['physics']:
-            self._external_heating_i = self.parameters['physics']['external_heating_i'][self.mesh._connectivity_glob]
-                
-        self._magnetic_field_unit_glob = self._magnetic_field_glob/np.sqrt((self._magnetic_field_glob**2).sum(axis=-1))[:,:,None]
-        self._combined_to_full = True
+        recombine_full_solution_impl(self)
 
     def recombine_simple_full_solution(self):
         """
@@ -951,141 +897,20 @@ class HDGsolution:
         For the repeating vertices only one (we do not actually now which) value is saved
         This routine is useful for simple overview plots
         """
-        if not self.combined_to_full:
-            print('Comibining first solution full')
-            self.recombine_full_solution()
-        self._solution_simple = np.zeros([self.mesh.vertices_glob.shape[0],self.neq])
-        #back reshaping
-        # here in connectivity matrix there might be multiple entries of the same node. 
-        # Therefore the solution in the last entrance of each node last one will be used
-        self._solution_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.solution_glob.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1],self.neq)
-
-        self._gradient_simple = np.zeros([self.mesh.vertices_glob.shape[0],self.neq,self.ndim])
-        self._gradient_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:,:] = self.gradient_glob.reshape(self.gradient_glob.shape[0]*self.gradient_glob.shape[1],self.neq,self.ndim)
-
-        self._magnetic_field_simple = np.zeros([self.mesh.vertices_glob.shape[0],3])
-        self._magnetic_field_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel(),:] = self.magnetic_field_glob.reshape(self.magnetic_field_glob.shape[0]*self.magnetic_field_glob.shape[1],3)
-        if self.parameters['switches']['ohmicsrc'][0]==1:
-            self._jtor_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._jtor_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.jtor_glob.reshape(self.jtor_glob.shape[0]*self.jtor_glob.shape[1])
-        if 'poloidal_flux' in self.raw_equilibriums[0].keys():
-            self._poloidal_flux_simple = np.zeros([self.mesh.vertices_glob.shape[0]])
-            self._poloidal_flux_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self.poloidal_flux_glob.reshape(self.poloidal_flux_glob.shape[0]*self.poloidal_flux_glob.shape[1])
-        self._combined_simple_solution = True
-
-        if 'external_heating' in self.parameters['physics']:
-            self._external_heating_simple = self.parameters['physics']['external_heating']
-        if 'external_heating_e' in self.parameters['physics']:
-            self._external_heating_e_simple = self.parameters['physics']['external_heating_e']
-        if 'external_heating_i' in self.parameters['physics']:
-            self._external_heating_i_simple = self.parameters['physics']['external_heating_i']
+        recombine_simple_full_solution_impl(self)
     
     def recombine_boundary_solution(self):
         """
         extracts solutions and its gradients on the boundary
         """
-        if not self.combined_to_full:
-            print('Comibining first solution full')
-            self.recombine_full_solution()
-        if self.mesh.connectivity_b_glob is None:
-            print('Comibining first boundary connectivity and info')
-            self.mesh.recombine_full_boundary(self.raw_solution_boundary_infos)
-        if self.mesh.reference_element is None:
-            raise ValueError("Please, provide reference element to the mesh")
-
-        self._solution_boundary = {}
-        self._gradient_boundary = {}
-        self._magnetic_field_boundary = {}
-        self._magnetic_field_unit_boundary = {}
-        self._poloidal_flux_boundary = {}
-        self._solution_skeleton_boundary = {}
-
-        for key in self.mesh._connectivity_b_glob.keys():
-            self._solution_boundary[key] = []
-            self._gradient_boundary[key] = []
-
-            self._magnetic_field_boundary[key] = []
-            self._poloidal_flux_boundary[key] = []
-            self._magnetic_field_unit_boundary[key] = []
-            for face_element_number,face_local_number in zip(self.mesh.face_element_number[key],self.mesh.face_local_number[key]):
-                self._solution_boundary[key].append(self.solution_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
-                self._gradient_boundary[key].append(self.gradient_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:,:])
-
-                self._magnetic_field_boundary[key].append(self.magnetic_field_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
-                self._magnetic_field_unit_boundary[key].append(self.magnetic_field_unit_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:],:])
-                self._poloidal_flux_boundary[key].append(self.poloidal_flux_glob[face_element_number,self.mesh.reference_element['faceNodes'][face_local_number,:]])
-
-        #re building skeleton solution
-        if self.n_partitions>1:
-            solution_skeleton_boundary = np.ones((self.mesh._nfaces_glob,self.mesh.mesh_parameters['nodes_per_face'],self.neq))
-            for i in range(self.n_partitions):
-                non_ghost = (~self.mesh.raw_ghost_faces[i].flatten())
-                raw_solution = self.raw_solutions_skeleton[i].reshape(self.raw_solutions_skeleton[i].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
-                solution_skeleton_boundary[self.mesh.raw_rest_mesh_data[i]['loc2glob_fa'][:][non_ghost],:] = \
-                    raw_solution[non_ghost]
-            solution_skeleton_boundary = solution_skeleton_boundary[self.mesh._filled,:,:]
-        else:
-            solution_skeleton_boundary = self.raw_solutions_skeleton[0].reshape(self.raw_solutions_skeleton[0].shape[0]//self.mesh.mesh_parameters['nodes_per_face'],self.mesh.mesh_parameters['nodes_per_face'],self.neq)
-            solution_skeleton_boundary = solution_skeleton_boundary[-self.mesh.raw_mesh_numbers[0]['Nextfaces']:,:,:]
-        self._solution_skeleton_boundary = {}
-        print(solution_skeleton_boundary.shape)
-        for key,indices in self.mesh._indices.items():
-            self._solution_skeleton_boundary[key] = []
-            for ind in indices:
-                self._solution_skeleton_boundary[key].append(solution_skeleton_boundary[ind,:,:])
-
-        self._combined_boundary = True
+        recombine_boundary_solution_impl(self)
         
     
     def calculate_in_gauss_points(self):
-        if not self.combined_to_full:
-            print('Comibining first solution full')
-            self.recombine_full_solution()
-        if self.mesh.reference_element is None:
-            raise ValueError("Please, provide reference element to the mesh")
-
-        self._solution_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.solution_glob)
-        self._gradient_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N'],self.gradient_glob)
-        self._magnetic_field_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_glob)
-        self._magnetic_field_unit_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N'],self.magnetic_field_unit_glob)
-        self._jtor_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.jtor_glob)
-        self._poloidal_flux_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.poloidal_flux_glob)
-
-        if 'external_heating' in self.parameters['physics']:
-            self._external_heating_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.external_heating)
-        if 'external_heating_e' in self.parameters['physics']:
-            self._external_heating_e_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.external_heating_e)
-        if 'external_heating_i' in self.parameters['physics']:
-            self._external_heating_i_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N'],self.external_heating_i)
+        calculate_in_gauss_points_impl(self)
     
     def calculate_in_boundary_gauss_points(self,boundaries):
-        if self.mesh.reference_element is None:
-            raise ValueError("Please, provide reference element to the mesh")
-        if not self.combined_boundary:
-            print('Comibining first values on boundary')
-            self.recombine_boundary_solution()
-        boundary_ordering,connectivity_ordered,iel_face_ordered = self.mesh.calculate_gauss_boundary(boundaries,self.raw_solution_boundary_infos)
-
-        solution_boundary_ordered = np.empty([0,self.solution_boundary[boundaries[0]][0].shape[1],self.solution_boundary[boundaries[0]][0].shape[2]])
-        solution_skeleton_boundary_ordered = np.empty([0,self.solution_skeleton_boundary[boundaries[0]][0].shape[1],self.solution_skeleton_boundary[boundaries[0]][0].shape[2]])
-        gradient_boundary_ordered = np.empty([0,self._gradient_boundary[boundaries[0]][0].shape[1],self._gradient_boundary[boundaries[0]][0].shape[2],self._gradient_boundary[boundaries[0]][0].shape[3]])
-        magnetic_field_boundary_ordered = np.empty([0,self._magnetic_field_boundary[boundaries[0]][0].shape[1],self._magnetic_field_boundary[boundaries[0]][0].shape[2]])
-        magnetic_field_unit_boundary_ordered = np.empty([0,self._magnetic_field_unit_boundary[boundaries[0]][0].shape[1],self._magnetic_field_unit_boundary[boundaries[0]][0].shape[2]])
-        poloidal_flux_boundary_ordered = np.empty([0,self._poloidal_flux_boundary[boundaries[0]][0].shape[1]])
-        for bound_ordering in boundary_ordering:
-            solution_boundary_ordered = np.vstack([solution_boundary_ordered,self.solution_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-            solution_skeleton_boundary_ordered = np.vstack([solution_skeleton_boundary_ordered,self.solution_skeleton_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-            gradient_boundary_ordered = np.vstack([gradient_boundary_ordered,self._gradient_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-            magnetic_field_boundary_ordered = np.vstack([magnetic_field_boundary_ordered,self._magnetic_field_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-            magnetic_field_unit_boundary_ordered = np.vstack([magnetic_field_unit_boundary_ordered,self._magnetic_field_unit_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-            poloidal_flux_boundary_ordered = np.vstack([poloidal_flux_boundary_ordered,self._poloidal_flux_boundary[boundaries[bound_ordering[0]]][bound_ordering[1]]])
-        self._solution_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],solution_boundary_ordered)
-        self._solution_skeleton_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],solution_skeleton_boundary_ordered)
-        self._gradient_boundary_gauss = np.einsum('ij,kjhl->kihl', self.mesh.reference_element['N1d'],gradient_boundary_ordered)
-        self._magnetic_field_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],magnetic_field_boundary_ordered)
-        self._poloidal_flux_boundary_gauss = np.einsum('ij,kj->ki', self.mesh.reference_element['N1d'],poloidal_flux_boundary_ordered)
-        self._magnetic_field_unit_boundary_gauss = np.einsum('ij,kjh->kih', self.mesh.reference_element['N1d'],magnetic_field_unit_boundary_ordered)
-        return boundary_ordering,connectivity_ordered,iel_face_ordered
+        return calculate_in_boundary_gauss_points_impl(self, boundaries)
 
     def summary_along_the_wall(self):
         """
@@ -1680,27 +1505,7 @@ class HDGsolution:
         '''
 
         
-        if which == 'simple':
-            if not self.combined_simple_solution:
-                print('Comibining first simple solution full')
-                self.recombine_simple_full_solution()
-            self.cons2phys(self.solution_simple)
-            self.cons2phys(self.gradient_simple)
-            self._simple_phys_initialized = True
-        
-        elif which == 'full':
-            if not self.combined_to_full:
-                print('Comibining first solution full')
-                self.recombine_full_solution()
-            self.cons2phys(self.solution_glob)
-            self.cons2phys(self.gradient_glob)
-            self._full_phys_initialized = True
-
-        elif which =='both':
-            print('Initializing simple physical solution full')
-            self.init_phys_variables(which='simple')
-            print('Initializing full physical solution full')
-            self.init_phys_variables(which='full')
+        init_phys_variables_impl(self, which=which)
 
 
 
@@ -1716,155 +1521,7 @@ class HDGsolution:
         U5 = rhon_conserv
         gradinets have "_grad" in the end
         """
-        if data.shape[-1] == self.neq:
-            #this means that these are soluions
-            if len(data.shape) == 3:
-                #this means that this is glob solution
-                solution_phys = np.zeros((data.shape[0]*data.shape[1],self.nphys))
-                data_loc = data.reshape((data.shape[0]*data.shape[1],self.neq))
-            elif len(data.shape) == 2:
-                #this means that this is simple solution
-                solution_phys = np.zeros((data.shape[0],self.nphys))
-                data_loc = data.copy()
-            for i in range(self.nphys):
-                phys_variable =self.parameters['physics']['physical_variable_names'][i]
-                if (phys_variable == b'rho'):
-                    # n = n_0*U1 (indexing for U in this comments as in fortran)
-                    #solution_phys[:,i] = calculate_variable_cons(data_loc,'n',self.parameters['adimensionalization'],self.cons_idx)
-                    solution_phys[:,i] = calculate_n_cons(data_loc,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
-                elif (phys_variable == b'u'):
-                    # u = u_0*U2/U1
-                    solution_phys[:,i] = calculate_u_cons(data_loc,self.parameters['adimensionalization']['speed_scale'],self.cons_idx)
-                elif (phys_variable == b'Ei'):
-                    # Ei = m_0*u_0**2*U3/U1
-                    solution_phys[:,i] = calculate_Ei_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],self.cons_idx)
-                elif (phys_variable == b'Ee'):
-                    # Ee = m_0*u_0**2*U4/U1
-                    solution_phys[:,i] = calculate_Ee_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],self.cons_idx)
-                elif (phys_variable == b'pi'):
-                    # pi = 2/3/Mref*e*T0*(U3-1/2*U2**2/U1)
-                    solution_phys[:,i] = calculate_pi_cons(data_loc,(2/3/self.parameters['physics']['Mref'])* \
-                                                          self.parameters['adimensionalization']['density_scale']* \
-                                                          self.parameters['adimensionalization']['temperature_scale']* \
-                                                          self.parameters['adimensionalization']['charge_scale'] ,self.cons_idx)
-                elif (phys_variable == b'pe'):
-                    # pe = 2/3/Mref*e*T0*U4
-                    solution_phys[:,i] = calculate_pe_cons(data_loc,(2/3/self.parameters['physics']['Mref'])* \
-                                                          self.parameters['adimensionalization']['density_scale']* \
-                                                          self.parameters['adimensionalization']['temperature_scale']* \
-                                                          self.parameters['adimensionalization']['charge_scale'] ,self.cons_idx)
-                elif (phys_variable == b'Ti'):
-                    # Ti = 2/3/Mref*e*T0*(U3-1/2*U2**2/U1)/U1
-                    solution_phys[:,i] = calculate_Ti_cons(data_loc,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
-                elif (phys_variable == b'Te'):
-                    # Te = 2/3/Mref*e*T0*U4/U1
-                    solution_phys[:,i] = calculate_Te_cons(data_loc,self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.cons_idx)
-                elif (phys_variable == b'Csi'):
-                    # cs = u0*(2/3*(U3+U4-1/2*U2**2/U1)/U1)**0.5
-                    solution_phys[:,i] = calculate_cs_cons(data_loc,self.parameters['adimensionalization']['speed_scale'],self.cons_idx)
-                elif (phys_variable == b'M'):
-                    # M = u/cs
-                    solution_phys[:,i] = calculate_M_cons(data_loc,self.cons_idx)
-                elif (phys_variable == b'rhon'):
-                    # n_n = n_0*U5
-                    solution_phys[:,i] = calculate_nn_cons(data_loc,self.parameters['adimensionalization']['density_scale'],self.cons_idx)
-                elif (phys_variable == b'k'):
-                    # k = u_0**2*U6
-                    solution_phys[:,i] = calculate_k_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2,self.cons_idx)
-                else:
-                    raise KeyError('Unknown variable, go into the code and add this variable if you are sure')
-
-                if len(data.shape) == 3:
-                    self._solution_glob_phys = solution_phys.reshape((data.shape[0],data.shape[1],self.nphys))
-                elif len(data.shape) == 2:
-                    self._solution_simple_phys = solution_phys
-                else:
-                    raise ValueError('Something weird with the data shape of the solution')
-
-        elif data.shape[-1] == self.ndim:
-            # this means that these are the gradients
-            if len(data.shape) == 4:
-                # this means that this is glob gradients
-                grad_phys = np.zeros((data.shape[0]*data.shape[1],self.nphys,self.ndim))
-                data_loc = data.reshape((data.shape[0]*data.shape[1],self.neq,self.ndim))
-                sol_loc = self.solution_glob.reshape((data.shape[0]*data.shape[1],self.neq))
-            elif len(data.shape) == 3:
-            #    # this means that this is simple gradients
-                grad_phys = np.zeros((data.shape[0],self.nphys,self.ndim))
-                data_loc = data.copy()
-                sol_loc = self.solution_simple.copy()
-            for i in range(self.nphys):
-                phys_variable =self.parameters['physics']['physical_variable_names'][i]
-                if (phys_variable == b'rho'):
-                    # grad(n) = n0/L0*grad(U1)
-                    grad_phys[:,i,:] = calculate_grad_n_cons(data_loc,self.parameters['adimensionalization']['density_scale'],
-                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'u'):
-                    # grad(u) = u0/L0*(-1*grad(U1)*U2/U1**2+grad(U2)/(U1))
-                    grad_phys[:,i,:] = calculate_grad_u_cons(sol_loc,data_loc,self.parameters['adimensionalization']['speed_scale'],
-                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'Ei'):
-                    # grad(Ei) = m_i*u0**2/L0*(-1*grad(U1)*U3/U1**2+grad(U3)/U1)
-                    grad_phys[:,i,:] = calculate_grad_Ei_cons(sol_loc,data_loc,(self.parameters['adimensionalization']['speed_scale']**2*
-                                                                      self.parameters['adimensionalization']['mass_scale']),
-                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'Ee'):
-                    # grad(Ee) = m_i*u0**2/L0*(-1*grad(U1)*U4/U1**2+grad(U4)/U1)
-                    grad_phys[:,i,:] = calculate_grad_Ee_cons(sol_loc,data_loc,(self.parameters['adimensionalization']['speed_scale']**2*
-                                                                      self.parameters['adimensionalization']['mass_scale']),
-                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'pi'):
-                    # grad(pi) = 2/3/Mref*e*T0/L0*(grad(U3)-grad(U2)*U2/U1+1/2*grad(U1)*U2**2/U1**2)
-                    p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
-                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
-
-                    grad_phys[:,i,:] = calculate_grad_pi_cons(sol_loc,data_loc,p0,
-                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'pe'):
-                    # grad(pe) = 2/3/Mref*e*T0/L0*(grad(U4))
-                    p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
-                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
-
-                    grad_phys[:,i,:] = calculate_grad_pe_cons(data_loc,p0,
-                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'Ti'):
-                    # assuming that Ei and u already calculated
-                    # grad(Ti) = T0/L0*2/3/Mref*(grad(Ei)/m_i/u0**2-grad(u)*u/u0**2)
-                    grad_phys[:,i,:] = calculate_grad_Ti_cons(sol_loc,data_loc,self.parameters['adimensionalization']['temperature_scale'],
-                                                              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'Te'):
-                    # assuming that Ee already calculated
-                    # grad(Te) = T0/L0*2/3/Mref*(grad(Ee)/m_i/u0**2)
-                    grad_phys[:,i,:] = calculate_grad_Te_cons(sol_loc,data_loc,self.parameters['adimensionalization']['temperature_scale'],
-                                                              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'Csi'):
-                    # assuming cs already calculated
-                    #cs = u0*(2/3*(U3+U4-1/2*U2**2/U1)/U1)**0.5
-                    # grad(cs) = u0/L0/2/(cs/u0)*(2/3)*(grad(U1)*(-U3/U1**2-U4/U1**2+U2**2/U1**3)+
-                    #                                   grad(U2)*(-U2/U1**2)+grad(U3)/U1+grad(U4)/U1)
-                    grad_phys[:,i,:] = calculate_grad_cs_cons(sol_loc,data_loc,self.parameters['adimensionalization']['speed_scale'],
-                                                              self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'M'):
-                    # assuming cs and u already calculated
-                    # M = u/cs
-                    # grad(M) = grad(u)/cs-grad(cs)*u/cs**2
-
-                    grad_phys[:,i,:] = calculate_grad_M_cons(sol_loc,data_loc,self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'rhon'):
-                    #grad(n_n) = n0/L0*grad(U5)
-                    grad_phys[:,i,:] = calculate_grad_nn_cons(data_loc,self.parameters['adimensionalization']['density_scale'],
-                                                             self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                elif (phys_variable == b'k'):
-                    #grad(k) = u0**2/L0*grad(U6)
-                    grad_phys[:,i,:] = calculate_grad_k_cons(data_loc,self.parameters['adimensionalization']['speed_scale']**2,
-                                                              self.parameters['adimensionalization']['length_scale'],self.cons_idx)
-                    
-
-
-            if len(data.shape) == 4:
-                    self._gradient_glob_phys = grad_phys.reshape((data.shape[0],data.shape[1],self.nphys,self.ndim))
-            elif len(data.shape) == 3:
-                self._gradient_simple_phys = grad_phys
+        cons2phys_impl(self, data)
                                                     
     def plot_overview_physical(self,n_levels=100, limits=None,ticks=None):
             """
@@ -2074,69 +1731,20 @@ class HDGsolution:
         """
         defines magnetic axis as minimum of psi
         """
-        if not self.combined_simple_solution:
-            print('Comibining first simple solution full')
-            self.recombine_simple_full_solution()
-
-        self._r_axis, self._z_axis = self.mesh.vertices_glob[np.where(self.poloidal_flux_simple == self.poloidal_flux_simple.min())][0]
+        define_magnetic_axis_impl(self)
     
     def define_minor_radii(self,which='simple'):
         """
         calculates minor radii either with given magnetic axis
         """
-        if which == 'simple':
-            if (self._r_axis is None) or (self._z_axis is None):
-                self.define_magnetic_axis()
-            if (not self.mesh._combined_to_full):
-            
-                print('Comibining to full mesh')
-                self.mesh.recombine_full_mesh()
-            self.define_minor_radii(which="full")
-
-            self._a_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._a_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._a_glob.reshape(self._a_glob.shape[0]*self._a_glob.shape[1])
-
-        if which == 'full':
-            if (self._r_axis is None) or (self._z_axis is None):
-                self.define_magnetic_axis()
-            if (not self.mesh._combined_to_full):
-            
-                print('Comibining to full mesh')
-                self.mesh.recombine_full_mesh()
-
-            #here we should set coordinates of all nodes of all elements
-            self._a_glob = calculate_a(self.mesh.vertices_glob[self.mesh.connectivity_glob],self.r_axis,self.z_axis)
+        define_minor_radii_impl(self, which=which)
 
 
     def define_qcyl(self,which='simple'):
         """
         calculates cylindrical safety factor radii either with given magnetic axis
         """
-        if which == 'simple':
-            if (not self.mesh._combined_to_full):            
-                print('Comibining to full mesh')
-                self.mesh.recombine_full_mesh()
-            if not self.combined_simple_solution:
-                print('Comibining first simple solution full')
-                self.recombine_simple_full_solution()
-            if self.a_simple is None:
-                self.define_minor_radii()
-            self.define_qcyl(which='full')
-
-            self._qcyl_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._qcyl_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._qcyl_glob.reshape(self._qcyl_glob.shape[0]*self._qcyl_glob.shape[1])
-
-        elif which == 'full':
-            if (not self.mesh._combined_to_full):
-            
-                print('Comibining to full mesh')
-                self.mesh.recombine_full_mesh()
-            if self.a_glob is None:
-                self.define_minor_radii('full')
-
-            self._qcyl_glob = calculate_q_cyl(self.mesh.vertices_glob[self.mesh.connectivity_glob][:,:,0],self.magnetic_field_glob[:,:,0],
-                                             self.magnetic_field_glob[:,:,1],self.magnetic_field_glob[:,:,2],
-                                             self.a_glob)
+        define_qcyl_impl(self, which=which)
 
 
 
@@ -2148,243 +1756,14 @@ class HDGsolution:
         calculates plasma parameters noted in variables list on a given line
         returns a dictionary with variables as keys and values along lines for them
         """
-        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u','cs',
-                             'p_dyn','pi','dpi_dx','dpi_dy','q_i_par','q_e_par','gamma',
-                             'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond','dk', 'btor', 'dbtor_dx', 'dbtor_dy','k','psi',
-                             'Q_e_loss_iz','Q_e_loss_rec','Q_e_gain_rec',
-                             'Q_i_gain_iz','Q_i_loss_rec','Q_i_loss_cx',
-                             'Q_e_loss_tot','Q_i_loss_tot','Q_loss_tot',
-                             'Siz']
-        for variable in variable_list:
-            if variable not in defined_variables:
-                raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
-        result = {}
-        for variable in variable_list:
-            temp = np.zeros_like(z_line)
-            if variable == 'n':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.n(r,z)
-            elif variable == 'nn':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.nn(r,z)
-            elif variable == 'ti':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.ti(r,z)
-            elif variable == 'te':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.te(r,z)
-            elif variable == 'M':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.M(r,z)
-            elif variable == 'dnn':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.dnn(r,z)
-            elif variable == 'mfp':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.mfp_nn(r,z)
-            elif variable == 'p_dyn':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.p_dyn(r,z)
-            elif variable == 'pi':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.pi(r,z)
-            elif variable == 'dpi_dx':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.grad_pi(r,z,'x')
-            elif variable == 'dpi_dy':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.grad_pi(r,z,'y')
-            elif variable == 'q_i_par':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.ion_heat_flux_par(r,z)
-            elif variable == 'q_i_par_conv':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.ion_heat_flux_par_conv(r,z)
-            elif variable == 'q_i_par_cond':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.ion_heat_flux_par_cond(r,z)
-            elif variable == 'q_e_par':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.electron_heat_flux_par(r,z)
-            elif variable == 'q_e_par_conv':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.electron_heat_flux_par_conv(r,z)
-            elif variable == 'q_e_par_cond':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.electron_heat_flux_par_cond(r,z)
-            elif variable == 'gamma':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.particle_flux_par(r,z)
-            elif variable == 'u':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.u(r,z)
-            elif variable == 'cs':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.cs(r,z)
-            elif variable == 'dk':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.dk(r,z)
-            elif variable == 'cx_rate':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.cx_rate(r,z)
-            elif variable == 'iz_rate':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.iz_rate(r,z)
-            elif variable == 'btor':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.B(r,z,'theta')
-            elif variable == 'dbtor_dx':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.grad_B(r,z,'theta','x')
-            elif variable == 'dbtor_dy':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.grad_B(r,z,'theta','y')
-            elif variable == 'k':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.k(r,z)
-            elif variable == 'psi':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.psi(r,z)
-            elif variable == 'Q_e_loss_iz':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_e_loss_iz(r,z)
-            elif variable == 'Q_e_loss_rec':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_e_loss_rec(r,z)
-            elif variable == 'Q_e_gain_rec':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_e_gain_rec(r,z)
-            elif variable == 'Q_i_gain_iz':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_i_gain_iz(r,z)
-            elif variable == 'Q_i_loss_rec':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_i_loss_rec(r,z)
-            elif variable == 'Q_i_loss_cx':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_i_loss_cx(r,z)
-            elif variable == "Q_e_loss_tot":
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_e_loss_tot(r,z)
-            elif variable == "Q_i_loss_tot":
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_i_loss_tot(r,z)
-            elif variable == "Q_loss_tot":
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.Q_loss_tot(r,z)
-            elif variable == 'Siz':
-                for i,(r,z) in enumerate(zip(r_line,z_line)):
-                    temp[i] = self.ionization_source_interp(r,z)
-            else:
-                raise KeyError(f'{variable} is not in the list of posible variables:  {defined_variables}')
-            result[variable] = temp
-        return result
+        return calculate_variables_along_line_impl(self, r_line, z_line, variable_list)
 
 
 
     def save_summary_line(self,save_folder,r_line,z_line,variable_list):
 
 
-        defined_variables = ['n','nn','te','ti','M','dnn','mfp','cx_rate','iz_rate','u','cs',
-                             'p_dyn','pi','dpi_dx','dpi_dy','q_i_par','q_e_par','gamma',
-                             'q_i_par_conv','q_i_par_cond',
-                             'q_e_par_conv','q_e_par_cond', 'btor', 'dbtor_dx', 'dbtor_dy',
-                             'k', 'dk',
-                             'Q_e_loss_iz','Q_e_loss_rec','Q_e_gain_rec',
-                             'Q_i_gain_iz','Q_i_loss_rec','Q_i_loss_cx',
-                             'Q_e_loss_tot','Q_i_loss_tot','Q_loss_tot',
-                             'Siz']
-        for variable in variable_list:
-            if variable not in defined_variables:
-                raise KeyError(f'{variable} is not in the list of posible variables: {defined_variables}')
-        vertices = np.stack([r_line,z_line]).T
-        np.save(f'{save_folder}vertices.npy',vertices)
-        
-        
-        values_on_line = self.calculate_variables_along_line(r_line,z_line,variable_list)
-        
-        for variable,values in values_on_line.items():
-            if variable == 'n':
-                np.save(f'{save_folder}n.npy',values)
-            elif variable == 'nn':
-                np.save(f'{save_folder}nn.npy',values)
-            elif variable == 'te':
-                np.save(f'{save_folder}te.npy',values)
-            elif variable == 'ti':
-                np.save(f'{save_folder}ti.npy',values)
-            elif variable == 'M':                
-                np.save(f'{save_folder}M.npy',values)
-            elif variable == 'dnn':
-                np.save(f'{save_folder}dnn.npy',values)
-            elif variable == 'mfp':
-                np.save(f'{save_folder}mfp.npy',values)
-            elif variable == 'u':
-                np.save(f'{save_folder}u.npy',values)
-            elif variable == 'cs':
-                np.save(f'{save_folder}cs.npy',values)
-            elif variable == 'p_dyn':
-                np.save(f'{save_folder}p_dyn.npy',values)
-            elif variable == 'q_i_par':
-                np.save(f'{save_folder}q_i_par.npy',values)
-            elif variable == 'q_i_par_conv':
-                np.save(f'{save_folder}q_i_par_conv.npy',values)
-            elif variable == 'q_i_par_cond':
-                np.save(f'{save_folder}q_i_par_cond.npy',values)
-            elif variable == 'q_e_par':
-                np.save(f'{save_folder}q_e_par.npy',values)
-            elif variable == 'q_e_par_conv':
-                np.save(f'{save_folder}q_e_par_conv.npy',values)
-            elif variable == 'q_e_par_cond':
-                np.save(f'{save_folder}q_e_par_cond.npy',values)
-            elif variable == 'gamma':
-                np.save(f'{save_folder}gamma.npy',values)
-            elif variable == 'u':
-                np.save(f'{save_folder}u.npy',values)
-            elif variable == 'cx_rate':
-                np.save(f'{save_folder}cx_rate.npy',values)
-            elif variable == 'iz_rate':
-                np.save(f'{save_folder}iz_rate.npy',values)
-            elif variable == 'pi':
-                np.save(f'{save_folder}pi.npy',values)
-            elif variable == 'dpi_dx':
-                np.save(f'{save_folder}dpi_dx.npy',values)
-            elif variable == 'dpi_dy':
-                np.save(f'{save_folder}dpi_dy.npy',values)
-            elif variable == 'btor':
-                np.save(f'{save_folder}btor.npy',values)
-            elif variable == 'dbtor_dx':
-                np.save(f'{save_folder}dbtor_dx.npy',values)
-            elif variable == 'dbtor_dy':
-                np.save(f'{save_folder}dbtor_dy.npy',values)
-            elif variable == 'k':
-                np.save(f'{save_folder}k.npy',values)
-            elif variable == 'dk':
-                np.save(f'{save_folder}dk.npy',values)
-            elif variable == 'Q_e_loss_iz':
-                np.save(f'{save_folder}Q_e_loss_iz.npy',values)
-            elif variable == 'Q_e_loss_rec':
-                np.save(f'{save_folder}Q_e_loss_rec.npy',values)
-            elif variable == 'Q_e_gain_rec':
-                np.save(f'{save_folder}Q_e_gain_rec.npy',values)
-            elif variable == 'Q_i_gain_iz':
-                np.save(f'{save_folder}Q_i_gain_iz.npy',values)
-            elif variable == 'Q_i_loss_rec':
-                np.save(f'{save_folder}Q_i_loss_rec.npy',values)
-            elif variable == 'Q_i_loss_cx':
-                np.save(f'{save_folder}Q_i_loss_cx.npy',values)
-            elif variable == 'Q_e_loss_tot':
-                np.save(f'{save_folder}Q_e_loss_tot.npy',values)
-            elif variable == 'Q_i_loss_tot':
-                np.save(f'{save_folder}Q_i_loss_tot.npy',values)
-            elif variable == 'Q_loss_tot':
-                np.save(f'{save_folder}Q_loss_tot.npy',values)
-            elif variable == 'Siz':
-                np.save(f'{save_folder}Siz.npy',values)
-            else:
-                raise KeyError(f'{variable} is not in the list of posible variables')
-
-        return values_on_line
+        return save_summary_line_impl(self, save_folder, r_line, z_line, variable_list)
 
     
 
@@ -3239,47 +2618,7 @@ class HDGsolution:
         defines interpolators for full solutions and gradients based on shape functions
         """
 
-        if not self._combined_simple_solution:
-            print('Comibining first simple solution full')
-            self.recombine_simple_full_solution()
-        if self.mesh.connectivity_big is None:
-            print('Comibining first big connectivity')
-            self.mesh.create_connectivity_big()
-        
-        if self.mesh.reference_element is None:
-            raise ValueError("Please, provide reference element")
-        if self.mesh.element_number is None:
-            print('Defining an element number mask')
-            self.mesh.make_element_number_funtion()
-        if self._qcyl_glob is None:
-            self.define_qcyl(which='full')
-        if self._sample_interpolator is None:
-            if self.mesh.mesh_parameters['element_type'] == 'triangle':
-                self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
-                    self.mesh.element_number,self.mesh.reference_element['NodesCoord'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
-            elif self.mesh.mesh_parameters['element_type'] == 'quadrilateral':
-                self._sample_interpolator = SoledgeHDG2DInterpolator(self.mesh.vertices_glob,np.ones_like(self.solution_glob[:,:,0]),self.mesh.connectivity_glob,
-                    self.mesh.element_number,self.mesh.reference_element['NodesCoord1d'],self.mesh.mesh_parameters['element_type'], self.mesh.p_order,limit=False)
-            
-        self._solution_interpolators = []
-        self._gradient_interpolators = []
-        for i in range(self.neq):
-            self._solution_interpolators.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.solution_glob[:,:,i]))
-            grad = []
-            grad.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.gradient_glob[:,:,i,0]))
-            grad.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.gradient_glob[:,:,i,1]))
-            self._gradient_interpolators.append(grad)
-
-        # magnetic field
-        self._field_interpolators = []
-        for i in range(3):
-            self._field_interpolators.append(SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.magnetic_field_glob[:,:,i]))
-
-        # q_cylindrical
-        self._qcyl_interpolator = SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.qcyl_glob)
-
-        # psi
-        self._psi_interpolator = SoledgeHDG2DInterpolator.instance(self._sample_interpolator,self.poloidal_flux_glob)
+        define_interpolators_impl(self)
 
     def n(self,r,z):
         """
