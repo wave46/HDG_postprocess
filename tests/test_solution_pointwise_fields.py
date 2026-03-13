@@ -87,4 +87,8 @@ def test_pointwise_source_and_field_accessors_are_finite(manifest_path):
     assert np.isfinite(sol.grad_B(r, z, "theta", "x"))
     assert np.isfinite(sol.Q_e_loss_iz(r, z))
     assert np.isfinite(sol.Q_e_loss_rec(r, z))
+    assert np.isfinite(sol.Q_e_gain_rec(r, z))
+    assert np.isfinite(sol.Q_e_loss_tot(r, z))
     assert np.isfinite(sol.Q_i_gain_iz(r, z))
+    assert np.isfinite(sol.Q_i_loss_tot(r, z))
+    assert np.isfinite(sol.Q_loss_tot(r, z))

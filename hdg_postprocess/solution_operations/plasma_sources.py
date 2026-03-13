@@ -277,6 +277,7 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
             solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
@@ -287,6 +288,7 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
             solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
         )
 
 
@@ -305,6 +307,7 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
             solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
@@ -315,6 +318,7 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
             solution.parameters["adimensionalization"]["charge_scale"],
+            solution._cons_idx,
         )
 
 

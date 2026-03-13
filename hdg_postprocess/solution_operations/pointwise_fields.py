@@ -646,6 +646,7 @@ def Q_e_loss_rec(solution, r, z):
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
         solution.parameters["adimensionalization"]["charge_scale"],
+        solution._cons_idx,
     )
 
 
@@ -664,6 +665,7 @@ def Q_e_gain_rec(solution, r, z):
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
         solution.parameters["adimensionalization"]["charge_scale"],
+        solution._cons_idx,
     )
 
 
