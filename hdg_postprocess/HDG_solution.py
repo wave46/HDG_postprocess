@@ -4233,4 +4233,3 @@ class HDGsolution:
                                                     self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],
                                                     self.parameters['adimensionalization']['speed_scale'],
                                                     self._cons_idx)
-

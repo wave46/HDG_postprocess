@@ -722,7 +722,10 @@ class HDGmesh:
         """
         if self.connectivity_big is None:
             self.create_connectivity_big()
-        element_numbers = np.repeat(np.arange(len(self.connectivity_glob)),self.connectivity_big.shape[0]/self.connectivity_glob.shape[0])
+        element_numbers = np.repeat(
+            np.arange(len(self.connectivity_glob)),
+            self.connectivity_big.shape[0] // self.connectivity_glob.shape[0],
+        )
         self._element_number = Discrete2DMesh(self.vertices_glob, self.connectivity_big,
                                  element_numbers,limit=False,default_value = -1)
 
@@ -794,4 +797,3 @@ class HDGmesh:
                 if (i!=element_number) and (i not in adjacent_numbers):
                     adjacent_numbers.append(i)
         return adjacent_numbers 
-
