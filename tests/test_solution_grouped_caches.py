@@ -1,3 +1,4 @@
+import numpy as np
 import scipy.io
 
 from hdg_postprocess.formats import load_from_file
@@ -117,3 +118,30 @@ def test_grouped_caches_sync_sources_and_totals(manifest_path):
     assert sol._grouped_caches["sources"]["ohmic_source"]["gauss"] is sol.ohmic_source_gauss
     assert sol._grouped_caches["sources"]["ion_gain_iz"]["total"] == sol.ion_gain_iz_total
     assert sol._grouped_caches["sources"]["electron_sink_iz"]["total"] == sol.electron_sink_iz_total
+
+
+def test_grouped_caches_sync_representations(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+
+    sol.recombine_full_solution()
+    sol.recombine_simple_full_solution()
+    sol.recombine_boundary_solution()
+    sol.calculate_in_gauss_points()
+    sol.calculate_in_boundary_gauss_points(np.unique(sol.raw_solution_boundary_infos[0]["boundary_flags"]))
+
+    assert sol._grouped_caches["representations"]["simple"]["solution"] is sol.solution_simple
+    assert sol._grouped_caches["representations"]["glob"]["solution"] is sol.solution_glob
+    assert sol._grouped_caches["representations"]["gauss"]["solution"] is sol.solution_gauss
+    assert sol._grouped_caches["representations"]["boundary"]["solution"] is sol.solution_boundary
+    assert sol._grouped_caches["representations"]["boundary_gauss"]["solution"] is sol.solution_boundary_gauss
+    assert sol._grouped_caches["representations"]["gauss"]["magnetic_field"] is sol.magnetic_field_gauss

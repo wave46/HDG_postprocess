@@ -53,6 +53,35 @@ import os
 class HDGsolution:
     ""
     _GROUPED_CACHE_PATHS = {
+        "_solution_simple": ("representations", "simple", "solution"),
+        "_gradient_simple": ("representations", "simple", "gradient"),
+        "_magnetic_field_simple": ("representations", "simple", "magnetic_field"),
+        "_jtor_simple": ("representations", "simple", "jtor"),
+        "_poloidal_flux_simple": ("representations", "simple", "poloidal_flux"),
+        "_solution_glob": ("representations", "glob", "solution"),
+        "_gradient_glob": ("representations", "glob", "gradient"),
+        "_magnetic_field_glob": ("representations", "glob", "magnetic_field"),
+        "_magnetic_field_unit_glob": ("representations", "glob", "magnetic_field_unit"),
+        "_jtor_glob": ("representations", "glob", "jtor"),
+        "_poloidal_flux_glob": ("representations", "glob", "poloidal_flux"),
+        "_solution_gauss": ("representations", "gauss", "solution"),
+        "_gradient_gauss": ("representations", "gauss", "gradient"),
+        "_magnetic_field_gauss": ("representations", "gauss", "magnetic_field"),
+        "_magnetic_field_unit_gauss": ("representations", "gauss", "magnetic_field_unit"),
+        "_jtor_gauss": ("representations", "gauss", "jtor"),
+        "_poloidal_flux_gauss": ("representations", "gauss", "poloidal_flux"),
+        "_solution_boundary": ("representations", "boundary", "solution"),
+        "_solution_skeleton_boundary": ("representations", "boundary", "solution_skeleton"),
+        "_gradient_boundary": ("representations", "boundary", "gradient"),
+        "_magnetic_field_boundary": ("representations", "boundary", "magnetic_field"),
+        "_magnetic_field_unit_boundary": ("representations", "boundary", "magnetic_field_unit"),
+        "_poloidal_flux_boundary": ("representations", "boundary", "poloidal_flux"),
+        "_solution_boundary_gauss": ("representations", "boundary_gauss", "solution"),
+        "_solution_skeleton_boundary_gauss": ("representations", "boundary_gauss", "solution_skeleton"),
+        "_gradient_boundary_gauss": ("representations", "boundary_gauss", "gradient"),
+        "_magnetic_field_boundary_gauss": ("representations", "boundary_gauss", "magnetic_field"),
+        "_magnetic_field_unit_boundary_gauss": ("representations", "boundary_gauss", "magnetic_field_unit"),
+        "_poloidal_flux_boundary_gauss": ("representations", "boundary_gauss", "poloidal_flux"),
         "_solution_simple_phys": ("physical", "simple", "solution"),
         "_gradient_simple_phys": ("physical", "simple", "gradient"),
         "_solution_glob_phys": ("physical", "glob", "solution"),
@@ -174,6 +203,47 @@ class HDGsolution:
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
         self._grouped_caches = {
+            "representations": {
+                "simple": {
+                    "solution": None,
+                    "gradient": None,
+                    "magnetic_field": None,
+                    "jtor": None,
+                    "poloidal_flux": None,
+                },
+                "glob": {
+                    "solution": None,
+                    "gradient": None,
+                    "magnetic_field": None,
+                    "magnetic_field_unit": None,
+                    "jtor": None,
+                    "poloidal_flux": None,
+                },
+                "gauss": {
+                    "solution": None,
+                    "gradient": None,
+                    "magnetic_field": None,
+                    "magnetic_field_unit": None,
+                    "jtor": None,
+                    "poloidal_flux": None,
+                },
+                "boundary": {
+                    "solution": None,
+                    "solution_skeleton": None,
+                    "gradient": None,
+                    "magnetic_field": None,
+                    "magnetic_field_unit": None,
+                    "poloidal_flux": None,
+                },
+                "boundary_gauss": {
+                    "solution": None,
+                    "solution_skeleton": None,
+                    "gradient": None,
+                    "magnetic_field": None,
+                    "magnetic_field_unit": None,
+                    "poloidal_flux": None,
+                },
+            },
             "physical": {
                 "simple": {"solution": None, "gradient": None},
                 "glob": {"solution": None, "gradient": None},
@@ -464,12 +534,12 @@ class HDGsolution:
     @property
     def solution_simple(self):
         """solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq]"""
-        return self._solution_simple
+        return self._grouped_caches["representations"]["simple"]["solution"]
     
     @property
     def gradient_simple(self):
         """gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq x ndim]"""
-        return self._gradient_simple
+        return self._grouped_caches["representations"]["simple"]["gradient"]
     
     @property
     def solution_simple_phys(self):
@@ -484,77 +554,77 @@ class HDGsolution:
     @property
     def magnetic_field_simple(self):
         """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
-        return self._magnetic_field_simple
+        return self._grouped_caches["representations"]["simple"]["magnetic_field"]
     
     @property
     def jtor_simple(self):
         """plasma current recombined united on a single mesh (means not taking into account repeating points) [Nvertices]"""
-        return self._jtor_simple
+        return self._grouped_caches["representations"]["simple"]["jtor"]
 
     @property
     def poloidal_flux_simple(self):
         """poloidal flux recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
-        return self._poloidal_flux_simple
+        return self._grouped_caches["representations"]["simple"]["poloidal_flux"]
     
     @property
     def solution_boundary(self):
         """conservative solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
-        return self._solution_boundary
+        return self._grouped_caches["representations"]["boundary"]["solution"]
 
     @property
     def solution_skeleton_boundary(self):
         """conservative skeleton solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
-        return self._solution_skeleton_boundary
+        return self._grouped_caches["representations"]["boundary"]["solution_skeleton"]
     
     @property
     def gradient_boundary(self):
         """ gradient  on a boundary [Nextfaces x n_nodes_per_face x neq x ndim]"""
-        return self._gradient_boundary
+        return self._grouped_caches["representations"]["boundary"]["gradient"]
     
     @property
     def magnetic_field_boundary(self):
         """magnetic field recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._magnetic_field_boundary
+        return self._grouped_caches["representations"]["boundary"]["magnetic_field"]
 
     @property
     def magnetic_field_unit_boundary(self):
         """magnetic field unit vector recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._magnetic_field_unit_boundary
+        return self._grouped_caches["representations"]["boundary"]["magnetic_field_unit"]
     
     @property
     def poloidal_flux_boundary(self):
         """poloidal flux recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face]"""
-        return self._poloidal_flux_boundary
+        return self._grouped_caches["representations"]["boundary"]["poloidal_flux"]
 
     @property
     def solution_boundary_gauss(self):
         """conservative solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
-        return self._solution_boundary_gauss
+        return self._grouped_caches["representations"]["boundary_gauss"]["solution"]
 
     @property
     def solution_skeleton_boundary_gauss(self):
         """conservative skeleton solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
-        return self._solution_skeleton_boundary_gauss
+        return self._grouped_caches["representations"]["boundary_gauss"]["solution_skeleton"]
     
     @property
     def gradient_boundary_gauss(self):
         """gradient united on gauss points of faces of the boundary (means not taking into account repeating points) [Nextfaces x n_gauss_points_per_face x neq x ndim]"""
-        return self._gradient_boundary_gauss
+        return self._grouped_caches["representations"]["boundary_gauss"]["gradient"]
     
     @property
     def magnetic_field_boundary_gauss(self):
         """magnetic field recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face x 3]"""
-        return self._magnetic_field_boundary_gauss
+        return self._grouped_caches["representations"]["boundary_gauss"]["magnetic_field"]
 
     @property
     def magnetic_field_unit_boundary_gauss(self):
         """magnetic field unit vector recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._magnetic_field_unit_boundary_gauss
+        return self._grouped_caches["representations"]["boundary_gauss"]["magnetic_field_unit"]
     
     @property
     def poloidal_flux_boundary_gauss(self):
         """poloidal flux recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face]"""
-        return self._poloidal_flux_boundary_gauss
+        return self._grouped_caches["representations"]["boundary_gauss"]["poloidal_flux"]
 
     @property
     def combined_to_full(self):
@@ -583,62 +653,62 @@ class HDGsolution:
     @property
     def solution_glob(self):
         """Solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq]"""
-        return self._solution_glob
+        return self._grouped_caches["representations"]["glob"]["solution"]
 
     @property
     def gradient_glob(self):
         """Gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq x ndim]"""
-        return self._gradient_glob
+        return self._grouped_caches["representations"]["glob"]["gradient"]
 
     @property
     def magnetic_field_glob(self):
         """magnetic field recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._magnetic_field_glob
+        return self._grouped_caches["representations"]["glob"]["magnetic_field"]
 
     @property
     def poloidal_flux_glob(self):
         """poloidal flux recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._poloidal_flux_glob
+        return self._grouped_caches["representations"]["glob"]["poloidal_flux"]
     
     @property
     def poloidal_flux_gauss(self):
         """poloidal flux recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
-        return self._poloidal_flux_gauss
+        return self._grouped_caches["representations"]["gauss"]["poloidal_flux"]
 
     @property
     def magnetic_field_unit_glob(self):
         """magnetic field unit vector recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._magnetic_field_unit_glob
+        return self._grouped_caches["representations"]["glob"]["magnetic_field_unit"]
 
     @property
     def jtor_glob(self):
         """plassma current recombined on a full mesh. This one has shape [Nelems x nodes_per_elem]"""
-        return self._jtor_glob
+        return self._grouped_caches["representations"]["glob"]["jtor"]
 
     @property
     def solution_gauss(self):
         """Solution recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq]"""
-        return self._solution_gauss
+        return self._grouped_caches["representations"]["gauss"]["solution"]
 
     @property
     def gradient_gauss(self):
         """Gradients recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq x ndim]"""
-        return self._gradient_gauss
+        return self._grouped_caches["representations"]["gauss"]["gradient"]
 
     @property
     def magnetic_field_gauss(self):
         """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
-        return self._magnetic_field_gauss
+        return self._grouped_caches["representations"]["gauss"]["magnetic_field"]
 
     @property
     def magnetic_field_unit_gauss(self):
         """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
-        return self._magnetic_field_unit_gauss
+        return self._grouped_caches["representations"]["gauss"]["magnetic_field_unit"]
 
     @property
     def jtor_gauss(self):
         """plassma current recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
-        return self._jtor_gauss
+        return self._grouped_caches["representations"]["gauss"]["jtor"]
 
     @property
     def solution_glob_phys(self):
