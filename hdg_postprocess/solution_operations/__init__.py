@@ -8,6 +8,7 @@ from .assembly import (
 )
 from .boundary import calculate_boundary_summary, summary_along_the_wall
 from .magnetic_equilibrium import define_magnetic_axis, define_minor_radii, define_qcyl
+from .neutrals import calculate_dnn, calculate_dnn_with_nn_collision, calculate_mfp
 from .physical import cons2phys, init_phys_variables
 from .plasma_sources import (
     calculate_cooling_factor,
@@ -35,6 +36,8 @@ __all__ = [
     "calculate_in_boundary_gauss_points",
     "calculate_in_gauss_points",
     "calculate_boundary_summary",
+    "calculate_dnn",
+    "calculate_dnn_with_nn_collision",
     "calculate_cooling_factor",
     "calculate_cx_rate",
     "calculate_cx_source",
@@ -51,6 +54,7 @@ __all__ = [
     "calculate_ion_sink_due_to_rec",
     "calculate_ionization_rate",
     "calculate_ionization_source",
+    "calculate_mfp",
     "calculate_variables_along_line",
     "define_interpolators",
     "define_magnetic_axis",

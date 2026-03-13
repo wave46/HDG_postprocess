@@ -7,6 +7,8 @@ from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
 from hdg_postprocess.solution_operations import (
     calculate_boundary_summary as calculate_boundary_summary_impl,
+    calculate_dnn as calculate_dnn_impl,
+    calculate_dnn_with_nn_collision as calculate_dnn_with_nn_collision_impl,
     calculate_cooling_factor as calculate_cooling_factor_impl,
     calculate_cx_rate as calculate_cx_rate_impl,
     calculate_cx_source as calculate_cx_source_impl,
@@ -21,6 +23,7 @@ from hdg_postprocess.solution_operations import (
     calculate_ion_sink_due_to_rec as calculate_ion_sink_due_to_rec_impl,
     calculate_ionization_rate as calculate_ionization_rate_impl,
     calculate_ionization_source as calculate_ionization_source_impl,
+    calculate_mfp as calculate_mfp_impl,
     calculate_ohmic_source as calculate_ohmic_source_impl,
     calculate_power_balance as calculate_power_balance_impl,
     calculate_power_losses_to_wall as calculate_power_losses_to_wall_impl,
@@ -1379,78 +1382,10 @@ class HDGsolution:
         return calculate_cx_rate_impl(self, which)
 
     def calculate_dnn(self,which="simple"):
-        """
-            calculate neutral diffusion
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-        """    
-
-        if which=="simple":
-            if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-            if self.dnn_parameters is None:
-                raise ValueError("Please, provide neutral diffusion settings for the simulation")
-            if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-            if "cx" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_dnn(which="full")
-
-            self._dnn_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._dnn_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._dnn = calculate_dnn_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
-                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['length_scale'],
-                                                                self.parameters['adimensionalization']['time_scale'])
+        return calculate_dnn_impl(self, which)
 
     def calculate_dnn_with_nn_collision(self,which="simple"):
-        """
-            calculate neutral diffusion with neutral-neutral collisions
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-        """    
-
-        if which=="simple":
-            if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-            if self.dnn_parameters is None:
-                raise ValueError("Please, provide neutral diffusion settings for the simulation")
-            if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-            if "cx" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-            
-            self.calculate_dnn_with_nn_collision(which="full")
-
-            self._dnn_with_nn_collision_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._dnn_with_nn_collision_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._dnn_with_nn_collision.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            self._dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
-                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['length_scale'],
-                                                                self.parameters['adimensionalization']['time_scale'])
+        return calculate_dnn_with_nn_collision_impl(self, which)
 
     def calculate_dk(self,which="simple"):
         """
@@ -1498,48 +1433,7 @@ class HDGsolution:
 
     
     def calculate_mfp(self,which="simple"):
-        """
-            calculate neutral mean free path
-            simple: for simple mesh solution
-            full: on full mesh solution
-            coordinates: on a line with provided coordinates (to be done)
-        """    
-        if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-        if self.dnn_parameters is None:
-            raise ValueError("Please, provide neutral diffusion settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if not self._simple_phys_initialized:
-            print('Initializing physical solution first')
-            self.init_phys_variables('both')
-        if which=="simple":
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('simple')
-                        
-            self.calculate_mfp(which="full")
-
-            self._mfp_simple = np.zeros(self.mesh.vertices_glob.shape[0])
-            self._mfp_simple[self.mesh.connectivity_glob.reshape(-1,1).ravel()] = self._mfp.reshape(self.solution_glob.shape[0]*self.solution_glob.shape[1])
-            
-        if which =="full":
-            if not self._combined_to_full:
-                self.recombine_full_solution()
-            if not self._simple_phys_initialized:
-                print('Initializing physical solution first')
-                self.init_phys_variables('full')
-            if self._dnn is None:
-                self.calculate_dnn('full')
-            self._mfp = calculate_mfp_cons(self.solution_glob,self.dnn_parameters,self.atomic_parameters,
-                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['length_scale'],
-                                                                self.parameters['adimensionalization']['time_scale'])
+        return calculate_mfp_impl(self, which)
 
 
     def calculate_ionization_source(self,which="simple"):
