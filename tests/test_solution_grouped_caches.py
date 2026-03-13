@@ -59,6 +59,9 @@ def test_grouped_caches_sync_physical_and_equilibrium(manifest_path):
     assert sol._grouped_caches["equilibrium"]["glob"]["qcyl"] is sol.qcyl_glob
     assert sol._grouped_caches["derived"]["simple"]["dk"] is sol.dk_simple
     assert sol._grouped_caches["derived"]["glob"]["dk"] is sol.dk_glob
+    assert sol._views.simple.solution.physical is sol.solution_simple_phys
+    assert sol._views.glob.solution.conservative is sol.solution_glob
+    assert sol._views.glob.gradient.physical is sol.gradient_glob_phys
 
 
 def test_grouped_caches_sync_neutral_derived_fields(manifest_path):
@@ -145,3 +148,5 @@ def test_grouped_caches_sync_representations(manifest_path):
     assert sol._grouped_caches["representations"]["boundary"]["solution"] is sol.solution_boundary
     assert sol._grouped_caches["representations"]["boundary_gauss"]["solution"] is sol.solution_boundary_gauss
     assert sol._grouped_caches["representations"]["gauss"]["magnetic_field"] is sol.magnetic_field_gauss
+    assert sol._views.simple.solution.conservative is sol.solution_simple
+    assert sol._views.simple.gradient.conservative is sol.gradient_simple

@@ -6,6 +6,7 @@ from hdg_postprocess.routines.plasma import *
 from hdg_postprocess.routines.neutrals import *
 from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
+from hdg_postprocess.view_containers import SolutionViews
 from hdg_postprocess.solution_operations import (
     calculate_boundary_summary as calculate_boundary_summary_impl,
     calculate_dnn as calculate_dnn_impl,
@@ -52,6 +53,16 @@ from hdg_postprocess.solution_operations import (
 import os
 class HDGsolution:
     ""
+    _VIEW_CONTAINER_PATHS = {
+        "_solution_simple": ("simple", "solution", "conservative"),
+        "_gradient_simple": ("simple", "gradient", "conservative"),
+        "_solution_simple_phys": ("simple", "solution", "physical"),
+        "_gradient_simple_phys": ("simple", "gradient", "physical"),
+        "_solution_glob": ("glob", "solution", "conservative"),
+        "_gradient_glob": ("glob", "gradient", "conservative"),
+        "_solution_glob_phys": ("glob", "solution", "physical"),
+        "_gradient_glob_phys": ("glob", "gradient", "physical"),
+    }
     _GROUPED_CACHE_PATHS = {
         "_solution_simple": ("representations", "simple", "solution"),
         "_gradient_simple": ("representations", "simple", "gradient"),
@@ -183,6 +194,12 @@ class HDGsolution:
 
     def __setattr__(self, name, value):
         object.__setattr__(self, name, value)
+        views = self.__dict__.get("_views")
+        view_path = self._VIEW_CONTAINER_PATHS.get(name)
+        if views is not None and view_path is not None:
+            view_state = getattr(views, view_path[0])
+            field_state = getattr(view_state, view_path[1])
+            setattr(field_state, view_path[2], value)
         grouped_caches = self.__dict__.get("_grouped_caches")
         cache_path = self._GROUPED_CACHE_PATHS.get(name)
         if grouped_caches is None or cache_path is None:
@@ -195,8 +212,7 @@ class HDGsolution:
     def _initial_setup(self):
         # simple representation of a solution
         self._combined_simple_solution = False
-        self._solution_simple = None
-        self._gradient_simple = None
+        self._views = SolutionViews()
         self._magnetic_field_simple= None
         self._jtor_simple = None
         #physical solution flags
@@ -285,12 +301,6 @@ class HDGsolution:
                 )
             },
         }
-
-        self._solution_simple_phys = None
-        self._gradient_simple_phys = None
-
-        self._solution_glob_phys = None
-        self._gradient_glob_phys = None
 
         #boundary solutions
         self._solution_boundary = None
@@ -412,8 +422,6 @@ class HDGsolution:
             #no need to recombine meshes
             self._combined_to_full = False
             self._combined_boundary = False
-            self._solution_glob = None
-            self._gradient_glob = None
             self._magnetic_field_glob = None
             self._magnetic_field_unit_glob = None
             self._jtor_glob = None
@@ -424,8 +432,6 @@ class HDGsolution:
         else:
             self._combined_to_full = False            
             self._combined_boundary = False
-            self._solution_glob = None
-            self._gradient_glob = None
             self._magnetic_field_glob = None
             self._magnetic_field_unit_glob = None
             self._jtor_glob = None    
@@ -534,22 +540,22 @@ class HDGsolution:
     @property
     def solution_simple(self):
         """solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq]"""
-        return self._grouped_caches["representations"]["simple"]["solution"]
+        return self._views.simple.solution.conservative
     
     @property
     def gradient_simple(self):
         """gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq x ndim]"""
-        return self._grouped_caches["representations"]["simple"]["gradient"]
+        return self._views.simple.gradient.conservative
     
     @property
     def solution_simple_phys(self):
         """physical solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys]"""
-        return self._grouped_caches["physical"]["simple"]["solution"]
+        return self._views.simple.solution.physical
     
     @property
     def gradient_simple_phys(self):
         """phisical gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys x ndim]"""
-        return self._grouped_caches["physical"]["simple"]["gradient"]
+        return self._views.simple.gradient.physical
 
     @property
     def magnetic_field_simple(self):
@@ -653,12 +659,12 @@ class HDGsolution:
     @property
     def solution_glob(self):
         """Solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq]"""
-        return self._grouped_caches["representations"]["glob"]["solution"]
+        return self._views.glob.solution.conservative
 
     @property
     def gradient_glob(self):
         """Gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq x ndim]"""
-        return self._grouped_caches["representations"]["glob"]["gradient"]
+        return self._views.glob.gradient.conservative
 
     @property
     def magnetic_field_glob(self):
@@ -713,12 +719,12 @@ class HDGsolution:
     @property
     def solution_glob_phys(self):
         """Physical solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys]"""
-        return self._grouped_caches["physical"]["glob"]["solution"]
+        return self._views.glob.solution.physical
 
     @property
     def gradient_glob_phys(self):
         """Physical gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys x ndim]"""
-        return self._grouped_caches["physical"]["glob"]["gradient"]
+        return self._views.glob.gradient.physical
     
     @property
     def e(self):
