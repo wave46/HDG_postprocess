@@ -7,6 +7,7 @@ from .assembly import (
     recombine_simple_full_solution,
 )
 from .boundary import calculate_boundary_summary, summary_along_the_wall
+from .magnetic_equilibrium import define_magnetic_axis, define_minor_radii, define_qcyl
 from .physical import cons2phys, init_phys_variables
 from .plasma_sources import (
     calculate_cooling_factor,
@@ -27,9 +28,6 @@ from .plasma_sources import (
 from .sampling import (
     calculate_variables_along_line,
     define_interpolators,
-    define_magnetic_axis,
-    define_minor_radii,
-    define_qcyl,
     save_summary_line,
 )
 
