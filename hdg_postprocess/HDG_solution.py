@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import hdg_postprocess.solution_operations.pointwise_fields as pointwise_fields_impl
 from hdg_postprocess.routines.atomic import *
 from hdg_postprocess.routines.plasma import *
 from hdg_postprocess.routines.neutrals import *
@@ -1431,954 +1432,126 @@ class HDGsolution:
         define_interpolators_impl(self)
 
     def n(self,r,z):
-        """
-        returns value of density in given point (r,z)
-        """
-        if b'rho' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('density is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-
-        return calculate_n_cons(solution,self.parameters['adimensionalization']['density_scale'],self._cons_idx)
+        return pointwise_fields_impl.n(self,r,z)
 
     def ti(self,r,z):
-        """
-        returns value of ion temperature in given point (r,z)
-        """
-        if b'Ti' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('ion temperature is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        # Ti = T0*2/3/Mref*(U3/U1-1/2*U2**2/U1**2)
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if solution[:,self._cons_idx[b'rho']] == 0:
-            return 0
-        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        solution[:,self._cons_idx[b'nEi']] = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
-        return calculate_Ti_cons(solution,self.parameters['adimensionalization']['temperature_scale'],
-                                 self.parameters['physics']['Mref'],self._cons_idx)
+        return pointwise_fields_impl.ti(self,r,z)
 
     def te(self,r,z):
-        """
-        returns value of electron temperature in given point (r,z)
-        """
-        if b'Te' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('electron temperature is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        # Te = T0*2/3/Mref*(U4/U1)
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if solution[:,self._cons_idx[b'rho']] == 0:
-            return 0
-
-        solution[:,self._cons_idx[b'nEe']] = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
-        return calculate_Te_cons(solution,self.parameters['adimensionalization']['temperature_scale'],
-                                 self.parameters['physics']['Mref'],self._cons_idx)
+        return pointwise_fields_impl.te(self,r,z)
     
     def u(self,r,z):
-        """
-        returns value of plasma velocity in given point (r,z)
-        """
-        if b'u' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('Mach number is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        # u = u0*U2/U1
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if solution[:,self._cons_idx[b'rho']] == 0:
-            return 0
-        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        return calculate_u_cons(solution,self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+        return pointwise_fields_impl.u(self,r,z)
     
     def cs(self,r,z):
-        """
-        returns value of plasma sound speed in given point (r,z)
-        """
-        if b'Csi' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('Mach number is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        # cs = u0*(2/3*(U3+U4-1/2*U2**2/U1)/U1)**0.5
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if solution[:,self._cons_idx[b'rho']] == 0:
-            return 0
-        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        solution[:,self._cons_idx[b'nEi']] = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
-        solution[:,self._cons_idx[b'nEe']] = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
-        return calculate_cs_cons(solution,self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+        return pointwise_fields_impl.cs(self,r,z)
     
     def M(self,r,z):
-        """
-        returns value of mach number in given point (r,z)
-        """
-        if b'M' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('Mach number is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        # M = u/cs
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'rho']] = self._solution_interpolators[self._cons_idx[b'rho']](r,z)
-        if solution[:,self._cons_idx[b'rho']] == 0:
-            return 0
-        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        solution[:,self._cons_idx[b'nEi']] = self._solution_interpolators[self._cons_idx[b'nEi']](r,z)
-        solution[:,self._cons_idx[b'nEe']] = self._solution_interpolators[self._cons_idx[b'nEe']](r,z)
-        return calculate_M_cons(solution,self._cons_idx)
+        return pointwise_fields_impl.M(self,r,z)
 
     def nn(self,r,z):
-        """
-        returns value of neutral density in given point (r,z)
-        """
-        if b'rhon' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('neutral density number is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        # nn=n0*U5
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'rhon']] = self._solution_interpolators[self._cons_idx[b'rhon']](r,z)
-        return calculate_nn_cons(solution,self.parameters['adimensionalization']['density_scale'],self._cons_idx)
+        return pointwise_fields_impl.nn(self,r,z)
 
     def ionization_source_interp(self,r,z):
-        """
-        returns ionization source value in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-
-        return calculate_iz_source_cons(solution,self.atomic_parameters['iz'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'],
-                                                 self._cons_idx)
+        return pointwise_fields_impl.ionization_source_interp(self,r,z)
 
     def iz_rate(self,r,z):
-        """
-        returns value of ionization rate in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-        return calculate_iz_rate_cons(solution,self.atomic_parameters['iz'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'])
+        return pointwise_fields_impl.iz_rate(self,r,z)
 
     def cx_rate(self,r,z):
-        """
-        returns value of cx rate in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-        return calculate_cx_rate_cons(solution,self.atomic_parameters['cx'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['physics']['Mref'])
+        return pointwise_fields_impl.cx_rate(self,r,z)
     
     def dnn(self,r,z):
-        """
-        returns value of neutral diffusion in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-        return calculate_dnn_cons(solution,self.dnn_parameters, self.atomic_parameters,
-                                                                self._e,self.parameters['adimensionalization']['mass_scale'],
-                                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                                self.parameters['adimensionalization']['density_scale'],
-                                                                self.parameters['physics']['Mref'],
-                                                                self.parameters['adimensionalization']['length_scale'],
-                                                                self.parameters['adimensionalization']['time_scale'])
+        return pointwise_fields_impl.dnn(self,r,z)
     def k(self,r,z):
-        """
-        returns value of turbulent energy in given point (r,z)
-        """
-        if b'rho' not in self.parameters['physics']['physical_variable_names']:
-            raise KeyError('density is not in the models')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'k']] = self._solution_interpolators[self._cons_idx[b'k']](r,z)
-
-        return calculate_k_cons(solution,self.parameters['adimensionalization']['k_scale'],self._cons_idx)
+        return pointwise_fields_impl.k(self,r,z)
     def dk(self,r,z):
-        """
-        returns value of turbulent diffusion in given point (r,z)
-        """
-        if self.dk_parameters is None:
-                raise ValueError("Please, provide turbulent diffusion settings for the simulation")
-
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        if self.r_axis is None:
-            self.define_minor_radii()
-        
-        
-        solution = np.zeros([1,self.neq])
-
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-        a = np.sqrt((r-self.r_axis)**2+(z-self.z_axis)**2)
-        Br = self._field_interpolators[0](r,z)
-        Bz = self._field_interpolators[1](r,z)
-        Bt = self._field_interpolators[2](r,z)
-        q_cyl = calculate_q_cyl(r,Br,Bz,Bt,a)
-
-        return calculate_dk_cons(solution,self.dk_parameters, q_cyl,r/self.parameters['adimensionalization']['length_scale'],
-                                                                self.parameters['adimensionalization']['length_scale']**2/
-                                                                self.parameters['adimensionalization']['time_scale'],self.cons_idx)
+        return pointwise_fields_impl.dk(self,r,z)
     
     def mfp_nn(self,r,z):
-        """
-        returns value of neutral mean free path in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-                raise ValueError("Please, provide atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-                raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-        return calculate_mfp_cons(solution,self.dnn_parameters,self.atomic_parameters,
-                                                self._e,self.parameters['adimensionalization']['mass_scale'],
-                                                self.parameters['adimensionalization']['temperature_scale'],
-                                                self.parameters['adimensionalization']['density_scale'],
-                                                self.parameters['physics']['Mref'],
-                                                self.parameters['adimensionalization']['length_scale'],
-                                                self.parameters['adimensionalization']['time_scale'])
+        return pointwise_fields_impl.mfp_nn(self,r,z)
 
     def p_dyn(self,r,z):
-        """
-        returns value of dynamic pressure kb(Ti+Te)+mD*u**2 in given point (r,z)
-        """
-
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-        return calculate_pdyn_cons(solution,(2/3/self.parameters['physics']['Mref'])* \
-                                          self.parameters['adimensionalization']['density_scale']* \
-                                          self.parameters['adimensionalization']['temperature_scale']* \
-                                          self.parameters['adimensionalization']['charge_scale'],
-                                          self.parameters['adimensionalization']['speed_scale']**2* \
-                                          self.parameters['adimensionalization']['mass_scale']* \
-                                          self.parameters['adimensionalization']['density_scale'],
-                                          self.cons_idx)
+        return pointwise_fields_impl.p_dyn(self,r,z)
     def pi(self,r,z):
-        """
-        returns value of ion pressure kbTi in given point (r,z)
-        """
-
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-        p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
-                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
-        return calculate_pi_cons(solution, p0,self.cons_idx)
+        return pointwise_fields_impl.pi(self,r,z)
     
     def grad_ti(self,r,z,coordinate):
-        """
-        returns value of derivative of ion temperature over chosen direction in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        #gradTi = 2/3/Mref*(Q1*(U2**2/U1**3-U3/U1**2)+Q2*(-U2/U1**2)+Q3*(1/U1))
-        if coordinate == 'x':
-            idx = 0
-        elif coordinate == 'y':
-            idx = 1
-        else:
-            raise ValueError(f'{coordinate} is not a coordinate of the problem')
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-        return calculate_grad_Ti_cons(solution,gradient,self.parameters['adimensionalization']['temperature_scale'],
-                                      self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)[0][idx]
+        return pointwise_fields_impl.grad_ti(self,r,z,coordinate)
 
     def grad_pi(self,r,z,coordinate):
-        """
-        returns value of derivative of ion pressure over chosen direction in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        #gradTi = 2/3/Mref*(Q1*(U2**2/U1**3-U3/U1**2)+Q2*(-U2/U1**2)+Q3*(1/U1))
-        if coordinate == 'x':
-            idx = 0
-        elif coordinate == 'y':
-            idx = 1
-        else:
-            raise ValueError(f'{coordinate} is not a coordinate of the problem')
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-        p0 =  (2/3/self.parameters['physics']['Mref'])*self.parameters['adimensionalization']['density_scale']* \
-                           self.parameters['adimensionalization']['temperature_scale']*self.parameters['adimensionalization']['charge_scale']
-        return calculate_grad_pi_cons(solution,gradient,p0,self.parameters['adimensionalization']['length_scale'],self._cons_idx)[0][idx]
+        return pointwise_fields_impl.grad_pi(self,r,z,coordinate)
 
     def grad_ti_par(self,r,z):
-        """
-        returns value of derivative of ion temperature over parallel direction (r) in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        #dTi/dl = gradTi*b
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-        Br = self.field_interpolators[0](r,z)
-        Bz = self.field_interpolators[1](r,z)
-        Bt = self.field_interpolators[2](r,z)
-
-        return calculate_grad_Ti_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['temperature_scale'],
-              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)
+        return pointwise_fields_impl.grad_ti_par(self,r,z)
 
     def grad_te(self,r,z,coordinate):
-        """
-        returns value of derivative of electron temperature over x direction (r) in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        #gradTi = 2/3/Mref*(Q1*(-U4/U1**2)+Q4*(1/U1))
-        if coordinate == 'x':
-            idx = 0
-        elif coordinate == 'y':
-            idx = 1
-        else:
-            raise ValueError(f'{coordinate} is not a coordinate of the problem')
-
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-        return calculate_grad_Te_cons(solution,gradient,self.parameters['adimensionalization']['temperature_scale'],
-                                      self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)[0][idx]
+        return pointwise_fields_impl.grad_te(self,r,z,coordinate)
 
     def grad_te_par(self,r,z):
-        """
-        returns value of derivative of electron temperature over parallel direction (r) in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        #dTi/dl = gradTi*b
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-        Br = self._field_interpolators[0](r,z)
-        Bz = self._field_interpolators[1](r,z)
-        Bt = self._field_interpolators[2](r,z)
-
-        
-        return calculate_grad_Te_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['temperature_scale'],
-              self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],self._cons_idx)
+        return pointwise_fields_impl.grad_te_par(self,r,z)
 
     def particle_flux_par(self,r,z):
-        """
-        returns value of parallel particle flux in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        # Gamma = n0*u0*U2
-        # u = u0*U2/U1
-        #only fill needed field
-        solution = np.zeros([1,self.neq])
-        solution[:,self._cons_idx[b'Gamma']] = self._solution_interpolators[self._cons_idx[b'Gamma']](r,z)
-        return calculate_parallel_flux_cons(solution,self.parameters['adimensionalization']['density_scale']* \
-                                                     self.parameters['adimensionalization']['speed_scale'],self._cons_idx)
+        return pointwise_fields_impl.particle_flux_par(self,r,z)
     
     def ion_heat_flux_par_conv(self,r,z):
-        """
-        returns value of parallel convective ion heat flux in given point (r,z)
-        """
-        # q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u
-
-        solution = np.zeros([1,self.neq])
-
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-        return calculate_parallel_ion_heat_flux_par_conv_cons(solution,self.parameters['adimensionalization']['density_scale'],
-                                                                  self.parameters['adimensionalization']['temperature_scale'],
-                                                                  self.parameters['physics']['Mref'],
-                                                                  self.parameters['adimensionalization']['charge_scale'],
-                                                                  self.parameters['adimensionalization']['mass_scale'],
-                                                                  self.parameters['adimensionalization']['speed_scale'],
-                                                                  self._cons_idx)
+        return pointwise_fields_impl.ion_heat_flux_par_conv(self,r,z)
 
 
     def ion_heat_flux_par_cond(self,r,z):
-        """
-        returns value of parallel conductive ion heat flux in given point (r,z)
-        """
-        # q_ipar = - kappa_par_i*Ti**(5/2)*dTi/dl
-
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-        Br = self._field_interpolators[0](r,z)
-        Bz = self._field_interpolators[1](r,z)
-        Bt = self._field_interpolators[2](r,z)
-        return calculate_parallel_ion_heat_flux_par_cond_cons(solution,gradient,Br,Bz,Bt,self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
-                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
-                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
-                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],
-                        50,self._cons_idx)
+        return pointwise_fields_impl.ion_heat_flux_par_cond(self,r,z)
 
 
     
     def ion_heat_flux_par(self,r,z):
-        """
-        returns value of parallel ion heat flux in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        # q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u - kappa_par_i*Ti**(5/2)*dTi/dl
-
-
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-        Br = self._field_interpolators[0](r,z)
-        Bz = self._field_interpolators[1](r,z)
-        Bt = self._field_interpolators[2](r,z)
-
-        return calculate_parallel_ion_heat_flux_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pari']/(self.parameters['adimensionalization']['time_scale']**3* \
-                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
-                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
-                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
-                        self.parameters['adimensionalization']['charge_scale'],self.parameters['adimensionalization']['mass_scale'],
-                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
-                        50,self._cons_idx)
+        return pointwise_fields_impl.ion_heat_flux_par(self,r,z)
 
     def electron_heat_flux_par_conv(self,r,z):
-        """
-        returns value of parallel convective electron heat flux in given point (r,z)
-        """
-        # q_epar = (5/2*kb*n*Te)u
-
-
-        solution = np.zeros([1,self.neq])
-
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-        return calculate_parallel_electron_heat_flux_par_conv_cons(solution,self.parameters['adimensionalization']['density_scale'],
-                                                                  self.parameters['adimensionalization']['temperature_scale'],
-                                                                  self.parameters['physics']['Mref'],
-                                                                  self.parameters['adimensionalization']['charge_scale'],
-                                                                  self.parameters['adimensionalization']['speed_scale'],
-                                                                  self._cons_idx)
+        return pointwise_fields_impl.electron_heat_flux_par_conv(self,r,z)
 
     def electron_heat_flux_par_cond(self,r,z):
-        """
-        returns value of parallel conductive electron heat flux in given point (r,z)
-        """
-        # q_epar = - kappa_par_e*Te**(5/2)*dTi/dl
-
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-        Br = self._field_interpolators[0](r,z)
-        Bz = self._field_interpolators[1](r,z)
-        Bt = self._field_interpolators[2](r,z)
-        return calculate_parallel_electron_heat_flux_par_cond_cons(solution,gradient,Br,Bz,Bt,self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
-                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
-                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
-                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],self.parameters['adimensionalization']['length_scale'],
-                        50,self._cons_idx) 
+        return pointwise_fields_impl.electron_heat_flux_par_cond(self,r,z)
 
 
     def electron_heat_flux_par(self,r,z):
-        """
-        returns value of parallel electron heat flux in given point (r,z)
-        """
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        # q_epar = (5/2*kb*n*Te) - kappa_par_e*Te**(5/2)*dTe/dl
-
-
-
-        solution = np.zeros([1,self.neq])
-        gradient = np.zeros([1,self.neq,2])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-            for k in range(2):
-                gradient[0,i,k] = self._gradient_interpolators[i][k](r,z)
-        if solution[0,0] ==0:
-            return 0
-
-        Br = self._field_interpolators[0](r,z)
-        Bz = self._field_interpolators[1](r,z)
-        Bt = self._field_interpolators[2](r,z)
-
-        return calculate_parallel_electron_heat_flux_par_cons(solution,gradient,Br,Bz,Bt,self.parameters['adimensionalization']['density_scale'],self.parameters['physics']['diff_pare']/(self.parameters['adimensionalization']['time_scale']**3* \
-                        self.parameters['adimensionalization']['temperature_scale']**(7/2)/(self.parameters['adimensionalization']['density_scale']*
-                        self.parameters['adimensionalization']['length_scale']**4)/self.parameters['adimensionalization']['mass_scale']),
-                        self.parameters['adimensionalization']['temperature_scale'],self.parameters['physics']['Mref'],
-                        self.parameters['adimensionalization']['charge_scale'],
-                        self.parameters['adimensionalization']['speed_scale'],self.parameters['adimensionalization']['length_scale'],
-                        50,self._cons_idx)
+        return pointwise_fields_impl.electron_heat_flux_par(self,r,z)
     
     def psi(self,r,z):
-        """
-        returns value of poloidal flux in given point (r,z)
-        """
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        #only fill needed field
-        psi = self._psi_interpolator(r,z)
-        
-        return psi
+        return pointwise_fields_impl.psi(self,r,z)
 
         
     
         
     def B(self,r,z,component):
-        """
-        returns value of one of the components of the magnetic field vector in given point (r,z)
-        """
-        if component == 'R':
-            idx = 0
-        elif component == 'Z':
-            idx = 1
-        elif component == 'theta':
-            idx = 2
-        else:
-            raise ValueError(f'{component} is not a component of the problem')
-        
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        return self._field_interpolators[idx](r,z)
+        return pointwise_fields_impl.B(self,r,z,component)
     
     def grad_B(self,r,z,component,coordinate):
-        """
-        returns value of gradient in along given coordinate of
-        one of the components of the magnetic field vector in given point (r,z)
-        """
-
-        if component == 'R':
-            idx = 0
-        elif component == 'Z':
-            idx = 1
-        elif component == 'theta':
-            idx = 2
-        else:
-            raise ValueError(f'{component} is not a component of the problem')
-
-        if coordinate == 'x':
-            idx_grad = 0
-        elif coordinate == 'y':
-            idx_grad = 1
-        else:
-            raise ValueError(f'{coordinate} is not a coordinate of the problem')
-
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        return self._field_interpolators[idx].gradient(r,z)[idx_grad]
+        return pointwise_fields_impl.grad_B(self,r,z,component,coordinate)
 
     def Q_e_loss_iz(self,r,z):
-        """
-        returns value of electron energy loss due to ionization in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "Eiz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide Eiz atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-        return calculate_electron_sink_due_to_iz_cons(solution,self.atomic_parameters['Eiz'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'],
-                                                 self.parameters['adimensionalization']['charge_scale'],
-                                                 self._cons_idx)
+        return pointwise_fields_impl.Q_e_loss_iz(self,r,z)
 
     def Q_e_loss_rec(self,r,z):
-        """
-        returns value of electron energy loss due to recombination in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "Erec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide Erec atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-        return calculate_electron_sink_due_to_rec_cons(solution,self.atomic_parameters['Erec'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'],
-                                                 self.parameters['adimensionalization']['charge_scale'])
+        return pointwise_fields_impl.Q_e_loss_rec(self,r,z)
 
     def Q_e_gain_rec(self,r,z):
-        """
-        returns value of electron energy gain due to recombination in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "rec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide recombination atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-        
-        return calculate_electron_gain_due_to_rec_cons(solution,self.atomic_parameters['rec'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'],
-                                                 self.parameters['adimensionalization']['charge_scale'])
+        return pointwise_fields_impl.Q_e_gain_rec(self,r,z)
 
     def Q_e_loss_tot(self,r,z):
-        """
-        returns value of total electron energy loss in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "Eiz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide Eiz atomic settings for the simulation")
-        if "Erec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide Erec atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-        
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-
-        return calculate_electron_total_loss_cons(solution,self.atomic_parameters['Eiz'],self.atomic_parameters['Erec'],
-                                                    self.atomic_parameters['rec'],
-                                                    self.parameters['adimensionalization']['temperature_scale'],
-                                                    self.parameters['adimensionalization']['density_scale'],
-                                                    self.parameters['physics']['Mref'],
-                                                    self.parameters['adimensionalization']['charge_scale'],
-                                                    self._cons_idx)
+        return pointwise_fields_impl.Q_e_loss_tot(self,r,z)
 
     def Q_i_gain_iz(self,r,z):
-        """
-        returns value of ion energy gain due to ionization in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-        return calculate_ion_gain_due_to_iz_cons(solution,self.atomic_parameters['iz'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'],
-                                                 self.parameters['physics']['R_E'],
-                                                 self.parameters['adimensionalization']['charge_scale'],
-                                                 self._cons_idx)
+        return pointwise_fields_impl.Q_i_gain_iz(self,r,z)
 
     def Q_i_loss_rec(self,r,z):
-        """
-        returns value of ion energy loss due to recombination in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "rec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide recombination atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-        return calculate_ion_sink_due_to_rec_cons(solution,self.atomic_parameters['rec'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'],
-                                                 self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'])
+        return pointwise_fields_impl.Q_i_loss_rec(self,r,z)
 
     def Q_i_loss_cx(self,r,z):
-        """
-        returns value of ion energy loss due to charge exchange in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-        return calculate_ion_sink_due_to_cx_cons(solution,self.atomic_parameters['cx'],
-                                                 self.parameters['adimensionalization']['temperature_scale'],
-                                                 self.parameters['adimensionalization']['density_scale'],
-                                                 self.parameters['physics']['Mref'],
-                                                 self.parameters['adimensionalization']['speed_scale'],
-                                                 self.parameters['adimensionalization']['mass_scale'],
-                                                 self._cons_idx)
+        return pointwise_fields_impl.Q_i_loss_cx(self,r,z)
 
     def Q_i_loss_tot(self,r,z):
-        """
-        returns value of total ion energy loss in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if "rec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide recombination atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-
-        return calculate_ion_total_loss_cons(solution,self.atomic_parameters['iz'],
-                                                    self.atomic_parameters['rec'],self.atomic_parameters['cx'],
-                                                    self.parameters['adimensionalization']['temperature_scale'],
-                                                    self.parameters['adimensionalization']['density_scale'],
-                                                    self.parameters['physics']['Mref'],
-                                                    self.parameters['physics']['R_E'],
-                                                    self.parameters['adimensionalization']['charge_scale'],
-                                                    self.parameters['adimensionalization']['mass_scale'],
-                                                    self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],
-                                                    self.parameters['adimensionalization']['speed_scale'],
-                                                    self._cons_idx)
+        return pointwise_fields_impl.Q_i_loss_tot(self,r,z)
 
 
     def Q_loss_tot(self,r,z):
-        """
-        returns value of total energy loss in given point (r,z)
-        """
-        if self.atomic_parameters is None:
-            raise ValueError("Please, provide atomic settings for the simulation")
-        if "iz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide ionization atomic settings for the simulation")
-        if "rec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide recombination atomic settings for the simulation")
-        if "cx" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-        if "Eiz" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide Eiz atomic settings for the simulation")
-        if "Erec" not in self.atomic_parameters.keys():
-            raise ValueError("Please, provide Erec atomic settings for the simulation")
-        if self._solution_interpolators is None:
-            print('Definition of interpolators will take some time for the initialization')
-            self.define_interpolators()
-
-        solution = np.zeros([1,self.neq])
-        for i in range(self.neq):
-            solution[0,i] = self._solution_interpolators[i](r,z)
-        if solution[0,0] == 0:
-            return 0
-
-        return calculate_total_loss_cons(solution,self.atomic_parameters['iz'],
-                                                    self.atomic_parameters['rec'],self.atomic_parameters['cx'],
-                                                    self.atomic_parameters['Eiz'],self.atomic_parameters['Erec'],
-                                                    self.parameters['adimensionalization']['temperature_scale'],
-                                                    self.parameters['adimensionalization']['density_scale'],
-                                                    self.parameters['physics']['Mref'],
-                                                    self.parameters['physics']['R_E'],
-                                                    self.parameters['adimensionalization']['charge_scale'],
-                                                    self.parameters['adimensionalization']['mass_scale'],
-                                                    self.parameters['adimensionalization']['speed_scale']**2*self.parameters['adimensionalization']['mass_scale'],
-                                                    self.parameters['adimensionalization']['speed_scale'],
-                                                    self._cons_idx)
+        return pointwise_fields_impl.Q_loss_tot(self,r,z)
