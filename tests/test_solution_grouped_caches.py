@@ -150,9 +150,26 @@ def test_grouped_caches_sync_representations(manifest_path):
     assert sol._grouped_caches["representations"]["gauss"]["magnetic_field"] is sol.magnetic_field_gauss
     assert sol._views.simple.solution.conservative is sol.solution_simple
     assert sol._views.simple.gradient.conservative is sol.gradient_simple
+    assert sol._views.simple.equilibrium.magnetic_field is sol.magnetic_field_simple
+    assert sol._views.simple.equilibrium.jtor is sol.jtor_simple
+    assert sol._views.simple.equilibrium.poloidal_flux is sol.poloidal_flux_simple
+    assert sol._views.glob.equilibrium.magnetic_field is sol.magnetic_field_glob
+    assert sol._views.glob.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_glob
+    assert sol._views.glob.equilibrium.jtor is sol.jtor_glob
+    assert sol._views.glob.equilibrium.poloidal_flux is sol.poloidal_flux_glob
     assert sol._views.gauss.solution.conservative is sol.solution_gauss
     assert sol._views.gauss.gradient.conservative is sol.gradient_gauss
+    assert sol._views.gauss.equilibrium.magnetic_field is sol.magnetic_field_gauss
+    assert sol._views.gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_gauss
+    assert sol._views.gauss.equilibrium.jtor is sol.jtor_gauss
+    assert sol._views.gauss.equilibrium.poloidal_flux is sol.poloidal_flux_gauss
     assert sol._views.boundary.solution.conservative is sol.solution_boundary
     assert sol._views.boundary.solution_skeleton.conservative is sol.solution_skeleton_boundary
+    assert sol._views.boundary.equilibrium.magnetic_field is sol.magnetic_field_boundary
+    assert sol._views.boundary.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary
+    assert sol._views.boundary.equilibrium.poloidal_flux is sol.poloidal_flux_boundary
     assert sol._views.boundary_gauss.solution.conservative is sol.solution_boundary_gauss
     assert sol._views.boundary_gauss.solution_skeleton.conservative is sol.solution_skeleton_boundary_gauss
+    assert sol._views.boundary_gauss.equilibrium.magnetic_field is sol.magnetic_field_boundary_gauss
+    assert sol._views.boundary_gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary_gauss
+    assert sol._views.boundary_gauss.equilibrium.poloidal_flux is sol.poloidal_flux_boundary_gauss

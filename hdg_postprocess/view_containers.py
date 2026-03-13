@@ -8,10 +8,19 @@ class SolutionFieldState:
 
 
 @dataclass
+class EquilibriumViewState:
+    magnetic_field: object = None
+    magnetic_field_unit: object = None
+    jtor: object = None
+    poloidal_flux: object = None
+
+
+@dataclass
 class SolutionViewState:
     solution: SolutionFieldState = field(default_factory=SolutionFieldState)
     solution_skeleton: SolutionFieldState = field(default_factory=SolutionFieldState)
     gradient: SolutionFieldState = field(default_factory=SolutionFieldState)
+    equilibrium: EquilibriumViewState = field(default_factory=EquilibriumViewState)
 
 
 @dataclass

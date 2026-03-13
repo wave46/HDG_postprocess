@@ -67,9 +67,26 @@ class HDGsolution:
         "_solution_boundary": ("boundary", "solution", "conservative"),
         "_solution_skeleton_boundary": ("boundary", "solution_skeleton", "conservative"),
         "_gradient_boundary": ("boundary", "gradient", "conservative"),
+        "_magnetic_field_simple": ("simple", "equilibrium", "magnetic_field"),
+        "_jtor_simple": ("simple", "equilibrium", "jtor"),
+        "_poloidal_flux_simple": ("simple", "equilibrium", "poloidal_flux"),
+        "_magnetic_field_glob": ("glob", "equilibrium", "magnetic_field"),
+        "_magnetic_field_unit_glob": ("glob", "equilibrium", "magnetic_field_unit"),
+        "_jtor_glob": ("glob", "equilibrium", "jtor"),
+        "_poloidal_flux_glob": ("glob", "equilibrium", "poloidal_flux"),
+        "_magnetic_field_gauss": ("gauss", "equilibrium", "magnetic_field"),
+        "_magnetic_field_unit_gauss": ("gauss", "equilibrium", "magnetic_field_unit"),
+        "_jtor_gauss": ("gauss", "equilibrium", "jtor"),
+        "_poloidal_flux_gauss": ("gauss", "equilibrium", "poloidal_flux"),
+        "_magnetic_field_boundary": ("boundary", "equilibrium", "magnetic_field"),
+        "_magnetic_field_unit_boundary": ("boundary", "equilibrium", "magnetic_field_unit"),
+        "_poloidal_flux_boundary": ("boundary", "equilibrium", "poloidal_flux"),
         "_solution_boundary_gauss": ("boundary_gauss", "solution", "conservative"),
         "_solution_skeleton_boundary_gauss": ("boundary_gauss", "solution_skeleton", "conservative"),
         "_gradient_boundary_gauss": ("boundary_gauss", "gradient", "conservative"),
+        "_magnetic_field_boundary_gauss": ("boundary_gauss", "equilibrium", "magnetic_field"),
+        "_magnetic_field_unit_boundary_gauss": ("boundary_gauss", "equilibrium", "magnetic_field_unit"),
+        "_poloidal_flux_boundary_gauss": ("boundary_gauss", "equilibrium", "poloidal_flux"),
     }
     _GROUPED_CACHE_PATHS = {
         "_solution_simple": ("representations", "simple", "solution"),
@@ -568,17 +585,17 @@ class HDGsolution:
     @property
     def magnetic_field_simple(self):
         """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
-        return self._grouped_caches["representations"]["simple"]["magnetic_field"]
+        return self._views.simple.equilibrium.magnetic_field
     
     @property
     def jtor_simple(self):
         """plasma current recombined united on a single mesh (means not taking into account repeating points) [Nvertices]"""
-        return self._grouped_caches["representations"]["simple"]["jtor"]
+        return self._views.simple.equilibrium.jtor
 
     @property
     def poloidal_flux_simple(self):
         """poloidal flux recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
-        return self._grouped_caches["representations"]["simple"]["poloidal_flux"]
+        return self._views.simple.equilibrium.poloidal_flux
     
     @property
     def solution_boundary(self):
@@ -598,17 +615,17 @@ class HDGsolution:
     @property
     def magnetic_field_boundary(self):
         """magnetic field recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._grouped_caches["representations"]["boundary"]["magnetic_field"]
+        return self._views.boundary.equilibrium.magnetic_field
 
     @property
     def magnetic_field_unit_boundary(self):
         """magnetic field unit vector recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._grouped_caches["representations"]["boundary"]["magnetic_field_unit"]
+        return self._views.boundary.equilibrium.magnetic_field_unit
     
     @property
     def poloidal_flux_boundary(self):
         """poloidal flux recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face]"""
-        return self._grouped_caches["representations"]["boundary"]["poloidal_flux"]
+        return self._views.boundary.equilibrium.poloidal_flux
 
     @property
     def solution_boundary_gauss(self):
@@ -628,17 +645,17 @@ class HDGsolution:
     @property
     def magnetic_field_boundary_gauss(self):
         """magnetic field recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face x 3]"""
-        return self._grouped_caches["representations"]["boundary_gauss"]["magnetic_field"]
+        return self._views.boundary_gauss.equilibrium.magnetic_field
 
     @property
     def magnetic_field_unit_boundary_gauss(self):
         """magnetic field unit vector recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._grouped_caches["representations"]["boundary_gauss"]["magnetic_field_unit"]
+        return self._views.boundary_gauss.equilibrium.magnetic_field_unit
     
     @property
     def poloidal_flux_boundary_gauss(self):
         """poloidal flux recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face]"""
-        return self._grouped_caches["representations"]["boundary_gauss"]["poloidal_flux"]
+        return self._views.boundary_gauss.equilibrium.poloidal_flux
 
     @property
     def combined_to_full(self):
@@ -677,27 +694,27 @@ class HDGsolution:
     @property
     def magnetic_field_glob(self):
         """magnetic field recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._grouped_caches["representations"]["glob"]["magnetic_field"]
+        return self._views.glob.equilibrium.magnetic_field
 
     @property
     def poloidal_flux_glob(self):
         """poloidal flux recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._grouped_caches["representations"]["glob"]["poloidal_flux"]
+        return self._views.glob.equilibrium.poloidal_flux
     
     @property
     def poloidal_flux_gauss(self):
         """poloidal flux recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
-        return self._grouped_caches["representations"]["gauss"]["poloidal_flux"]
+        return self._views.gauss.equilibrium.poloidal_flux
 
     @property
     def magnetic_field_unit_glob(self):
         """magnetic field unit vector recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._grouped_caches["representations"]["glob"]["magnetic_field_unit"]
+        return self._views.glob.equilibrium.magnetic_field_unit
 
     @property
     def jtor_glob(self):
         """plassma current recombined on a full mesh. This one has shape [Nelems x nodes_per_elem]"""
-        return self._grouped_caches["representations"]["glob"]["jtor"]
+        return self._views.glob.equilibrium.jtor
 
     @property
     def solution_gauss(self):
@@ -712,17 +729,17 @@ class HDGsolution:
     @property
     def magnetic_field_gauss(self):
         """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
-        return self._grouped_caches["representations"]["gauss"]["magnetic_field"]
+        return self._views.gauss.equilibrium.magnetic_field
 
     @property
     def magnetic_field_unit_gauss(self):
         """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
-        return self._grouped_caches["representations"]["gauss"]["magnetic_field_unit"]
+        return self._views.gauss.equilibrium.magnetic_field_unit
 
     @property
     def jtor_gauss(self):
         """plassma current recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
-        return self._grouped_caches["representations"]["gauss"]["jtor"]
+        return self._views.gauss.equilibrium.jtor
 
     @property
     def solution_glob_phys(self):
