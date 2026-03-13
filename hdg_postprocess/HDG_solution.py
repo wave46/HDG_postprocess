@@ -53,6 +53,19 @@ from hdg_postprocess.solution_operations import (
 import os
 class HDGsolution:
     ""
+    _LEGACY_NONE_DEFAULTS = (
+        "_atomic_parameters",
+        "_dnn_parameters",
+        "_ionization_rate_simple",
+        "_recombination_rate_simple",
+        "_cx_rate_simple",
+        "_dk_parameters",
+        "_sample_interpolator",
+        "_solution_interpolators",
+        "_gradient_interpolators",
+        "_field_interpolators",
+        "_qcyl_interpolator",
+    )
     _VIEW_CONTAINER_PATHS = {
         "_solution_simple": ("simple", "solution", "conservative"),
         "_gradient_simple": ("simple", "gradient", "conservative"),
@@ -308,8 +321,6 @@ class HDGsolution:
         self._combined_simple_solution = False
         self._views = SolutionViews()
         self._summary = SolutionSummaryState()
-        self._magnetic_field_simple= None
-        self._jtor_simple = None
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
@@ -397,96 +408,15 @@ class HDGsolution:
             },
         }
 
-        #boundary solutions
-        self._solution_boundary = None
-        self._solution_skeleton_boundary = None
-        self._gradient_boundary = None
-        
-        # neutral parameters
-        self._atomic_parameters = None
-        self._dnn_parameters = None
-        self._ionization_source_simple = None
-        self._ion_gain_iz_simple = None
-        self._ion_sink_rec_simple = None
-        self._ion_sink_cx_simple = None
-        self._electron_sink_iz_simple = None
-        self._electron_sink_rec_simple = None
-        self._electron_gain_rec_simple = None
-        self._electron_sink_cooling_factor_simple = None
-        self._cooling_factor_simple = None
-        self._cx_source_simple = None
-        self._ionization_rate_simple = None   
-        self._recombination_rate_simple = None        
-        self._cx_rate_simple = None
-        self._dnn_simple = None
-        self._dnn_with_nn_collision_simple = None
-        self._mfp_simple = None
-
-        self._external_heating_simple = None
-        self._external_heating_e_simple = None
-        self._external_heating_i_simple = None
-        
-
-        #plasma parameters
-        self._ohmic_source_simple = None
-
-        #magentic field parameters
-        self._r_axis = None
-        self._z_axis = None
-        self._a_simple = None
-        self._a_glob = None
-        self._qcyl_simple = None
-        self._qcyl_glob = None
-
-        #turbulent model parameters
-        self._dk_parameters = None
-        self._dk_simple = None
-        self._dk_glob = None
-
-
-        #interpolators
-        self._sample_interpolator = None
-        self._solution_interpolators= None
-        self._gradient_interpolators= None
-
-        #values in gauss points
-
-        self._solution_gauss = None
-        self._gradient_gauss = None
-        self._magnetic_field_gauss = None
-        self._jtor_gauss = None
-        self._poloidal_flux_gauss = None
-        self._ohmic_source_gauss = None
-        self._ionization_source_gauss = None
-        self._ion_gain_iz_gauss = None
-        self._ion_sink_rec_gauss = None
-        self._ion_sink_cx_gauss = None
-        self._electron_sink_iz_gauss = None
-        self._electron_sink_rec_gauss = None
-        self._electron_gain_rec_gauss = None
-        self._electron_sink_cooling_factor_gauss = None
-        self._cooling_factor_gauss = None
-        self._cx_source_gauss = None
-        self._external_heating_gauss = None
-        self._external_heating_e_gauss = None
-        self._external_heating_i_gauss = None
-
-        # total volumetric values
-        self._ohmic_source_total = None
-        self._electron_sink_iz_total = None
-        self._ion_gain_iz_total = None
-        self._electron_sink_rec_total = None
-        self._electron_gain_rec_total = None
-        self._ion_sink_rec_total = None
-        self._ion_sink_cx_total = None
-        self._external_heating_total = None
-        self._external_heating_e_total = None
-        self._external_heating_i_total = None
-
-        #boundary 
-        self._boundary_summary = None
-        self._ion_energy_sheath_loss_total = None
-        self._electron_energy_sheath_loss_total = None
+        mapped_state_names = (
+            set(self._GROUPED_CACHE_PATHS)
+            | set(self._VIEW_CONTAINER_PATHS)
+            | set(self._SUMMARY_CONTAINER_PATHS)
+        )
+        for name in sorted(mapped_state_names):
+            setattr(self, name, None)
+        for name in self._LEGACY_NONE_DEFAULTS:
+            setattr(self, name, None)
 
         # defining the indexes of conservative variables
         self._cons_idx = {}
@@ -512,28 +442,8 @@ class HDGsolution:
             self.parameters['physics']['external_heating_e'] = (self.parameters['physics']['external_heating_e']*self.parameters['adimensionalization']['specific_energy_density_scale']/
                                         self.parameters['adimensionalization']['time_scale']*self.parameters['adimensionalization']['mass_scale'])
 
-
-        if self._n_partitions == 1:
-            #no need to recombine meshes
-            self._combined_to_full = False
-            self._combined_boundary = False
-            self._magnetic_field_glob = None
-            self._magnetic_field_unit_glob = None
-            self._jtor_glob = None
-            
-
-
-        
-        else:
-            self._combined_to_full = False            
-            self._combined_boundary = False
-            self._magnetic_field_glob = None
-            self._magnetic_field_unit_glob = None
-            self._jtor_glob = None    
-
-        
-        
-     
+        self._combined_to_full = False
+        self._combined_boundary = False
 
 
     @property
