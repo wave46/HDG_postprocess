@@ -150,3 +150,9 @@ def test_grouped_caches_sync_representations(manifest_path):
     assert sol._grouped_caches["representations"]["gauss"]["magnetic_field"] is sol.magnetic_field_gauss
     assert sol._views.simple.solution.conservative is sol.solution_simple
     assert sol._views.simple.gradient.conservative is sol.gradient_simple
+    assert sol._views.gauss.solution.conservative is sol.solution_gauss
+    assert sol._views.gauss.gradient.conservative is sol.gradient_gauss
+    assert sol._views.boundary.solution.conservative is sol.solution_boundary
+    assert sol._views.boundary.solution_skeleton.conservative is sol.solution_skeleton_boundary
+    assert sol._views.boundary_gauss.solution.conservative is sol.solution_boundary_gauss
+    assert sol._views.boundary_gauss.solution_skeleton.conservative is sol.solution_skeleton_boundary_gauss

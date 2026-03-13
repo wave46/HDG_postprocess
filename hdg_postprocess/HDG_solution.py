@@ -62,6 +62,14 @@ class HDGsolution:
         "_gradient_glob": ("glob", "gradient", "conservative"),
         "_solution_glob_phys": ("glob", "solution", "physical"),
         "_gradient_glob_phys": ("glob", "gradient", "physical"),
+        "_solution_gauss": ("gauss", "solution", "conservative"),
+        "_gradient_gauss": ("gauss", "gradient", "conservative"),
+        "_solution_boundary": ("boundary", "solution", "conservative"),
+        "_solution_skeleton_boundary": ("boundary", "solution_skeleton", "conservative"),
+        "_gradient_boundary": ("boundary", "gradient", "conservative"),
+        "_solution_boundary_gauss": ("boundary_gauss", "solution", "conservative"),
+        "_solution_skeleton_boundary_gauss": ("boundary_gauss", "solution_skeleton", "conservative"),
+        "_gradient_boundary_gauss": ("boundary_gauss", "gradient", "conservative"),
     }
     _GROUPED_CACHE_PATHS = {
         "_solution_simple": ("representations", "simple", "solution"),
@@ -575,17 +583,17 @@ class HDGsolution:
     @property
     def solution_boundary(self):
         """conservative solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
-        return self._grouped_caches["representations"]["boundary"]["solution"]
+        return self._views.boundary.solution.conservative
 
     @property
     def solution_skeleton_boundary(self):
         """conservative skeleton solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
-        return self._grouped_caches["representations"]["boundary"]["solution_skeleton"]
+        return self._views.boundary.solution_skeleton.conservative
     
     @property
     def gradient_boundary(self):
         """ gradient  on a boundary [Nextfaces x n_nodes_per_face x neq x ndim]"""
-        return self._grouped_caches["representations"]["boundary"]["gradient"]
+        return self._views.boundary.gradient.conservative
     
     @property
     def magnetic_field_boundary(self):
@@ -605,17 +613,17 @@ class HDGsolution:
     @property
     def solution_boundary_gauss(self):
         """conservative solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
-        return self._grouped_caches["representations"]["boundary_gauss"]["solution"]
+        return self._views.boundary_gauss.solution.conservative
 
     @property
     def solution_skeleton_boundary_gauss(self):
         """conservative skeleton solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
-        return self._grouped_caches["representations"]["boundary_gauss"]["solution_skeleton"]
+        return self._views.boundary_gauss.solution_skeleton.conservative
     
     @property
     def gradient_boundary_gauss(self):
         """gradient united on gauss points of faces of the boundary (means not taking into account repeating points) [Nextfaces x n_gauss_points_per_face x neq x ndim]"""
-        return self._grouped_caches["representations"]["boundary_gauss"]["gradient"]
+        return self._views.boundary_gauss.gradient.conservative
     
     @property
     def magnetic_field_boundary_gauss(self):
@@ -694,12 +702,12 @@ class HDGsolution:
     @property
     def solution_gauss(self):
         """Solution recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq]"""
-        return self._grouped_caches["representations"]["gauss"]["solution"]
+        return self._views.gauss.solution.conservative
 
     @property
     def gradient_gauss(self):
         """Gradients recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq x ndim]"""
-        return self._grouped_caches["representations"]["gauss"]["gradient"]
+        return self._views.gauss.gradient.conservative
 
     @property
     def magnetic_field_gauss(self):
