@@ -87,6 +87,12 @@ class HDGsolution:
         "_magnetic_field_boundary_gauss": ("boundary_gauss", "equilibrium", "magnetic_field"),
         "_magnetic_field_unit_boundary_gauss": ("boundary_gauss", "equilibrium", "magnetic_field_unit"),
         "_poloidal_flux_boundary_gauss": ("boundary_gauss", "equilibrium", "poloidal_flux"),
+        "_dnn_simple": ("simple", "derived", "dnn"),
+        "_dnn_simple_with_nn_collision": ("glob", "derived", "dnn_with_nn_collision"),
+        "_dnn_simple_with_nn_collision_simple": ("simple", "derived", "dnn_with_nn_collision"),
+        "_dk_simple": ("simple", "derived", "dk"),
+        "_dk_glob": ("glob", "derived", "dk"),
+        "_mfp_simple": ("simple", "derived", "mfp"),
     }
     _GROUPED_CACHE_PATHS = {
         "_solution_simple": ("representations", "simple", "solution"),
@@ -1037,32 +1043,32 @@ class HDGsolution:
     @property
     def dnn_simple(self):
         """Neutral diffusion on a simple solution mesh"""
-        return self._grouped_caches["derived"]["simple"]["dnn"]
+        return self._views.simple.derived.dnn
 
     @property
     def dnn_simple_with_nn_collision(self):
         """Neutral diffusion with neutral-neutral diffusions on a global solution mesh"""
-        return self._grouped_caches["derived"]["glob"]["dnn_with_nn_collision_legacy"]
+        return self._views.glob.derived.dnn_with_nn_collision
     
     @property
     def dnn_simple_with_nn_collision_simple(self):
         """Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"""
-        return self._grouped_caches["derived"]["simple"]["dnn_with_nn_collision"]
+        return self._views.simple.derived.dnn_with_nn_collision
 
     @property
     def dk_simple(self):
         """Turbulent diffusion on a simple solution mesh"""
-        return self._grouped_caches["derived"]["simple"]["dk"]
+        return self._views.simple.derived.dk
     
     @property
     def dk_glob(self):
         """Turbulent diffusion on a full solution mesh"""
-        return self._grouped_caches["derived"]["glob"]["dk"]
+        return self._views.glob.derived.dk
     
     @property
     def mfp_simple(self):
         """Neutral mean free path on a simple solution mesh"""
-        return self._grouped_caches["derived"]["simple"]["mfp"]
+        return self._views.simple.derived.mfp
         
     @property
     def sample_interpolator(self):

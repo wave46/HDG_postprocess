@@ -16,11 +16,20 @@ class EquilibriumViewState:
 
 
 @dataclass
+class DerivedViewState:
+    dnn: object = None
+    dnn_with_nn_collision: object = None
+    mfp: object = None
+    dk: object = None
+
+
+@dataclass
 class SolutionViewState:
     solution: SolutionFieldState = field(default_factory=SolutionFieldState)
     solution_skeleton: SolutionFieldState = field(default_factory=SolutionFieldState)
     gradient: SolutionFieldState = field(default_factory=SolutionFieldState)
     equilibrium: EquilibriumViewState = field(default_factory=EquilibriumViewState)
+    derived: DerivedViewState = field(default_factory=DerivedViewState)
 
 
 @dataclass

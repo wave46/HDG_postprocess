@@ -62,6 +62,8 @@ def test_grouped_caches_sync_physical_and_equilibrium(manifest_path):
     assert sol._views.simple.solution.physical is sol.solution_simple_phys
     assert sol._views.glob.solution.conservative is sol.solution_glob
     assert sol._views.glob.gradient.physical is sol.gradient_glob_phys
+    assert sol._views.simple.derived.dk is sol.dk_simple
+    assert sol._views.glob.derived.dk is sol.dk_glob
 
 
 def test_grouped_caches_sync_neutral_derived_fields(manifest_path):
@@ -90,6 +92,10 @@ def test_grouped_caches_sync_neutral_derived_fields(manifest_path):
     assert sol._grouped_caches["derived"]["simple"]["dnn_with_nn_collision"] is sol.dnn_simple_with_nn_collision_simple
     assert sol._grouped_caches["derived"]["glob"]["dnn_with_nn_collision_legacy"] is sol.dnn_simple_with_nn_collision
     assert sol._grouped_caches["derived"]["simple"]["mfp"] is sol.mfp_simple
+    assert sol._views.simple.derived.dnn is sol.dnn_simple
+    assert sol._views.simple.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision_simple
+    assert sol._views.simple.derived.mfp is sol.mfp_simple
+    assert sol._views.glob.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision
 
 
 def test_grouped_caches_sync_sources_and_totals(manifest_path):
