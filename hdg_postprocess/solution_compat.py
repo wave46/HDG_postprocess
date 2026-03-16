@@ -44,23 +44,6 @@ _STATE_PROPERTY_DOCS = {
     ),
 }
 
-_SOURCE_TOTAL_DOCS = {
-    "ion_gain_iz_total": "Total ion energy sink due to ionization on a full solution mesh using conservative values as inputs",
-    "ion_sink_rec_total": "Total ion energy sink due to recombination on a full solution mesh using conservative values as inputs",
-    "ion_sink_cx_total": "Total ion energy sink due to charge exchange on a full solution mesh using conservative values as inputs",
-    "electron_sink_iz_total": "Total electron energy sink due to ionization on a full solution mesh using conservative values as inputs",
-    "electron_sink_rec_total": "Total electron energy sink due to recombination on a full solution mesh using conservative values as inputs",
-    "electron_gain_rec_total": "Total electron energy source due to recombination on a full solution mesh using conservative values as inputs",
-    "external_heating_total": "Total external heating source on a full solution mesh using conservative values as inputs",
-    "external_heating_e_total": "Total external heating source on electrons on a full solution mesh using conservative values as inputs",
-    "external_heating_i_total": "Total external heating source on ions on a full solution mesh using conservative values as inputs",
-    "ohmic_source_total": "Total ohmic heating source on a full solution mesh using conservative values as inputs",
-}
-
-
 def attach_compat_properties(cls):
     for name, (root_attr, path, doc) in _STATE_PROPERTY_DOCS.items():
         setattr(cls, name, _make_generated_property(root_attr, path, doc))
-
-    for name, doc in _SOURCE_TOTAL_DOCS.items():
-        setattr(cls, name, _make_generated_property("_summary", ("sources", name), doc))
