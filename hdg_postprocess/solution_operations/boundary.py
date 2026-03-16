@@ -14,7 +14,7 @@ def summary_along_the_wall(solution):
         or solution.metadata.cache.boundary_gauss_boundaries != default_boundaries
     ):
         print("Comibining first values on boundary gauss points")
-        solution.calculate_in_boundary_gauss_points(default_boundaries)
+        solution.assembly.boundary_gauss(default_boundaries)
     boundary_gauss = solution.views.boundary_gauss
     boundary_solution = boundary_gauss.solution.conservative
     boundary_solution_skeleton = boundary_gauss.solution_skeleton.conservative
@@ -265,7 +265,7 @@ def calculate_boundary_summary(solution):
         not solution.metadata.flags.combined_boundary_gauss
         or solution.metadata.cache.boundary_gauss_boundaries != default_boundaries
     ):
-        solution.calculate_in_boundary_gauss_points(default_boundaries)
+        solution.assembly.boundary_gauss(default_boundaries)
     solution.summary.boundary.profile = solution.summary_along_the_wall()
     return solution.summary.boundary.profile
 

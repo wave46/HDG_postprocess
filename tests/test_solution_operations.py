@@ -44,8 +44,8 @@ def test_solution_operations_demo_surface(manifest_path):
     baseline = json.load(open("tests/baselines/embedded_k_model.json"))
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
 
-    sol.recombine_full_solution()
-    sol.recombine_simple_full_solution()
+    sol.assembly.full()
+    sol.assembly.simple()
     sol.init_phys_variables("both")
     sol.define_interpolators()
 

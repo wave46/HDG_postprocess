@@ -1,5 +1,7 @@
 import numpy as np
 
+from hdg_postprocess.solution_operations import assembly as assembly_ops
+from hdg_postprocess.solution_operations import magnetic_equilibrium as equilibrium_ops
 from hdg_postprocess.solution_operations import neutrals as neutrals_ops
 from hdg_postprocess.solution_operations import plasma_sources as plasma_source_ops
 from hdg_postprocess.solution_operations import turbulent_model as turbulent_model_ops
@@ -12,7 +14,7 @@ class SolutionFields:
     def conservative(self, view="full", gradients=False, skeleton=False, boundaries=None):
         if view == "simple":
             if not self._solution.metadata.flags.combined_simple_solution:
-                self._solution.recombine_simple_full_solution()
+                self._solution.assembly.simple()
             return (
                 self._solution.views.simple.gradient.conservative
                 if gradients
@@ -20,7 +22,7 @@ class SolutionFields:
             )
         if view == "full":
             if not self._solution.metadata.flags.combined_to_full:
-                self._solution.recombine_full_solution()
+                self._solution.assembly.full()
             return (
                 self._solution.views.glob.gradient.conservative
                 if gradients
@@ -28,7 +30,7 @@ class SolutionFields:
             )
         if view == "gauss":
             if not self._solution.metadata.flags.combined_gauss:
-                self._solution.calculate_in_gauss_points()
+                self._solution.assembly.gauss()
             return (
                 self._solution.views.gauss.gradient.conservative
                 if gradients
@@ -36,7 +38,7 @@ class SolutionFields:
             )
         if view == "boundary":
             if not self._solution.metadata.flags.combined_boundary:
-                self._solution.recombine_boundary_solution()
+                self._solution.assembly.boundary()
             if gradients and skeleton:
                 raise ValueError("Boundary gradient and solution skeleton are distinct views.")
             if gradients:
@@ -48,7 +50,7 @@ class SolutionFields:
             if not self._solution.metadata.flags.combined_boundary_gauss:
                 if boundaries is None:
                     boundaries = np.unique(self._solution.raw.boundary_infos[0]["boundary_flags"])
-                self._solution.calculate_in_boundary_gauss_points(boundaries)
+                self._solution.assembly.boundary_gauss(boundaries)
             if gradients and skeleton:
                 raise ValueError("Boundary gradient and solution skeleton are distinct views.")
             if gradients:
@@ -93,25 +95,25 @@ class SolutionAssembly:
         self._solution = solution
 
     def full(self):
-        self._solution.recombine_full_solution()
+        assembly_ops.recombine_full_solution(self._solution)
         return self._solution.views.glob
 
     def simple(self):
-        self._solution.recombine_simple_full_solution()
+        assembly_ops.recombine_simple_full_solution(self._solution)
         return self._solution.views.simple
 
     def boundary(self):
-        self._solution.recombine_boundary_solution()
+        assembly_ops.recombine_boundary_solution(self._solution)
         return self._solution.views.boundary
 
     def gauss(self):
-        self._solution.calculate_in_gauss_points()
+        assembly_ops.calculate_in_gauss_points(self._solution)
         return self._solution.views.gauss
 
     def boundary_gauss(self, boundaries=None):
         if boundaries is None:
             boundaries = np.unique(self._solution.raw.boundary_infos[0]["boundary_flags"])
-        self._solution.calculate_in_boundary_gauss_points(boundaries)
+        assembly_ops.calculate_in_boundary_gauss_points(self._solution, boundaries)
         return self._solution.views.boundary_gauss
 
 
@@ -120,18 +122,18 @@ class SolutionEquilibrium:
         self._solution = solution
 
     def define_axis(self):
-        self._solution.define_magnetic_axis()
+        equilibrium_ops.define_magnetic_axis(self._solution)
         return self._solution.summary.equilibrium.axis
 
     def define_minor_radii(self, view="simple"):
         which = "full" if view == "glob" else view
-        self._solution.define_minor_radii(which=which)
+        equilibrium_ops.define_minor_radii(self._solution, which=which)
         target_view = self._solution.views.glob if which == "full" else getattr(self._solution.views, which)
         return target_view.equilibrium.a
 
     def define_qcyl(self, view="simple"):
         which = "full" if view == "glob" else view
-        self._solution.define_qcyl(which=which)
+        equilibrium_ops.define_qcyl(self._solution, which=which)
         target_view = self._solution.views.glob if which == "full" else getattr(self._solution.views, which)
         return target_view.equilibrium.qcyl
 

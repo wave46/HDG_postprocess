@@ -38,7 +38,7 @@ def calculate_ohmic_source(solution, which="simple"):
         _ensure_full_solution(solution)
         if solution.views.gauss.equilibrium.jtor is None:
             print("Calculating on gauss points first")
-            solution.calculate_in_gauss_points()
+            solution.assembly.gauss()
         gauss_view = solution.views.gauss
         gauss_view.sources.ohmic_source = calculate_ohmic_source_cons(
             gauss_view.solution.conservative,
@@ -429,13 +429,13 @@ def _ensure_simple_phys(solution):
 
 def _ensure_full_solution(solution):
     if not solution.metadata.flags.combined_to_full:
-        solution.recombine_full_solution()
+        solution.assembly.full()
 
 
 def _ensure_gauss_solution(solution):
     if solution.views.gauss.solution.conservative is None:
         print("Initializing values in gauss points first")
-        solution.calculate_in_gauss_points()
+        solution.assembly.gauss()
 
 
 def _assign_simple_view(solution, field_name, full_values):

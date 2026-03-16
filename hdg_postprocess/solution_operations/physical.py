@@ -33,7 +33,7 @@ def init_phys_variables(solution, which="both"):
     if which == "simple":
         if not flags.combined_simple_solution:
             print("Comibining first simple solution full")
-            solution.recombine_simple_full_solution()
+            solution.assembly.simple()
         simple_view = solution.views.simple
         solution.cons2phys(simple_view.solution.conservative)
         solution.cons2phys(simple_view.gradient.conservative)
@@ -41,7 +41,7 @@ def init_phys_variables(solution, which="both"):
     elif which == "full":
         if not flags.combined_to_full:
             print("Comibining first solution full")
-            solution.recombine_full_solution()
+            solution.assembly.full()
         glob_view = solution.views.glob
         solution.cons2phys(glob_view.solution.conservative)
         solution.cons2phys(glob_view.gradient.conservative)
@@ -52,7 +52,7 @@ def init_phys_variables(solution, which="both"):
             solution.init_phys_variables(which="full")
         if not flags.combined_gauss:
             print("Comibining first solution in gauss points")
-            solution.calculate_in_gauss_points()
+            solution.assembly.gauss()
         gauss_view = solution.views.gauss
         solution.cons2phys(gauss_view.solution.conservative)
         solution.cons2phys(gauss_view.gradient.conservative)

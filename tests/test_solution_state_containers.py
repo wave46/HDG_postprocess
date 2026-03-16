@@ -41,14 +41,14 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
 
-    sol.recombine_full_solution()
-    sol.recombine_simple_full_solution()
+    sol.assembly.full()
+    sol.assembly.simple()
     sol.init_phys_variables("both")
-    sol.define_magnetic_axis()
-    sol.define_minor_radii(which="full")
-    sol.define_minor_radii(which="simple")
-    sol.define_qcyl(which="full")
-    sol.define_qcyl(which="simple")
+    sol.equilibrium.define_axis()
+    sol.equilibrium.define_minor_radii(view="glob")
+    sol.equilibrium.define_minor_radii(view="simple")
+    sol.equilibrium.define_qcyl(view="glob")
+    sol.equilibrium.define_qcyl(view="simple")
     sol.additional_parameters.set_turbulence(
         {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0},
         sol.parameters["adimensionalization"],
@@ -88,8 +88,8 @@ def test_container_state_sync_neutral_derived_fields(manifest_path):
     )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
-    sol.recombine_full_solution()
-    sol.recombine_simple_full_solution()
+    sol.assembly.full()
+    sol.assembly.simple()
     sol.neutrals.dnn("simple")
     sol.neutrals.dnn("simple", with_nn_collision=True)
     sol.neutrals.mfp("simple")
@@ -121,14 +121,14 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
     sol.additional_parameters.set_neutral_diffusion(dnn_parameters, sol.parameters["adimensionalization"])
     sol.additional_parameters.set_turbulence(dk_parameters, sol.parameters["adimensionalization"])
 
-    sol.recombine_full_solution()
-    sol.recombine_simple_full_solution()
+    sol.assembly.full()
+    sol.assembly.simple()
     sol.sources.ionization_rate("simple")
     sol.sources.recombination_rate("simple")
     sol.sources.cx_rate("simple")
-    sol.define_magnetic_axis()
-    sol.define_minor_radii(which="full")
-    sol.define_qcyl(which="full")
+    sol.equilibrium.define_axis()
+    sol.equilibrium.define_minor_radii(view="glob")
+    sol.equilibrium.define_qcyl(view="glob")
     sol.define_interpolators()
 
     assert sol.additional_parameters.atomic is atomic_parameters
@@ -165,8 +165,8 @@ def test_container_state_sync_sources_and_totals(manifest_path):
     )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
-    sol.recombine_full_solution()
-    sol.recombine_simple_full_solution()
+    sol.assembly.full()
+    sol.assembly.simple()
     sol.sources.ionization("simple")
     sol.sources.electron_sink_rec("simple")
     sol.sources.cx("simple")
@@ -201,11 +201,11 @@ def test_container_state_sync_representations(manifest_path):
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
 
-    sol.recombine_full_solution()
-    sol.recombine_simple_full_solution()
-    sol.recombine_boundary_solution()
-    sol.calculate_in_gauss_points()
-    sol.calculate_in_boundary_gauss_points(np.unique(sol.raw.boundary_infos[0]["boundary_flags"]))
+    sol.assembly.full()
+    sol.assembly.simple()
+    sol.assembly.boundary()
+    sol.assembly.gauss()
+    sol.assembly.boundary_gauss(np.unique(sol.raw.boundary_infos[0]["boundary_flags"]))
 
     assert sol.views.simple.solution.conservative is not None
     assert sol.views.simple.gradient.conservative is not None

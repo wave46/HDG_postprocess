@@ -16,7 +16,7 @@ from hdg_postprocess.routines.plasma import (
 def _ensure_simple_solution(solution):
     if not solution.metadata.flags.combined_simple_solution:
         print("Comibining first simple solution full")
-        solution.recombine_simple_full_solution()
+        solution.assembly.simple()
 
 
 def _ensure_simple_physical(solution):
@@ -104,7 +104,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
     _ensure_simple_solution(solution)
     if not second_solution.metadata.flags.combined_simple_solution:
         print("Comibining first simple solution of the second one full")
-        second_solution.recombine_simple_full_solution()
+        second_solution.assembly.simple()
     left_simple_solution = solution.views.simple.solution.conservative
     right_simple_solution = second_solution.views.simple.solution.conservative
 
@@ -354,11 +354,11 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
             if solution.additional_parameters.turbulence is None:
                 raise ValueError("Please, provide turbulent diffusion settings for the simulation")
             if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
-                solution.define_magnetic_axis()
+                solution.equilibrium.define_axis()
             if solution.views.simple.equilibrium.a is None:
-                solution.define_minor_radii(which="simple")
+                solution.equilibrium.define_minor_radii(view="simple")
             if solution.views.simple.equilibrium.qcyl is None:
-                solution.define_qcyl(which="simple")
+                solution.equilibrium.define_qcyl(view="simple")
             data = calculate_dk_cons(
                 simple_solution,
                 solution.additional_parameters.turbulence,

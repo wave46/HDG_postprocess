@@ -100,7 +100,7 @@ def _ensure_simple_phys(solution):
 
 def _ensure_full_solution(solution):
     if not solution.metadata.flags.combined_to_full:
-        solution.recombine_full_solution()
+        solution.assembly.full()
 
 
 def _simple_values(solution, full_values):

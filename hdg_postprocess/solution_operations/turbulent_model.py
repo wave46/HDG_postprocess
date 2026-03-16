@@ -13,13 +13,13 @@ def calculate_dk(solution, which="simple"):
 
         if not solution.metadata.flags.combined_simple_solution:
             print("Initializing physical solution first")
-            solution.recombine_simple_full_solution()
+            solution.assembly.simple()
         if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
-            solution.define_magnetic_axis()
+            solution.equilibrium.define_axis()
         if solution.views.simple.equilibrium.a is None:
-            solution.define_minor_radii(which="simple")
+            solution.equilibrium.define_minor_radii(view="simple")
         if solution.views.simple.equilibrium.qcyl is None:
-            solution.define_qcyl(which="simple")
+            solution.equilibrium.define_qcyl(view="simple")
         calculate_dk(solution, which="full")
         solution.views.simple.derived.dk = np.zeros(solution.mesh.vertices_glob.shape[0])
         solution.views.simple.derived.dk[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.views.glob.derived.dk.reshape(
@@ -32,13 +32,13 @@ def calculate_dk(solution, which="simple"):
 
         if not solution.metadata.flags.combined_simple_solution:
             print("Initializing physical solution first")
-            solution.recombine_simple_full_solution()
+            solution.assembly.simple()
         if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
-            solution.define_magnetic_axis()
+            solution.equilibrium.define_axis()
         if solution.views.glob.equilibrium.a is None:
-            solution.define_minor_radii(which="full")
+            solution.equilibrium.define_minor_radii(view="glob")
         if solution.views.glob.equilibrium.qcyl is None:
-            solution.define_qcyl(which="full")
+            solution.equilibrium.define_qcyl(view="glob")
 
         solution.views.glob.derived.dk = calculate_dk_cons(
             solution.views.glob.solution.conservative,

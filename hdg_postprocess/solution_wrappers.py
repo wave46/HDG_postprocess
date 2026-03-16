@@ -1,7 +1,5 @@
 from hdg_postprocess.solution_operations import analysis as analysis_ops
-from hdg_postprocess.solution_operations import assembly as assembly_ops
 from hdg_postprocess.solution_operations import boundary as boundary_ops
-from hdg_postprocess.solution_operations import magnetic_equilibrium as equilibrium_ops
 from hdg_postprocess.solution_operations import physical as physical_ops
 from hdg_postprocess.solution_operations import plotting as plotting_ops
 from hdg_postprocess.solution_operations import pointwise_fields as pointwise_fields_ops
@@ -19,19 +17,6 @@ def _make_delegate(name, func, doc=None):
 
 
 _WRAPPER_SPECS = [
-    ("recombine_full_solution", assembly_ops.recombine_full_solution, "Recombine raw solutions into one single mesh."),
-    (
-        "recombine_simple_full_solution",
-        assembly_ops.recombine_simple_full_solution,
-        "Create the vertex-only convenience view used for lightweight plotting and sampling.",
-    ),
-    ("recombine_boundary_solution", assembly_ops.recombine_boundary_solution, "Extract boundary solution data."),
-    ("calculate_in_gauss_points", assembly_ops.calculate_in_gauss_points, "Evaluate solution data in volume Gauss points."),
-    (
-        "calculate_in_boundary_gauss_points",
-        assembly_ops.calculate_in_boundary_gauss_points,
-        "Evaluate solution data in boundary Gauss points.",
-    ),
     ("summary_along_the_wall", boundary_ops.summary_along_the_wall, "Summarize physical quantities along the wall."),
     ("plot_overview", plotting_ops.plot_overview, "Plot conservative overview fields."),
     ("plot_overview_difference", plotting_ops.plot_overview_difference, "Plot conservative differences between solutions."),
@@ -44,9 +29,6 @@ _WRAPPER_SPECS = [
         "Plot physical differences between solutions.",
     ),
     ("plot_variables_overview", plotting_ops.plot_variables_overview, "Plot a custom overview selection."),
-    ("define_magnetic_axis", equilibrium_ops.define_magnetic_axis, "Define magnetic axis from the equilibrium field."),
-    ("define_minor_radii", equilibrium_ops.define_minor_radii, "Define minor radii on the requested view."),
-    ("define_qcyl", equilibrium_ops.define_qcyl, "Define cylindrical safety factor on the requested view."),
     ("calculate_variables_along_line", sampling_ops.calculate_variables_along_line, "Sample variables along a line."),
     ("save_summary_line", sampling_ops.save_summary_line, "Save a sampled line summary to disk."),
     ("calculate_power_balance", analysis_ops.calculate_power_balance, "Compute the power-balance summary."),

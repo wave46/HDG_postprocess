@@ -41,9 +41,9 @@ def test_solution_magnetic_equilibrium_surface(manifest_path):
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
 
-    sol.define_magnetic_axis()
-    sol.define_minor_radii("full")
-    sol.define_qcyl("simple")
+    sol.equilibrium.define_axis()
+    sol.equilibrium.define_minor_radii("glob")
+    sol.equilibrium.define_qcyl("simple")
 
     axis_flux = sol.views.simple.equilibrium.poloidal_flux.min()
     axis_candidates = sol.mesh.vertices_glob[np.where(sol.views.simple.equilibrium.poloidal_flux == axis_flux)][0]

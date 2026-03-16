@@ -55,7 +55,7 @@ def test_solution_plotting_smoke_and_mesh_linewidth(manifest_path):
     assert np.asarray(axes2).size >= sol.neq
 
     fig3, ax3 = plt.subplots()
-    sol.recombine_full_solution()
+    sol.assembly.full()
     ax3 = sol.mesh.plot_full_mesh(ax=ax3, linewidth=2.75)
     assert ax3.collections, "expected a mesh collection to be added"
     collection = ax3.collections[0]

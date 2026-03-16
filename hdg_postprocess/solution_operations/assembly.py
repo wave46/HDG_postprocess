@@ -81,7 +81,7 @@ def recombine_full_solution(solution):
 def recombine_simple_full_solution(solution):
     if not solution.metadata.flags.combined_to_full:
         print("Comibining first solution full")
-        solution.recombine_full_solution()
+        recombine_full_solution(solution)
     glob_view = solution.views.glob
     simple_view = solution.views.simple
     simple_view.solution.conservative = np.zeros([solution.mesh.vertices_glob.shape[0], solution.neq])
@@ -121,7 +121,7 @@ def recombine_simple_full_solution(solution):
 def recombine_boundary_solution(solution):
     if not solution.metadata.flags.combined_to_full:
         print("Comibining first solution full")
-        solution.recombine_full_solution()
+        recombine_full_solution(solution)
     if solution.mesh.connectivity_b_glob is None:
         print("Comibining first boundary connectivity and info")
         solution.mesh.recombine_full_boundary(solution.raw.boundary_infos)
@@ -186,7 +186,7 @@ def recombine_boundary_solution(solution):
 def calculate_in_gauss_points(solution):
     if not solution.metadata.flags.combined_to_full:
         print("Comibining first solution full")
-        solution.recombine_full_solution()
+        recombine_full_solution(solution)
     if solution.mesh.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
 
@@ -216,7 +216,7 @@ def calculate_in_boundary_gauss_points(solution, boundaries):
         raise ValueError("Please, provide reference element to the mesh")
     if not solution.metadata.flags.combined_boundary:
         print("Comibining first values on boundary")
-        solution.recombine_boundary_solution()
+        recombine_boundary_solution(solution)
     normalized_boundaries = tuple(np.asarray(boundaries, dtype=int).tolist())
     cache = solution.metadata.cache
     if solution.metadata.flags.combined_boundary_gauss and cache.boundary_gauss_boundaries == normalized_boundaries:

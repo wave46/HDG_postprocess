@@ -124,7 +124,7 @@ def save_summary_line(solution, save_folder, r_line, z_line, variable_list):
 def define_interpolators(solution):
     if not solution.metadata.flags.combined_simple_solution:
         print("Comibining first simple solution full")
-        solution.recombine_simple_full_solution()
+        solution.assembly.simple()
     if solution.mesh.connectivity_big is None:
         print("Comibining first big connectivity")
         solution.mesh.create_connectivity_big()
@@ -135,7 +135,7 @@ def define_interpolators(solution):
         solution.mesh.make_element_number_funtion()
     glob_view = solution.views.glob
     if glob_view.equilibrium.qcyl is None:
-        solution.define_qcyl(which="full")
+        solution.equilibrium.define_qcyl(view="glob")
     interpolators = solution.interpolators
     if interpolators.sample is None:
         if solution.mesh.mesh_parameters["element_type"] == "triangle":

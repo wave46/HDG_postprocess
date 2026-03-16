@@ -39,8 +39,8 @@ def _load_solution(cfg):
         cfg["n_partitions"],
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
-    sol.recombine_full_solution()
-    sol.recombine_simple_full_solution()
+    sol.assembly.full()
+    sol.assembly.simple()
     sol.init_phys_variables("both")
     sol.define_interpolators()
     return sol

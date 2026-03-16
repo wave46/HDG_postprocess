@@ -220,7 +220,7 @@ def dk(solution, r, z):
         raise ValueError("Please, provide turbulent diffusion settings for the simulation")
     _ensure_interpolators(solution)
     if solution.summary.equilibrium.axis.r is None:
-        solution.define_minor_radii()
+        solution.equilibrium.define_minor_radii(view="simple")
 
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
