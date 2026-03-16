@@ -84,6 +84,33 @@ class SolutionSummaryState:
 
 
 @dataclass
+class SolutionFlagState:
+    combined_to_full: bool = False
+    combined_boundary: bool = False
+    combined_simple_solution: bool = False
+    full_phys_initialized: bool = False
+    simple_phys_initialized: bool = False
+
+
+@dataclass
+class SolutionIndexState:
+    conservative: object = None
+    physical: object = None
+
+
+@dataclass
+class PhysicalConstantState:
+    elemental_charge: object = None
+
+
+@dataclass
+class SolutionMetadataState:
+    flags: SolutionFlagState = field(default_factory=SolutionFlagState)
+    indices: SolutionIndexState = field(default_factory=SolutionIndexState)
+    constants: PhysicalConstantState = field(default_factory=PhysicalConstantState)
+
+
+@dataclass
 class ParameterState:
     atomic: object = None
     neutral_diffusion: object = None

@@ -422,13 +422,13 @@ def _require_atomic_key(solution, key, message):
 
 
 def _ensure_simple_phys(solution):
-    if not solution._simple_phys_initialized:
+    if not solution.simple_phys_initialized:
         print("Initializing physical solution first")
         solution.init_phys_variables("simple")
 
 
 def _ensure_full_solution(solution):
-    if not solution._combined_to_full:
+    if not solution.combined_to_full:
         solution.recombine_full_solution()
 
 

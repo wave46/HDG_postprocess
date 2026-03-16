@@ -122,7 +122,7 @@ def save_summary_line(solution, save_folder, r_line, z_line, variable_list):
 
 
 def define_interpolators(solution):
-    if not solution._combined_simple_solution:
+    if not solution.combined_simple_solution:
         print("Comibining first simple solution full")
         solution.recombine_simple_full_solution()
     if solution.mesh.connectivity_big is None:

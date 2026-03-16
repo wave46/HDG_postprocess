@@ -36,7 +36,7 @@ def init_phys_variables(solution, which="both"):
         simple_view = solution.views.simple
         solution.cons2phys(simple_view.solution.conservative)
         solution.cons2phys(simple_view.gradient.conservative)
-        solution._simple_phys_initialized = True
+        solution.simple_phys_initialized = True
     elif which == "full":
         if not solution.combined_to_full:
             print("Comibining first solution full")
@@ -44,7 +44,7 @@ def init_phys_variables(solution, which="both"):
         glob_view = solution.views.glob
         solution.cons2phys(glob_view.solution.conservative)
         solution.cons2phys(glob_view.gradient.conservative)
-        solution._full_phys_initialized = True
+        solution.full_phys_initialized = True
     elif which == "both":
         print("Initializing simple physical solution full")
         solution.init_phys_variables(which="simple")

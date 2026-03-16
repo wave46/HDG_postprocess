@@ -53,7 +53,7 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
         )
 def calculate_mfp(solution, which="simple"):
     _ensure_neutral_settings(solution)
-    if not solution._simple_phys_initialized:
+    if not solution.simple_phys_initialized:
         print("Initializing physical solution first")
         solution.init_phys_variables("both")
     if which == "simple":
@@ -62,7 +62,7 @@ def calculate_mfp(solution, which="simple"):
         solution.views.simple.derived.mfp = _simple_values(solution, solution.views.glob.derived.mfp)
     if which == "full":
         _ensure_full_solution(solution)
-        if not solution._simple_phys_initialized:
+        if not solution.simple_phys_initialized:
             print("Initializing physical solution first")
             solution.init_phys_variables("full")
         if solution.views.glob.derived.dnn is None:
@@ -93,13 +93,13 @@ def _ensure_neutral_settings(solution):
 
 
 def _ensure_simple_phys(solution):
-    if not solution._simple_phys_initialized:
+    if not solution.simple_phys_initialized:
         print("Initializing physical solution first")
         solution.init_phys_variables("simple")
 
 
 def _ensure_full_solution(solution):
-    if not solution._combined_to_full:
+    if not solution.combined_to_full:
         solution.recombine_full_solution()
 
 

@@ -11,10 +11,10 @@ from hdg_postprocess.solution_operations import plotting as plotting_ops
 from hdg_postprocess.solution_operations import pointwise_fields as pointwise_fields_ops
 from hdg_postprocess.solution_operations import sampling as sampling_ops
 from hdg_postprocess.solution_operations import turbulent_model as turbulent_model_ops
-from hdg_postprocess.solution_compat import attach_compat_properties
 from hdg_postprocess.view_containers import (
     AtomicRateState,
     InterpolatorState,
+    SolutionMetadataState,
     ParameterState,
     SolutionSummaryState,
     SolutionViews,
@@ -65,16 +65,17 @@ class HDGsolution:
     def _init_state_containers(self):
         self._views = SolutionViews()
         self._summary = SolutionSummaryState()
+        self._metadata = SolutionMetadataState()
         self._parameter_state = ParameterState()
         self._atomic_rates = AtomicRateState()
         self._interpolators_state = InterpolatorState()
 
     def _init_flags(self):
-        self._combined_simple_solution = False
-        self._full_phys_initialized = False
-        self._simple_phys_initialized = False
-        self._combined_to_full = False
-        self._combined_boundary = False
+        self._metadata.flags.combined_simple_solution = False
+        self._metadata.flags.full_phys_initialized = False
+        self._metadata.flags.simple_phys_initialized = False
+        self._metadata.flags.combined_to_full = False
+        self._metadata.flags.combined_boundary = False
 
     def _init_variable_indices(self):
         self._cons_idx = {}
@@ -83,13 +84,17 @@ class HDGsolution:
         self._phys_idx = {}
         for i,label in enumerate(self.parameters['physics']['physical_variable_names']):
             self._phys_idx[label] = i
+        self._metadata.indices.conservative = self._cons_idx
+        self._metadata.indices.physical = self._phys_idx
 
     def _init_charge_scale(self):
         if 'charge_scale' in self.parameters['adimensionalization'].keys():
             self._e = self.parameters['adimensionalization']['charge_scale']
         else:
             self._e = 1.60217662e-19
-            self.parameters['adimensionalization']['charge_scale'] = self.e
+        self._metadata.constants.elemental_charge = self._e
+        if 'charge_scale' not in self.parameters['adimensionalization'].keys():
+            self.parameters['adimensionalization']['charge_scale'] = self._e
 
     def _normalize_external_heating_inputs(self):
         energy_scale = (
@@ -209,6 +214,11 @@ class HDGsolution:
         return self._summary
 
     @property
+    def metadata(self):
+        """Public structured access to metadata, flags, and constants."""
+        return self._metadata
+
+    @property
     def parameter_state(self):
         """Public structured access to setup parameter state."""
         return self._parameter_state
@@ -222,6 +232,58 @@ class HDGsolution:
     def interpolators(self):
         """Public structured access to cached interpolators."""
         return self._interpolators_state
+
+    @property
+    def combined_to_full(self):
+        return self._metadata.flags.combined_to_full
+
+    @combined_to_full.setter
+    def combined_to_full(self, value):
+        self._metadata.flags.combined_to_full = value
+
+    @property
+    def combined_boundary(self):
+        return self._metadata.flags.combined_boundary
+
+    @combined_boundary.setter
+    def combined_boundary(self, value):
+        self._metadata.flags.combined_boundary = value
+
+    @property
+    def combined_simple_solution(self):
+        return self._metadata.flags.combined_simple_solution
+
+    @combined_simple_solution.setter
+    def combined_simple_solution(self, value):
+        self._metadata.flags.combined_simple_solution = value
+
+    @property
+    def full_phys_initialized(self):
+        return self._metadata.flags.full_phys_initialized
+
+    @full_phys_initialized.setter
+    def full_phys_initialized(self, value):
+        self._metadata.flags.full_phys_initialized = value
+
+    @property
+    def simple_phys_initialized(self):
+        return self._metadata.flags.simple_phys_initialized
+
+    @simple_phys_initialized.setter
+    def simple_phys_initialized(self, value):
+        self._metadata.flags.simple_phys_initialized = value
+
+    @property
+    def e(self):
+        return self._metadata.constants.elemental_charge
+
+    @property
+    def cons_idx(self):
+        return self._metadata.indices.conservative
+
+    @property
+    def phys_idx(self):
+        return self._metadata.indices.physical
 
     def recombine_full_solution(self):
         """ 
@@ -562,6 +624,3 @@ class HDGsolution:
 
     def Q_loss_tot(self,r,z):
         return pointwise_fields_ops.Q_loss_tot(self,r,z)
-
-
-attach_compat_properties(HDGsolution)

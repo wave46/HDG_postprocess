@@ -73,7 +73,7 @@ def recombine_full_solution(solution):
     glob_view.equilibrium.magnetic_field_unit = glob_view.equilibrium.magnetic_field / np.sqrt(
         (glob_view.equilibrium.magnetic_field ** 2).sum(axis=-1)
     )[:, :, None]
-    solution._combined_to_full = True
+    solution.combined_to_full = True
 
 
 def recombine_simple_full_solution(solution):
@@ -106,7 +106,7 @@ def recombine_simple_full_solution(solution):
         simple_view.equilibrium.poloidal_flux[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.poloidal_flux.reshape(
             glob_view.equilibrium.poloidal_flux.shape[0] * glob_view.equilibrium.poloidal_flux.shape[1]
         )
-    solution._combined_simple_solution = True
+    solution.combined_simple_solution = True
 
     if "external_heating" in solution.parameters["physics"]:
         simple_view.sources.external_heating = solution.parameters["physics"]["external_heating"]
@@ -173,7 +173,7 @@ def recombine_boundary_solution(solution):
         for ind in indices:
             boundary_view.solution_skeleton.conservative[key].append(solution_skeleton_boundary[ind, :, :])
 
-    solution._combined_boundary = True
+    solution.combined_boundary = True
 
 
 def calculate_in_gauss_points(solution):
