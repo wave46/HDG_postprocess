@@ -74,6 +74,8 @@ def recombine_full_solution(solution):
         (glob_view.equilibrium.magnetic_field ** 2).sum(axis=-1)
     )[:, :, None]
     solution.metadata.flags.combined_to_full = True
+    solution.metadata.flags.combined_gauss = False
+    solution.metadata.flags.gauss_phys_initialized = False
 
 
 def recombine_simple_full_solution(solution):
@@ -200,6 +202,8 @@ def calculate_in_gauss_points(solution):
         gauss_view.sources.external_heating_e = np.einsum("ij,kj->ki", solution.mesh.reference_element["N"], solution.views.glob.sources.external_heating_e)
     if "external_heating_i" in solution.parameters["physics"]:
         gauss_view.sources.external_heating_i = np.einsum("ij,kj->ki", solution.mesh.reference_element["N"], solution.views.glob.sources.external_heating_i)
+    solution.metadata.flags.combined_gauss = True
+    solution.metadata.flags.gauss_phys_initialized = False
 
 
 def calculate_in_boundary_gauss_points(solution, boundaries):
@@ -255,4 +259,5 @@ def calculate_in_boundary_gauss_points(solution, boundaries):
     boundary_gauss_view.equilibrium.magnetic_field_unit = np.einsum(
         "ij,kjh->kih", solution.mesh.reference_element["N1d"], magnetic_field_unit_boundary_ordered
     )
+    solution.metadata.flags.combined_boundary_gauss = True
     return boundary_ordering, connectivity_ordered, iel_face_ordered

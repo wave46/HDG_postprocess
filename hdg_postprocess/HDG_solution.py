@@ -78,6 +78,9 @@ class HDGsolution:
         self._metadata.flags.simple_phys_initialized = False
         self._metadata.flags.combined_to_full = False
         self._metadata.flags.combined_boundary = False
+        self._metadata.flags.combined_gauss = False
+        self._metadata.flags.combined_boundary_gauss = False
+        self._metadata.flags.gauss_phys_initialized = False
 
     def _init_variable_indices(self):
         self._cons_idx = {}

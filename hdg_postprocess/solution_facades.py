@@ -23,7 +23,8 @@ class SolutionFields:
                 else self._solution.views.glob.solution.conservative
             )
         if view == "gauss":
-            self._solution.calculate_in_gauss_points()
+            if not self._solution.metadata.flags.combined_gauss:
+                self._solution.calculate_in_gauss_points()
             return (
                 self._solution.views.gauss.gradient.conservative
                 if gradients
@@ -47,6 +48,14 @@ class SolutionFields:
                 self._solution.views.glob.gradient.physical
                 if gradients
                 else self._solution.views.glob.solution.physical
+            )
+        if view == "gauss":
+            if not self._solution.metadata.flags.gauss_phys_initialized:
+                self._solution.init_phys_variables("gauss")
+            return (
+                self._solution.views.gauss.gradient.physical
+                if gradients
+                else self._solution.views.gauss.solution.physical
             )
         raise ValueError(f"Unsupported physical view: {view}")
 

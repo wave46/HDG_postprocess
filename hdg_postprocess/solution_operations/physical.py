@@ -46,6 +46,17 @@ def init_phys_variables(solution, which="both"):
         solution.cons2phys(glob_view.solution.conservative)
         solution.cons2phys(glob_view.gradient.conservative)
         flags.full_phys_initialized = True
+    elif which == "gauss":
+        if not flags.full_phys_initialized:
+            print("Comibining first full physical solution")
+            solution.init_phys_variables(which="full")
+        if not flags.combined_gauss:
+            print("Comibining first solution in gauss points")
+            solution.calculate_in_gauss_points()
+        gauss_view = solution.views.gauss
+        solution.cons2phys(gauss_view.solution.conservative)
+        solution.cons2phys(gauss_view.gradient.conservative)
+        flags.gauss_phys_initialized = True
     elif which == "both":
         print("Initializing simple physical solution full")
         solution.init_phys_variables(which="simple")
@@ -116,7 +127,11 @@ def cons2phys(solution, data):
             else:
                 raise KeyError("Unknown variable, go into the code and add this variable if you are sure")
 
-        if len(data.shape) == 3:
+        if data is solution.views.glob.solution.conservative:
+            solution.views.glob.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
+        elif data is solution.views.gauss.solution.conservative:
+            solution.views.gauss.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
+        elif len(data.shape) == 3:
             solution.views.glob.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
         elif len(data.shape) == 2:
             solution.views.simple.solution.physical = solution_phys
@@ -127,7 +142,10 @@ def cons2phys(solution, data):
         if len(data.shape) == 4:
             grad_phys = np.zeros((data.shape[0] * data.shape[1], solution.nphys, solution.ndim))
             data_loc = data.reshape((data.shape[0] * data.shape[1], solution.neq, solution.ndim))
-            sol_loc = solution.views.glob.solution.conservative.reshape((data.shape[0] * data.shape[1], solution.neq))
+            if data is solution.views.gauss.gradient.conservative:
+                sol_loc = solution.views.gauss.solution.conservative.reshape((data.shape[0] * data.shape[1], solution.neq))
+            else:
+                sol_loc = solution.views.glob.solution.conservative.reshape((data.shape[0] * data.shape[1], solution.neq))
         elif len(data.shape) == 3:
             grad_phys = np.zeros((data.shape[0], solution.nphys, solution.ndim))
             data_loc = data.copy()
@@ -187,7 +205,11 @@ def cons2phys(solution, data):
                     data_loc, solution.parameters["adimensionalization"]["speed_scale"] ** 2, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
 
-        if len(data.shape) == 4:
+        if data is solution.views.glob.gradient.conservative:
+            solution.views.glob.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
+        elif data is solution.views.gauss.gradient.conservative:
+            solution.views.gauss.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
+        elif len(data.shape) == 4:
             solution.views.glob.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
         elif len(data.shape) == 3:
             solution.views.simple.gradient.physical = grad_phys

@@ -88,8 +88,11 @@ class SolutionFlagState:
     combined_to_full: bool = False
     combined_boundary: bool = False
     combined_simple_solution: bool = False
+    combined_gauss: bool = False
+    combined_boundary_gauss: bool = False
     full_phys_initialized: bool = False
     simple_phys_initialized: bool = False
+    gauss_phys_initialized: bool = False
 
 
 @dataclass

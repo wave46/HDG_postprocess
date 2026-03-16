@@ -51,6 +51,8 @@ def test_modern_solution_api(manifest_path, baselines_dir):
 
     full_cons = solution.fields.conservative(view="full")
     simple_phys = solution.fields.physical(view="simple")
+    gauss_phys = solution.fields.physical(view="gauss")
+    gauss_grad_phys = solution.fields.physical(view="gauss", gradients=True)
     profile = solution.sample.line(
         baseline["sampled_profile"]["r"],
         baseline["sampled_profile"]["z"],
@@ -63,8 +65,14 @@ def test_modern_solution_api(manifest_path, baselines_dir):
 
     assert full_cons.shape[0] == baseline["mesh"]["nelems_glob"]
     assert simple_phys.shape[1] == baseline["metadata"]["nphys"]
+    assert gauss_phys.shape[:2] == gauss_grad_phys.shape[:2]
+    assert gauss_grad_phys.shape[-2] == baseline["metadata"]["nphys"]
     assert solution.views.glob.solution.conservative is full_cons
     assert solution.views.simple.solution.physical is simple_phys
+    assert solution.views.gauss.solution.physical is gauss_phys
+    assert solution.views.gauss.gradient.physical is gauss_grad_phys
+    assert solution.metadata.flags.combined_gauss
+    assert solution.metadata.flags.gauss_phys_initialized
     assert solution.summary.boundary.profile is boundary_summary
     assert set(point.keys()) == {"n", "te", "ti"}
     assert "k" not in profile or len(profile["k"]) == len(baseline["sampled_profile"]["r"])
