@@ -79,29 +79,30 @@ def recombine_simple_full_solution(solution):
     if not solution.combined_to_full:
         print("Comibining first solution full")
         solution.recombine_full_solution()
+    glob_view = solution.views.glob
     solution._solution_simple = np.zeros([solution.mesh.vertices_glob.shape[0], solution.neq])
-    solution._solution_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :] = solution.solution_glob.reshape(
-        solution.solution_glob.shape[0] * solution.solution_glob.shape[1], solution.neq
+    solution._solution_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :] = glob_view.solution.conservative.reshape(
+        glob_view.solution.conservative.shape[0] * glob_view.solution.conservative.shape[1], solution.neq
     )
 
     solution._gradient_simple = np.zeros([solution.mesh.vertices_glob.shape[0], solution.neq, solution.ndim])
-    solution._gradient_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :, :] = solution.gradient_glob.reshape(
-        solution.gradient_glob.shape[0] * solution.gradient_glob.shape[1], solution.neq, solution.ndim
+    solution._gradient_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :, :] = glob_view.gradient.conservative.reshape(
+        glob_view.gradient.conservative.shape[0] * glob_view.gradient.conservative.shape[1], solution.neq, solution.ndim
     )
 
     solution._magnetic_field_simple = np.zeros([solution.mesh.vertices_glob.shape[0], 3])
-    solution._magnetic_field_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :] = solution.magnetic_field_glob.reshape(
-        solution.magnetic_field_glob.shape[0] * solution.magnetic_field_glob.shape[1], 3
+    solution._magnetic_field_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :] = glob_view.equilibrium.magnetic_field.reshape(
+        glob_view.equilibrium.magnetic_field.shape[0] * glob_view.equilibrium.magnetic_field.shape[1], 3
     )
     if solution.parameters["switches"]["ohmicsrc"][0] == 1:
         solution._jtor_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
-        solution._jtor_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.jtor_glob.reshape(
-            solution.jtor_glob.shape[0] * solution.jtor_glob.shape[1]
+        solution._jtor_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.jtor.reshape(
+            glob_view.equilibrium.jtor.shape[0] * glob_view.equilibrium.jtor.shape[1]
         )
     if "poloidal_flux" in solution.raw_equilibriums[0].keys():
         solution._poloidal_flux_simple = np.zeros([solution.mesh.vertices_glob.shape[0]])
-        solution._poloidal_flux_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.poloidal_flux_glob.reshape(
-            solution.poloidal_flux_glob.shape[0] * solution.poloidal_flux_glob.shape[1]
+        solution._poloidal_flux_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.poloidal_flux.reshape(
+            glob_view.equilibrium.poloidal_flux.shape[0] * glob_view.equilibrium.poloidal_flux.shape[1]
         )
     solution._combined_simple_solution = True
 
@@ -129,6 +130,7 @@ def recombine_boundary_solution(solution):
     solution._magnetic_field_unit_boundary = {}
     solution._poloidal_flux_boundary = {}
     solution._solution_skeleton_boundary = {}
+    glob_view = solution.views.glob
 
     for key in solution.mesh._connectivity_b_glob.keys():
         solution._solution_boundary[key] = []
@@ -138,11 +140,11 @@ def recombine_boundary_solution(solution):
         solution._magnetic_field_unit_boundary[key] = []
         for face_element_number, face_local_number in zip(solution.mesh.face_element_number[key], solution.mesh.face_local_number[key]):
             face_nodes = solution.mesh.reference_element["faceNodes"][face_local_number, :]
-            solution._solution_boundary[key].append(solution.solution_glob[face_element_number, face_nodes, :])
-            solution._gradient_boundary[key].append(solution.gradient_glob[face_element_number, face_nodes, :, :])
-            solution._magnetic_field_boundary[key].append(solution.magnetic_field_glob[face_element_number, face_nodes, :])
-            solution._magnetic_field_unit_boundary[key].append(solution.magnetic_field_unit_glob[face_element_number, face_nodes, :])
-            solution._poloidal_flux_boundary[key].append(solution.poloidal_flux_glob[face_element_number, face_nodes])
+            solution._solution_boundary[key].append(glob_view.solution.conservative[face_element_number, face_nodes, :])
+            solution._gradient_boundary[key].append(glob_view.gradient.conservative[face_element_number, face_nodes, :, :])
+            solution._magnetic_field_boundary[key].append(glob_view.equilibrium.magnetic_field[face_element_number, face_nodes, :])
+            solution._magnetic_field_unit_boundary[key].append(glob_view.equilibrium.magnetic_field_unit[face_element_number, face_nodes, :])
+            solution._poloidal_flux_boundary[key].append(glob_view.equilibrium.poloidal_flux[face_element_number, face_nodes])
 
     if solution.n_partitions > 1:
         solution_skeleton_boundary = np.ones((solution.mesh._nfaces_glob, solution.mesh.mesh_parameters["nodes_per_face"], solution.neq))
@@ -179,14 +181,15 @@ def calculate_in_gauss_points(solution):
     if solution.mesh.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
 
-    solution._solution_gauss = np.einsum("ij,kjh->kih", solution.mesh.reference_element["N"], solution.solution_glob)
-    solution._gradient_gauss = np.einsum("ij,kjhl->kihl", solution.mesh.reference_element["N"], solution.gradient_glob)
-    solution._magnetic_field_gauss = np.einsum("ij,kjh->kih", solution.mesh.reference_element["N"], solution.magnetic_field_glob)
+    glob_view = solution.views.glob
+    solution._solution_gauss = np.einsum("ij,kjh->kih", solution.mesh.reference_element["N"], glob_view.solution.conservative)
+    solution._gradient_gauss = np.einsum("ij,kjhl->kihl", solution.mesh.reference_element["N"], glob_view.gradient.conservative)
+    solution._magnetic_field_gauss = np.einsum("ij,kjh->kih", solution.mesh.reference_element["N"], glob_view.equilibrium.magnetic_field)
     solution._magnetic_field_unit_gauss = np.einsum(
-        "ij,kjh->kih", solution.mesh.reference_element["N"], solution.magnetic_field_unit_glob
+        "ij,kjh->kih", solution.mesh.reference_element["N"], glob_view.equilibrium.magnetic_field_unit
     )
-    solution._jtor_gauss = np.einsum("ij,kj->ki", solution.mesh.reference_element["N"], solution.jtor_glob)
-    solution._poloidal_flux_gauss = np.einsum("ij,kj->ki", solution.mesh.reference_element["N"], solution.poloidal_flux_glob)
+    solution._jtor_gauss = np.einsum("ij,kj->ki", solution.mesh.reference_element["N"], glob_view.equilibrium.jtor)
+    solution._poloidal_flux_gauss = np.einsum("ij,kj->ki", solution.mesh.reference_element["N"], glob_view.equilibrium.poloidal_flux)
 
     if "external_heating" in solution.parameters["physics"]:
         solution._external_heating_gauss = np.einsum("ij,kj->ki", solution.mesh.reference_element["N"], solution.external_heating)

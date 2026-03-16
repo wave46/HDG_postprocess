@@ -219,13 +219,14 @@ def dk(solution, r, z):
     if solution.dk_parameters is None:
         raise ValueError("Please, provide turbulent diffusion settings for the simulation")
     _ensure_interpolators(solution)
-    if solution.r_axis is None:
+    if solution.summary.equilibrium.axis.r is None:
         solution.define_minor_radii()
 
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    a = np.sqrt((r - solution.r_axis) ** 2 + (z - solution.z_axis) ** 2)
+    axis = solution.summary.equilibrium.axis
+    a = np.sqrt((r - axis.r) ** 2 + (z - axis.z) ** 2)
     br = solution._field_interpolators[0](r, z)
     bz = solution._field_interpolators[1](r, z)
     bt = solution._field_interpolators[2](r, z)

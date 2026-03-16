@@ -349,16 +349,16 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
         elif variable == "dk":
             if solution.dk_parameters is None:
                 raise ValueError("Please, provide turbulent diffusion settings for the simulation")
-            if (solution.r_axis is None) or (solution.z_axis is None):
+            if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
                 solution.define_magnetic_axis()
-            if solution.a_simple is None:
+            if solution.views.simple.equilibrium.a is None:
                 solution.define_minor_radii(which="simple")
-            if solution.qcyl_simple is None:
+            if solution.views.simple.equilibrium.qcyl is None:
                 solution.define_qcyl(which="simple")
             data = calculate_dk_cons(
                 solution.solution_simple,
                 solution.dk_parameters,
-                solution.qcyl_simple,
+                solution.views.simple.equilibrium.qcyl,
                 solution.mesh.vertices_glob[:, 0] / solution.parameters["adimensionalization"]["length_scale"],
                 solution.parameters["adimensionalization"]["length_scale"] ** 2
                 / solution.parameters["adimensionalization"]["time_scale"],

@@ -21,9 +21,10 @@ def calculate_ohmic_source(solution, which="simple"):
         ] = solution._ohmic_source.reshape(solution.solution_glob.shape[0] * solution.solution_glob.shape[1])
     elif which == "full":
         _ensure_full_solution(solution)
+        glob_view = solution.views.glob
         solution._ohmic_source = calculate_ohmic_source_cons(
             solution.solution_glob,
-            solution.jtor_glob,
+            glob_view.equilibrium.jtor,
             solution.parameters["physics"]["Mref"],
             solution.parameters["adimensionalization"]["mass_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
@@ -37,9 +38,10 @@ def calculate_ohmic_source(solution, which="simple"):
         if solution._jtor_gauss is None:
             print("Calculating on gauss points first")
             solution.calculate_in_gauss_points()
+        gauss_view = solution.views.gauss
         solution._ohmic_source_gauss = calculate_ohmic_source_cons(
             solution.solution_gauss,
-            solution.jtor_gauss,
+            gauss_view.equilibrium.jtor,
             solution.parameters["physics"]["Mref"],
             solution.parameters["adimensionalization"]["mass_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
