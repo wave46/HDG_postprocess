@@ -28,7 +28,7 @@ def _load_reference_element(path):
     return ref_dic
 
 
-def test_grouped_caches_sync_physical_and_equilibrium(manifest_path):
+def test_container_state_sync_physical_and_equilibrium(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["embedded_k_model"]
 
@@ -53,18 +53,12 @@ def test_grouped_caches_sync_physical_and_equilibrium(manifest_path):
     sol.calculate_dk("full")
     sol.calculate_dk("simple")
 
-    assert sol._grouped_caches["physical"]["simple"]["solution"] is sol.solution_simple_phys
-    assert sol._grouped_caches["physical"]["glob"]["solution"] is sol.solution_glob_phys
-    assert sol._grouped_caches["equilibrium"]["axis"]["r"] == sol.r_axis
-    assert sol._grouped_caches["equilibrium"]["glob"]["qcyl"] is sol.qcyl_glob
     assert sol._summary.equilibrium.axis.r == sol.r_axis
     assert sol._summary.equilibrium.axis.z == sol.z_axis
     assert sol._views.glob.equilibrium.a is sol.a_glob
     assert sol._views.simple.equilibrium.a is sol.a_simple
     assert sol._views.glob.equilibrium.qcyl is sol.qcyl_glob
     assert sol._views.simple.equilibrium.qcyl is sol.qcyl_simple
-    assert sol._grouped_caches["derived"]["simple"]["dk"] is sol.dk_simple
-    assert sol._grouped_caches["derived"]["glob"]["dk"] is sol.dk_glob
     assert sol._views.simple.solution.physical is sol.solution_simple_phys
     assert sol._views.glob.solution.conservative is sol.solution_glob
     assert sol._views.glob.gradient.physical is sol.gradient_glob_phys
@@ -72,7 +66,7 @@ def test_grouped_caches_sync_physical_and_equilibrium(manifest_path):
     assert sol._views.glob.derived.dk is sol.dk_glob
 
 
-def test_grouped_caches_sync_neutral_derived_fields(manifest_path):
+def test_container_state_sync_neutral_derived_fields(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
 
@@ -94,10 +88,6 @@ def test_grouped_caches_sync_neutral_derived_fields(manifest_path):
     sol.calculate_dnn_with_nn_collision("simple")
     sol.calculate_mfp("simple")
 
-    assert sol._grouped_caches["derived"]["simple"]["dnn"] is sol.dnn_simple
-    assert sol._grouped_caches["derived"]["simple"]["dnn_with_nn_collision"] is sol.dnn_simple_with_nn_collision_simple
-    assert sol._grouped_caches["derived"]["glob"]["dnn_with_nn_collision_legacy"] is sol.dnn_simple_with_nn_collision
-    assert sol._grouped_caches["derived"]["simple"]["mfp"] is sol.mfp_simple
     assert sol._views.simple.derived.dnn is sol.dnn_simple
     assert sol._views.simple.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision_simple
     assert sol._views.simple.derived.mfp is sol.mfp_simple
@@ -150,7 +140,7 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
     assert sol._interpolators_state.qcyl is sol.qcyl_interpolator
 
 
-def test_grouped_caches_sync_sources_and_totals(manifest_path):
+def test_container_state_sync_sources_and_totals(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
 
@@ -173,12 +163,6 @@ def test_grouped_caches_sync_sources_and_totals(manifest_path):
     sol.calculate_cx_source("simple")
     sol.calculate_power_balance()
 
-    assert sol._grouped_caches["sources"]["ionization_source"]["simple"] is sol.ionization_source_simple
-    assert sol._grouped_caches["sources"]["electron_sink_rec"]["simple"] is sol.electron_sink_rec_simple
-    assert sol._grouped_caches["sources"]["cx_source"]["simple"] is sol.cx_source_simple
-    assert sol._grouped_caches["sources"]["ohmic_source"]["gauss"] is sol.ohmic_source_gauss
-    assert sol._grouped_caches["sources"]["ion_gain_iz"]["total"] == sol.ion_gain_iz_total
-    assert sol._grouped_caches["sources"]["electron_sink_iz"]["total"] == sol.electron_sink_iz_total
     assert sol._summary.sources.ion_gain_iz_total == sol.ion_gain_iz_total
     assert sol._summary.sources.electron_sink_iz_total == sol.electron_sink_iz_total
     assert sol._summary.sources.ohmic_source_total == sol.ohmic_source_total
@@ -199,7 +183,7 @@ def test_grouped_caches_sync_sources_and_totals(manifest_path):
     assert sol._summary.boundary.electron_energy_sheath_loss_total == sol.electron_energy_sheath_loss_total
 
 
-def test_grouped_caches_sync_representations(manifest_path):
+def test_container_state_sync_representations(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
 
@@ -218,12 +202,6 @@ def test_grouped_caches_sync_representations(manifest_path):
     sol.calculate_in_gauss_points()
     sol.calculate_in_boundary_gauss_points(np.unique(sol.raw_solution_boundary_infos[0]["boundary_flags"]))
 
-    assert sol._grouped_caches["representations"]["simple"]["solution"] is sol.solution_simple
-    assert sol._grouped_caches["representations"]["glob"]["solution"] is sol.solution_glob
-    assert sol._grouped_caches["representations"]["gauss"]["solution"] is sol.solution_gauss
-    assert sol._grouped_caches["representations"]["boundary"]["solution"] is sol.solution_boundary
-    assert sol._grouped_caches["representations"]["boundary_gauss"]["solution"] is sol.solution_boundary_gauss
-    assert sol._grouped_caches["representations"]["gauss"]["magnetic_field"] is sol.magnetic_field_gauss
     assert sol._views.simple.solution.conservative is sol.solution_simple
     assert sol._views.simple.gradient.conservative is sol.gradient_simple
     assert sol._views.simple.equilibrium.magnetic_field is sol.magnetic_field_simple

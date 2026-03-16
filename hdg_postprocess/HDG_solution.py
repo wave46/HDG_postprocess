@@ -202,106 +202,6 @@ class HDGsolution:
         "_ion_energy_sheath_loss_total": ("boundary", "ion_energy_sheath_loss_total"),
         "_electron_energy_sheath_loss_total": ("boundary", "electron_energy_sheath_loss_total"),
     }
-    _GROUPED_CACHE_PATHS = {
-        "_solution_simple": ("representations", "simple", "solution"),
-        "_gradient_simple": ("representations", "simple", "gradient"),
-        "_magnetic_field_simple": ("representations", "simple", "magnetic_field"),
-        "_jtor_simple": ("representations", "simple", "jtor"),
-        "_poloidal_flux_simple": ("representations", "simple", "poloidal_flux"),
-        "_solution_glob": ("representations", "glob", "solution"),
-        "_gradient_glob": ("representations", "glob", "gradient"),
-        "_magnetic_field_glob": ("representations", "glob", "magnetic_field"),
-        "_magnetic_field_unit_glob": ("representations", "glob", "magnetic_field_unit"),
-        "_jtor_glob": ("representations", "glob", "jtor"),
-        "_poloidal_flux_glob": ("representations", "glob", "poloidal_flux"),
-        "_solution_gauss": ("representations", "gauss", "solution"),
-        "_gradient_gauss": ("representations", "gauss", "gradient"),
-        "_magnetic_field_gauss": ("representations", "gauss", "magnetic_field"),
-        "_magnetic_field_unit_gauss": ("representations", "gauss", "magnetic_field_unit"),
-        "_jtor_gauss": ("representations", "gauss", "jtor"),
-        "_poloidal_flux_gauss": ("representations", "gauss", "poloidal_flux"),
-        "_solution_boundary": ("representations", "boundary", "solution"),
-        "_solution_skeleton_boundary": ("representations", "boundary", "solution_skeleton"),
-        "_gradient_boundary": ("representations", "boundary", "gradient"),
-        "_magnetic_field_boundary": ("representations", "boundary", "magnetic_field"),
-        "_magnetic_field_unit_boundary": ("representations", "boundary", "magnetic_field_unit"),
-        "_poloidal_flux_boundary": ("representations", "boundary", "poloidal_flux"),
-        "_solution_boundary_gauss": ("representations", "boundary_gauss", "solution"),
-        "_solution_skeleton_boundary_gauss": ("representations", "boundary_gauss", "solution_skeleton"),
-        "_gradient_boundary_gauss": ("representations", "boundary_gauss", "gradient"),
-        "_magnetic_field_boundary_gauss": ("representations", "boundary_gauss", "magnetic_field"),
-        "_magnetic_field_unit_boundary_gauss": ("representations", "boundary_gauss", "magnetic_field_unit"),
-        "_poloidal_flux_boundary_gauss": ("representations", "boundary_gauss", "poloidal_flux"),
-        "_solution_simple_phys": ("physical", "simple", "solution"),
-        "_gradient_simple_phys": ("physical", "simple", "gradient"),
-        "_solution_glob_phys": ("physical", "glob", "solution"),
-        "_gradient_glob_phys": ("physical", "glob", "gradient"),
-        "_r_axis": ("equilibrium", "axis", "r"),
-        "_z_axis": ("equilibrium", "axis", "z"),
-        "_a_simple": ("equilibrium", "simple", "a"),
-        "_a_glob": ("equilibrium", "glob", "a"),
-        "_qcyl_simple": ("equilibrium", "simple", "qcyl"),
-        "_qcyl_glob": ("equilibrium", "glob", "qcyl"),
-        "_dnn_simple": ("derived", "simple", "dnn"),
-        "_dnn_simple_with_nn_collision": ("derived", "glob", "dnn_with_nn_collision_legacy"),
-        "_dnn_simple_with_nn_collision_simple": ("derived", "simple", "dnn_with_nn_collision"),
-        "_mfp_simple": ("derived", "simple", "mfp"),
-        "_dk_simple": ("derived", "simple", "dk"),
-        "_dk_glob": ("derived", "glob", "dk"),
-        "_ionization_source": ("sources", "ionization_source", "full"),
-        "_ionization_source_simple": ("sources", "ionization_source", "simple"),
-        "_ionization_source_gauss": ("sources", "ionization_source", "gauss"),
-        "_ion_gain_iz": ("sources", "ion_gain_iz", "full"),
-        "_ion_gain_iz_simple": ("sources", "ion_gain_iz", "simple"),
-        "_ion_gain_iz_gauss": ("sources", "ion_gain_iz", "gauss"),
-        "_ion_gain_iz_total": ("sources", "ion_gain_iz", "total"),
-        "_ion_sink_rec": ("sources", "ion_sink_rec", "full"),
-        "_ion_sink_rec_simple": ("sources", "ion_sink_rec", "simple"),
-        "_ion_sink_rec_gauss": ("sources", "ion_sink_rec", "gauss"),
-        "_ion_sink_rec_total": ("sources", "ion_sink_rec", "total"),
-        "_ion_sink_cx": ("sources", "ion_sink_cx", "full"),
-        "_ion_sink_cx_simple": ("sources", "ion_sink_cx", "simple"),
-        "_ion_sink_cx_gauss": ("sources", "ion_sink_cx", "gauss"),
-        "_ion_sink_cx_total": ("sources", "ion_sink_cx", "total"),
-        "_electron_sink_iz": ("sources", "electron_sink_iz", "full"),
-        "_electron_sink_iz_simple": ("sources", "electron_sink_iz", "simple"),
-        "_electron_sink_iz_gauss": ("sources", "electron_sink_iz", "gauss"),
-        "_electron_sink_iz_total": ("sources", "electron_sink_iz", "total"),
-        "_electron_sink_rec": ("sources", "electron_sink_rec", "full"),
-        "_electron_sink_rec_simple": ("sources", "electron_sink_rec", "simple"),
-        "_electron_sink_rec_gauss": ("sources", "electron_sink_rec", "gauss"),
-        "_electron_sink_rec_total": ("sources", "electron_sink_rec", "total"),
-        "_electron_gain_rec": ("sources", "electron_gain_rec", "full"),
-        "_electron_gain_rec_simple": ("sources", "electron_gain_rec", "simple"),
-        "_electron_gain_rec_gauss": ("sources", "electron_gain_rec", "gauss"),
-        "_electron_gain_rec_total": ("sources", "electron_gain_rec", "total"),
-        "_electron_sink_cooling_factor": ("sources", "electron_sink_cooling_factor", "full"),
-        "_electron_sink_cooling_factor_simple": ("sources", "electron_sink_cooling_factor", "simple"),
-        "_electron_sink_cooling_factor_gauss": ("sources", "electron_sink_cooling_factor", "gauss"),
-        "_electron_sink_cooling_factor_total": ("sources", "electron_sink_cooling_factor", "total"),
-        "_cooling_factor": ("sources", "cooling_factor", "full"),
-        "_cooling_factor_simple": ("sources", "cooling_factor", "simple"),
-        "_cooling_factor_gauss": ("sources", "cooling_factor", "gauss"),
-        "_cx_source": ("sources", "cx_source", "full"),
-        "_cx_source_simple": ("sources", "cx_source", "simple"),
-        "_cx_source_gauss": ("sources", "cx_source", "gauss"),
-        "_external_heating": ("sources", "external_heating", "full"),
-        "_external_heating_simple": ("sources", "external_heating", "simple"),
-        "_external_heating_gauss": ("sources", "external_heating", "gauss"),
-        "_external_heating_total": ("sources", "external_heating", "total"),
-        "_external_heating_e": ("sources", "external_heating_e", "full"),
-        "_external_heating_e_simple": ("sources", "external_heating_e", "simple"),
-        "_external_heating_e_gauss": ("sources", "external_heating_e", "gauss"),
-        "_external_heating_e_total": ("sources", "external_heating_e", "total"),
-        "_external_heating_i": ("sources", "external_heating_i", "full"),
-        "_external_heating_i_simple": ("sources", "external_heating_i", "simple"),
-        "_external_heating_i_gauss": ("sources", "external_heating_i", "gauss"),
-        "_external_heating_i_total": ("sources", "external_heating_i", "total"),
-        "_ohmic_source": ("sources", "ohmic_source", "full"),
-        "_ohmic_source_simple": ("sources", "ohmic_source", "simple"),
-        "_ohmic_source_gauss": ("sources", "ohmic_source", "gauss"),
-        "_ohmic_source_total": ("sources", "ohmic_source", "total"),
-    }
     
     def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters, 
@@ -351,14 +251,7 @@ class HDGsolution:
             aux_state = self.__dict__.get(aux_path[0])
             if aux_state is not None:
                 setattr(aux_state, aux_path[1], value)
-        grouped_caches = self.__dict__.get("_grouped_caches")
-        cache_path = self._GROUPED_CACHE_PATHS.get(name)
-        if grouped_caches is None or cache_path is None:
-            return
-        target = grouped_caches
-        for key in cache_path[:-1]:
-            target = target[key]
-        target[cache_path[-1]] = value
+        return
 
     def _initial_setup(self):
         # simple representation of a solution
@@ -371,93 +264,8 @@ class HDGsolution:
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
-        self._grouped_caches = {
-            "representations": {
-                "simple": {
-                    "solution": None,
-                    "gradient": None,
-                    "magnetic_field": None,
-                    "jtor": None,
-                    "poloidal_flux": None,
-                },
-                "glob": {
-                    "solution": None,
-                    "gradient": None,
-                    "magnetic_field": None,
-                    "magnetic_field_unit": None,
-                    "jtor": None,
-                    "poloidal_flux": None,
-                },
-                "gauss": {
-                    "solution": None,
-                    "gradient": None,
-                    "magnetic_field": None,
-                    "magnetic_field_unit": None,
-                    "jtor": None,
-                    "poloidal_flux": None,
-                },
-                "boundary": {
-                    "solution": None,
-                    "solution_skeleton": None,
-                    "gradient": None,
-                    "magnetic_field": None,
-                    "magnetic_field_unit": None,
-                    "poloidal_flux": None,
-                },
-                "boundary_gauss": {
-                    "solution": None,
-                    "solution_skeleton": None,
-                    "gradient": None,
-                    "magnetic_field": None,
-                    "magnetic_field_unit": None,
-                    "poloidal_flux": None,
-                },
-            },
-            "physical": {
-                "simple": {"solution": None, "gradient": None},
-                "glob": {"solution": None, "gradient": None},
-            },
-            "equilibrium": {
-                "axis": {"r": None, "z": None},
-                "simple": {"a": None, "qcyl": None},
-                "glob": {"a": None, "qcyl": None},
-            },
-            "derived": {
-                "simple": {
-                    "dnn": None,
-                    "dnn_with_nn_collision": None,
-                    "mfp": None,
-                    "dk": None,
-                },
-                "glob": {
-                    "dnn_with_nn_collision_legacy": None,
-                    "dk": None,
-                },
-            },
-            "sources": {
-                name: {"full": None, "simple": None, "gauss": None, "total": None}
-                for name in (
-                    "ionization_source",
-                    "ion_gain_iz",
-                    "ion_sink_rec",
-                    "ion_sink_cx",
-                    "electron_sink_iz",
-                    "electron_sink_rec",
-                    "electron_gain_rec",
-                    "electron_sink_cooling_factor",
-                    "cooling_factor",
-                    "cx_source",
-                    "external_heating",
-                    "external_heating_e",
-                    "external_heating_i",
-                    "ohmic_source",
-                )
-            },
-        }
-
         mapped_state_names = (
-            set(self._GROUPED_CACHE_PATHS)
-            | set(self._VIEW_CONTAINER_PATHS)
+            set(self._VIEW_CONTAINER_PATHS)
             | set(self._SUMMARY_CONTAINER_PATHS)
         )
         for name in sorted(mapped_state_names):
