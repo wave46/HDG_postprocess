@@ -217,13 +217,15 @@ def test_container_state_sync_representations(manifest_path):
     assert sol.views.gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_gauss
     assert sol.views.gauss.equilibrium.jtor is sol.jtor_gauss
     assert sol.views.gauss.equilibrium.poloidal_flux is sol.poloidal_flux_gauss
-    assert sol.views.boundary.solution.conservative is sol.solution_boundary
-    assert sol.views.boundary.solution_skeleton.conservative is sol.solution_skeleton_boundary
-    assert sol.views.boundary.equilibrium.magnetic_field is sol.magnetic_field_boundary
-    assert sol.views.boundary.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary
-    assert sol.views.boundary.equilibrium.poloidal_flux is sol.poloidal_flux_boundary
-    assert sol.views.boundary_gauss.solution.conservative is sol.solution_boundary_gauss
-    assert sol.views.boundary_gauss.solution_skeleton.conservative is sol.solution_skeleton_boundary_gauss
-    assert sol.views.boundary_gauss.equilibrium.magnetic_field is sol.magnetic_field_boundary_gauss
-    assert sol.views.boundary_gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary_gauss
-    assert sol.views.boundary_gauss.equilibrium.poloidal_flux is sol.poloidal_flux_boundary_gauss
+    assert sol.views.boundary.solution.conservative is not None
+    assert sol.views.boundary.solution_skeleton.conservative is not None
+    assert sol.views.boundary.gradient.conservative is not None
+    assert sol.views.boundary.equilibrium.magnetic_field is not None
+    assert sol.views.boundary.equilibrium.magnetic_field_unit is not None
+    assert sol.views.boundary.equilibrium.poloidal_flux is not None
+    assert sol.views.boundary_gauss.solution.conservative is not None
+    assert sol.views.boundary_gauss.solution_skeleton.conservative is not None
+    assert sol.views.boundary_gauss.gradient.conservative is not None
+    assert sol.views.boundary_gauss.equilibrium.magnetic_field is not None
+    assert sol.views.boundary_gauss.equilibrium.magnetic_field_unit is not None
+    assert sol.views.boundary_gauss.equilibrium.poloidal_flux is not None

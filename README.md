@@ -77,7 +77,7 @@ This remains the compatibility baseline during the refactor.
 Examples of compatibility-only legacy access that new code should avoid:
 
 ```python
-solution.gradient_boundary_gauss
+solution.views.boundary_gauss.gradient.conservative
 ```
 
 These aliases are still kept for demo and notebook compatibility, but new code should use the structured container API instead.

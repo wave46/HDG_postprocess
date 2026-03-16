@@ -11,6 +11,11 @@ def summary_along_the_wall(solution):
     if getattr(solution, "_solution_boundary_gauss", None) is None:
         print("Comibining first values on boundary gauss points")
         solution.calculate_in_boundary_gauss_points(np.unique(solution._raw_solution_boundary_infos[0]["boundary_flags"]))
+    boundary_gauss = solution.views.boundary_gauss
+    boundary_solution = boundary_gauss.solution.conservative
+    boundary_solution_skeleton = boundary_gauss.solution_skeleton.conservative
+    boundary_gradient = boundary_gauss.gradient.conservative
+    boundary_equilibrium = boundary_gauss.equilibrium
 
     variables = [
         "b_n",
@@ -76,73 +81,73 @@ def summary_along_the_wall(solution):
             res = solution.mesh.normals_gauss
         elif variable == "b_n":
             res = np.sum(
-                solution.magnetic_field_unit_boundary_gauss[:, :, :2] * solution.mesh.normals_gauss, axis=-1
+                boundary_equilibrium.magnetic_field_unit[:, :, :2] * solution.mesh.normals_gauss, axis=-1
             )
         elif variable == "solution":
-            res = solution.solution_boundary_gauss
+            res = boundary_solution
         elif variable == "solution_skeleton":
-            res = solution.solution_skeleton_boundary_gauss
+            res = boundary_solution_skeleton
         elif variable == "gradient":
-            res = solution.gradient_boundary_gauss
+            res = boundary_gradient
         elif variable == "n":
             res = calculate_n_cons(
-                solution.solution_boundary_gauss,
+                boundary_solution,
                 solution.parameters["adimensionalization"]["density_scale"],
                 solution.cons_idx,
             )
         elif variable == "n_skeleton":
             res = calculate_n_cons(
-                solution.solution_skeleton_boundary_gauss,
+                boundary_solution_skeleton,
                 solution.parameters["adimensionalization"]["density_scale"],
                 solution.cons_idx,
             )
         elif variable == "u":
             res = calculate_u_cons(
-                solution.solution_boundary_gauss,
+                boundary_solution,
                 solution.parameters["adimensionalization"]["speed_scale"],
                 solution.cons_idx,
             )
         elif variable == "u_skeleton":
             res = calculate_u_cons(
-                solution.solution_skeleton_boundary_gauss,
+                boundary_solution_skeleton,
                 solution.parameters["adimensionalization"]["speed_scale"],
                 solution.cons_idx,
             )
         elif variable == "te":
             res = calculate_Te_cons(
-                solution.solution_boundary_gauss,
+                boundary_solution,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
                 solution._cons_idx,
             )
         elif variable == "te_skeleton":
             res = calculate_Te_cons(
-                solution.solution_skeleton_boundary_gauss,
+                boundary_solution_skeleton,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
                 solution._cons_idx,
             )
         elif variable == "ti":
             res = calculate_Ti_cons(
-                solution.solution_boundary_gauss,
+                boundary_solution,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
                 solution._cons_idx,
             )
         elif variable == "ti_skeleton":
             res = calculate_Ti_cons(
-                solution.solution_skeleton_boundary_gauss,
+                boundary_solution_skeleton,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
                 solution._cons_idx,
             )
         elif variable == "M":
-            res = calculate_M_cons(solution.solution_boundary_gauss, solution.cons_idx)
+            res = calculate_M_cons(boundary_solution, solution.cons_idx)
         elif variable == "M_skeleton":
-            res = calculate_M_cons(solution.solution_skeleton_boundary_gauss, solution.cons_idx)
+            res = calculate_M_cons(boundary_solution_skeleton, solution.cons_idx)
         elif variable == "p_dyn":
             res = calculate_pdyn_cons(
-                solution.solution_boundary_gauss,
+                boundary_solution,
                 (2 / 3 / solution.parameters["physics"]["Mref"])
                 * solution.parameters["adimensionalization"]["density_scale"]
                 * solution.parameters["adimensionalization"]["temperature_scale"]
@@ -154,7 +159,7 @@ def summary_along_the_wall(solution):
             )
         elif variable == "p_dyn_skeleton":
             res = calculate_pdyn_cons(
-                solution.solution_skeleton_boundary_gauss,
+                boundary_solution_skeleton,
                 (2 / 3 / solution.parameters["physics"]["Mref"])
                 * solution.parameters["adimensionalization"]["density_scale"]
                 * solution.parameters["adimensionalization"]["temperature_scale"]
@@ -166,58 +171,58 @@ def summary_along_the_wall(solution):
             )
         elif variable == "gamma":
             res = calculate_parallel_flux_cons(
-                solution.solution_boundary_gauss,
+                boundary_solution,
                 solution.parameters["adimensionalization"]["density_scale"]
                 * solution.parameters["adimensionalization"]["speed_scale"],
                 solution._cons_idx,
             )
         elif variable == "gamma_skeleton":
             res = calculate_parallel_flux_cons(
-                solution.solution_skeleton_boundary_gauss,
+                boundary_solution_skeleton,
                 solution.parameters["adimensionalization"]["density_scale"]
                 * solution.parameters["adimensionalization"]["speed_scale"],
                 solution._cons_idx,
             )
         elif variable == "gamma_perp_dep":
-            res = _calculate_gamma_perp_dep(solution, solution.solution_boundary_gauss)
+            res = _calculate_gamma_perp_dep(solution, boundary_solution)
         elif variable == "gamma_perp_dep_skeleton":
-            res = _calculate_gamma_perp_dep(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_gamma_perp_dep(solution, boundary_solution_skeleton)
         elif variable == "gamma_tot_dep":
             res = result["gamma"] * result["b_n"] + result["gamma_perp_dep"]
         elif variable == "gamma_tot_dep_skeleton":
             res = result["gamma_skeleton"] * result["b_n"] + result["gamma_perp_dep_skeleton"]
         elif variable == "q_i_par_cond":
-            res = _calculate_q_i_par_cond(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_i_par_cond(solution, boundary_solution)
         elif variable == "q_i_par_cond_skeleton":
-            res = _calculate_q_i_par_cond(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_i_par_cond(solution, boundary_solution_skeleton)
         elif variable == "q_e_par_cond":
-            res = _calculate_q_e_par_cond(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_e_par_cond(solution, boundary_solution)
         elif variable == "q_e_par_cond_skeleton":
-            res = _calculate_q_e_par_cond(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_e_par_cond(solution, boundary_solution_skeleton)
         elif variable == "q_i_par_conv":
-            res = _calculate_q_i_par_conv(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_i_par_conv(solution, boundary_solution)
         elif variable == "q_i_par_conv_skeleton":
-            res = _calculate_q_i_par_conv(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_i_par_conv(solution, boundary_solution_skeleton)
         elif variable == "q_e_par_conv":
-            res = _calculate_q_e_par_conv(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_e_par_conv(solution, boundary_solution)
         elif variable == "q_e_par_conv_skeleton":
-            res = _calculate_q_e_par_conv(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_e_par_conv(solution, boundary_solution_skeleton)
         elif variable == "q_i_par":
-            res = _calculate_q_i_par(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_i_par(solution, boundary_solution)
         elif variable == "q_i_par_skeleton":
-            res = _calculate_q_i_par(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_i_par(solution, boundary_solution_skeleton)
         elif variable == "q_e_par":
-            res = _calculate_q_e_par(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_e_par(solution, boundary_solution)
         elif variable == "q_e_par_skeleton":
-            res = _calculate_q_e_par(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_e_par(solution, boundary_solution_skeleton)
         elif variable == "q_i_perp_dep":
-            res = _calculate_q_i_perp_dep(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_i_perp_dep(solution, boundary_solution)
         elif variable == "q_i_perp_dep_skeleton":
-            res = _calculate_q_i_perp_dep(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_i_perp_dep(solution, boundary_solution_skeleton)
         elif variable == "q_e_perp_dep":
-            res = _calculate_q_e_perp_dep(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_e_perp_dep(solution, boundary_solution)
         elif variable == "q_e_perp_dep_skeleton":
-            res = _calculate_q_e_perp_dep(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_e_perp_dep(solution, boundary_solution_skeleton)
         elif variable == "q_i_tot_dep":
             res = result["q_i_par"] * result["b_n"] + result["q_i_perp_dep"]
         elif variable == "q_i_tot_dep_skeleton":
@@ -227,17 +232,17 @@ def summary_along_the_wall(solution):
         elif variable == "q_e_tot_dep_skeleton":
             res = result["q_e_par_skeleton"] * result["b_n"] + result["q_e_perp_dep_skeleton"]
         elif variable == "q_e_tot_dep_bc":
-            res = _calculate_q_e_tot_dep_bc(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_e_tot_dep_bc(solution, boundary_solution)
         elif variable == "q_e_tot_dep_bc_skeleton":
-            res = _calculate_q_e_tot_dep_bc(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_e_tot_dep_bc(solution, boundary_solution_skeleton)
         elif variable == "q_i_tot_dep_bc":
-            res = _calculate_q_i_tot_dep_bc(solution, solution.solution_boundary_gauss)
+            res = _calculate_q_i_tot_dep_bc(solution, boundary_solution)
         elif variable == "q_i_tot_dep_bc_skeleton":
-            res = _calculate_q_i_tot_dep_bc(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_q_i_tot_dep_bc(solution, boundary_solution_skeleton)
         elif variable == "neutral_flux":
-            res = _calculate_neutral_flux(solution, solution.solution_boundary_gauss)
+            res = _calculate_neutral_flux(solution, boundary_solution)
         elif variable == "neutral_flux_skeleton":
-            res = _calculate_neutral_flux(solution, solution.solution_skeleton_boundary_gauss)
+            res = _calculate_neutral_flux(solution, boundary_solution_skeleton)
         result[variable] = res
 
     for key, item in result.items():
@@ -245,7 +250,7 @@ def summary_along_the_wall(solution):
     result["time"] = solution.parameters["time"]["Current_time"] * solution.parameters["adimensionalization"]["time_scale"]
     result["r"] = solution.mesh.vertices_boundary_gauss[:, ::-1, 0]
     result["z"] = solution.mesh.vertices_boundary_gauss[:, ::-1, 1]
-    result["psi"] = solution.poloidal_flux_boundary_gauss[:, ::-1]
+    result["psi"] = boundary_equilibrium.poloidal_flux[:, ::-1]
     solution._boundary_summary = result
     return result
 
@@ -280,14 +285,15 @@ def _boundary_diffusion(solution, key):
 
 
 def _calculate_gamma_perp_dep(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     diffusion = _boundary_diffusion(solution, "diff_n") * np.ones_like(boundary_solution[:, :, 0])
     return calculate_particle_perp_flux_wall_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
+        boundary_gauss.gradient.conservative,
         diffusion,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.mesh.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["length_scale"],
@@ -296,12 +302,13 @@ def _calculate_gamma_perp_dep(solution, boundary_solution):
 
 
 def _calculate_q_i_par_cond(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     return calculate_parallel_ion_heat_flux_par_cond_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.gradient.conservative,
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         _parallel_conductivity(solution, "diff_pari"),
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
@@ -312,12 +319,13 @@ def _calculate_q_i_par_cond(solution, boundary_solution):
 
 
 def _calculate_q_e_par_cond(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     return calculate_parallel_electron_heat_flux_par_cond_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.gradient.conservative,
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         _parallel_conductivity(solution, "diff_pare"),
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
@@ -353,12 +361,13 @@ def _calculate_q_e_par_conv(solution, boundary_solution):
 
 
 def _calculate_q_i_par(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     return calculate_parallel_ion_heat_flux_par_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.gradient.conservative,
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.parameters["adimensionalization"]["density_scale"],
         _parallel_conductivity(solution, "diff_pari"),
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -373,12 +382,13 @@ def _calculate_q_i_par(solution, boundary_solution):
 
 
 def _calculate_q_e_par(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     return calculate_parallel_electron_heat_flux_par_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.gradient.conservative,
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.parameters["adimensionalization"]["density_scale"],
         _parallel_conductivity(solution, "diff_pare"),
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -392,6 +402,7 @@ def _calculate_q_e_par(solution, boundary_solution):
 
 
 def _calculate_q_i_perp_dep(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     if (
         (solution.parameters["physics"]["diff_n"] != solution.parameters["physics"]["diff_e"])
         or (solution.parameters["physics"]["diff_e"] != solution.parameters["physics"]["diff_u"])
@@ -402,11 +413,11 @@ def _calculate_q_i_perp_dep(solution, boundary_solution):
     diffusion = _boundary_diffusion(solution, "diff_e") * np.ones_like(boundary_solution[:, :, 0])
     return calculate_perp_ion_heat_wall_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
+        boundary_gauss.gradient.conservative,
         diffusion,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.mesh.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["mass_scale"]
@@ -417,6 +428,7 @@ def _calculate_q_i_perp_dep(solution, boundary_solution):
 
 
 def _calculate_q_e_perp_dep(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     if solution.parameters["physics"]["diff_n"] != solution.parameters["physics"]["diff_ee"]:
         print("Warning: different perpendicular diffusions and heat conductivities")
         print("Not calculating, providing zeros as perpendicular heat fluxes")
@@ -424,11 +436,11 @@ def _calculate_q_e_perp_dep(solution, boundary_solution):
     diffusion = _boundary_diffusion(solution, "diff_ee") * np.ones_like(boundary_solution[:, :, 0])
     return calculate_perp_electron_heat_wall_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
+        boundary_gauss.gradient.conservative,
         diffusion,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.mesh.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["mass_scale"]
@@ -439,12 +451,13 @@ def _calculate_q_e_perp_dep(solution, boundary_solution):
 
 
 def _calculate_q_e_tot_dep_bc(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     return calculate_electron_heat_flux_wall_bc_cons(
         boundary_solution,
         solution.parameters["physics"]["Gmbohme"],
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.mesh.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["speed_scale"],
@@ -456,12 +469,13 @@ def _calculate_q_e_tot_dep_bc(solution, boundary_solution):
 
 
 def _calculate_q_i_tot_dep_bc(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     return calculate_ion_heat_flux_wall_bc_cons(
         boundary_solution,
         solution.parameters["physics"]["Gmbohm"],
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.mesh.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["speed_scale"],
@@ -474,14 +488,15 @@ def _calculate_q_i_tot_dep_bc(solution, boundary_solution):
 
 
 def _calculate_neutral_flux(solution, boundary_solution):
+    boundary_gauss = solution.views.boundary_gauss
     return calculate_neutral_perp_flux_wall_cons(
         boundary_solution,
-        solution.gradient_boundary_gauss,
+        boundary_gauss.gradient.conservative,
         solution.dnn_parameters,
         solution.atomic_parameters,
-        solution.magnetic_field_boundary_gauss[:, :, 0],
-        solution.magnetic_field_boundary_gauss[:, :, 1],
-        solution.magnetic_field_boundary_gauss[:, :, 2],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 0],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 1],
+        boundary_gauss.equilibrium.magnetic_field[:, :, 2],
         solution.mesh.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["length_scale"],

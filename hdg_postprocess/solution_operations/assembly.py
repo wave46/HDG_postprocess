@@ -205,36 +205,41 @@ def calculate_in_boundary_gauss_points(solution, boundaries):
     boundary_ordering, connectivity_ordered, iel_face_ordered = solution.mesh.calculate_gauss_boundary(
         boundaries, solution.raw_solution_boundary_infos
     )
+    boundary_view = solution.views.boundary
+    boundary_solution = boundary_view.solution.conservative
+    boundary_solution_skeleton = boundary_view.solution_skeleton.conservative
+    boundary_gradient = boundary_view.gradient.conservative
+    boundary_equilibrium = boundary_view.equilibrium
 
     solution_boundary_ordered = np.empty(
-        [0, solution.solution_boundary[boundaries[0]][0].shape[1], solution.solution_boundary[boundaries[0]][0].shape[2]]
+        [0, boundary_solution[boundaries[0]][0].shape[1], boundary_solution[boundaries[0]][0].shape[2]]
     )
     solution_skeleton_boundary_ordered = np.empty(
-        [0, solution.solution_skeleton_boundary[boundaries[0]][0].shape[1], solution.solution_skeleton_boundary[boundaries[0]][0].shape[2]]
+        [0, boundary_solution_skeleton[boundaries[0]][0].shape[1], boundary_solution_skeleton[boundaries[0]][0].shape[2]]
     )
     gradient_boundary_ordered = np.empty(
-        [0, solution._gradient_boundary[boundaries[0]][0].shape[1], solution._gradient_boundary[boundaries[0]][0].shape[2], solution._gradient_boundary[boundaries[0]][0].shape[3]]
+        [0, boundary_gradient[boundaries[0]][0].shape[1], boundary_gradient[boundaries[0]][0].shape[2], boundary_gradient[boundaries[0]][0].shape[3]]
     )
     magnetic_field_boundary_ordered = np.empty(
-        [0, solution._magnetic_field_boundary[boundaries[0]][0].shape[1], solution._magnetic_field_boundary[boundaries[0]][0].shape[2]]
+        [0, boundary_equilibrium.magnetic_field[boundaries[0]][0].shape[1], boundary_equilibrium.magnetic_field[boundaries[0]][0].shape[2]]
     )
     magnetic_field_unit_boundary_ordered = np.empty(
-        [0, solution._magnetic_field_unit_boundary[boundaries[0]][0].shape[1], solution._magnetic_field_unit_boundary[boundaries[0]][0].shape[2]]
+        [0, boundary_equilibrium.magnetic_field_unit[boundaries[0]][0].shape[1], boundary_equilibrium.magnetic_field_unit[boundaries[0]][0].shape[2]]
     )
-    poloidal_flux_boundary_ordered = np.empty([0, solution._poloidal_flux_boundary[boundaries[0]][0].shape[1]])
+    poloidal_flux_boundary_ordered = np.empty([0, boundary_equilibrium.poloidal_flux[boundaries[0]][0].shape[1]])
     for bound_order in boundary_ordering:
-        solution_boundary_ordered = np.vstack([solution_boundary_ordered, solution.solution_boundary[boundaries[bound_order[0]]][bound_order[1]]])
+        solution_boundary_ordered = np.vstack([solution_boundary_ordered, boundary_solution[boundaries[bound_order[0]]][bound_order[1]]])
         solution_skeleton_boundary_ordered = np.vstack([
             solution_skeleton_boundary_ordered,
-            solution.solution_skeleton_boundary[boundaries[bound_order[0]]][bound_order[1]],
+            boundary_solution_skeleton[boundaries[bound_order[0]]][bound_order[1]],
         ])
-        gradient_boundary_ordered = np.vstack([gradient_boundary_ordered, solution._gradient_boundary[boundaries[bound_order[0]]][bound_order[1]]])
-        magnetic_field_boundary_ordered = np.vstack([magnetic_field_boundary_ordered, solution._magnetic_field_boundary[boundaries[bound_order[0]]][bound_order[1]]])
+        gradient_boundary_ordered = np.vstack([gradient_boundary_ordered, boundary_gradient[boundaries[bound_order[0]]][bound_order[1]]])
+        magnetic_field_boundary_ordered = np.vstack([magnetic_field_boundary_ordered, boundary_equilibrium.magnetic_field[boundaries[bound_order[0]]][bound_order[1]]])
         magnetic_field_unit_boundary_ordered = np.vstack([
             magnetic_field_unit_boundary_ordered,
-            solution._magnetic_field_unit_boundary[boundaries[bound_order[0]]][bound_order[1]],
+            boundary_equilibrium.magnetic_field_unit[boundaries[bound_order[0]]][bound_order[1]],
         ])
-        poloidal_flux_boundary_ordered = np.vstack([poloidal_flux_boundary_ordered, solution._poloidal_flux_boundary[boundaries[bound_order[0]]][bound_order[1]]])
+        poloidal_flux_boundary_ordered = np.vstack([poloidal_flux_boundary_ordered, boundary_equilibrium.poloidal_flux[boundaries[bound_order[0]]][bound_order[1]]])
     solution._solution_boundary_gauss = np.einsum("ij,kjh->kih", solution.mesh.reference_element["N1d"], solution_boundary_ordered)
     solution._solution_skeleton_boundary_gauss = np.einsum("ij,kjh->kih", solution.mesh.reference_element["N1d"], solution_skeleton_boundary_ordered)
     solution._gradient_boundary_gauss = np.einsum("ij,kjhl->kihl", solution.mesh.reference_element["N1d"], gradient_boundary_ordered)
