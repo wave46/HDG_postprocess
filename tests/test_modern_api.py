@@ -59,6 +59,8 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     boundary_skeleton = solution.fields.conservative(view="boundary", skeleton=True)
     boundary_gauss_cons = solution.fields.conservative(view="boundary_gauss")
     boundary_gauss_skeleton = solution.fields.conservative(view="boundary_gauss", skeleton=True)
+    boundary_gauss_cons_cached = solution.fields.conservative(view="boundary_gauss")
+    boundary_gauss_skeleton_cached = solution.fields.conservative(view="boundary_gauss", skeleton=True)
     axis = solution.equilibrium.define_axis()
     profile = solution.sample.line(
         baseline["sampled_profile"]["r"],
@@ -82,8 +84,10 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     assert boundary_gauss_view is solution.views.boundary_gauss
     assert boundary_cons is solution.views.boundary.solution.conservative
     assert boundary_skeleton is solution.views.boundary.solution_skeleton.conservative
-    assert np.allclose(boundary_gauss_cons, solution.views.boundary_gauss.solution.conservative)
-    assert np.allclose(boundary_gauss_skeleton, solution.views.boundary_gauss.solution_skeleton.conservative)
+    assert boundary_gauss_cons is solution.views.boundary_gauss.solution.conservative
+    assert boundary_gauss_skeleton is solution.views.boundary_gauss.solution_skeleton.conservative
+    assert boundary_gauss_cons_cached is boundary_gauss_cons
+    assert boundary_gauss_skeleton_cached is boundary_gauss_skeleton
     assert axis is solution.summary.equilibrium.axis
     assert solution.metadata.flags.combined_gauss
     assert solution.metadata.flags.combined_boundary

@@ -107,10 +107,19 @@ class PhysicalConstantState:
 
 
 @dataclass
+class SolutionCacheState:
+    boundary_gauss_boundaries: object = None
+    boundary_gauss_ordering: object = None
+    boundary_gauss_connectivity: object = None
+    boundary_gauss_face_elements: object = None
+
+
+@dataclass
 class SolutionMetadataState:
     flags: SolutionFlagState = field(default_factory=SolutionFlagState)
     indices: SolutionIndexState = field(default_factory=SolutionIndexState)
     constants: PhysicalConstantState = field(default_factory=PhysicalConstantState)
+    cache: SolutionCacheState = field(default_factory=SolutionCacheState)
 
 
 @dataclass
