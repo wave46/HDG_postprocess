@@ -45,6 +45,14 @@ Properties and attributes:
 - `gradient_glob_phys`
 - `phys_idx`
 
+Preferred replacement API for new code:
+
+- `views.simple.solution.physical`
+- `views.simple.gradient.physical`
+- `views.glob.solution.physical`
+- `views.glob.gradient.physical`
+- `summary.boundary.boundary_summary`
+
 Required workflows:
 
 - loading legacy partitioned runs with an external mesh

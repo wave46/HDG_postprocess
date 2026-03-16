@@ -50,7 +50,16 @@ profile = solution.sample.line(r_line, z_line, ["n", "te", "ti"])
 power = solution.analysis.power_balance()
 ```
 
-This modern layer is a thin facade over the legacy implementation, so it does not force migration and keeps existing demos working unchanged.
+For direct data access, prefer the structured container API instead of the long legacy split-property names:
+
+```python
+simple_phys = solution.views.simple.solution.physical
+glob_cons = solution.views.glob.solution.conservative
+gauss_grad = solution.views.gauss.gradient.conservative
+boundary_summary = solution.summary.boundary.boundary_summary
+```
+
+This modern layer is still implemented as a thin facade over the legacy implementation, but the preferred user-facing shape is now the structured `views` / `summary` access pattern.
 
 ## Legacy API
 
@@ -64,6 +73,17 @@ solution = load_from_file.load_HDG_solution_from_file(...)
 ```
 
 This remains the compatibility baseline during the refactor.
+
+Examples of compatibility-only legacy access that new code should avoid:
+
+```python
+solution.solution_simple_phys
+solution.solution_glob_phys
+solution.gradient_boundary_gauss
+solution.boundary_summary
+```
+
+These aliases are still kept for demo and notebook compatibility, but new code should use the structured container API instead.
 
 ## Dependencies
 

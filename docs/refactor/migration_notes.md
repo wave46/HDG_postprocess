@@ -6,7 +6,13 @@ The refactor is still in the compatibility-first phase.
 
 - Demo-covered legacy entrypoints remain supported.
 - `hdg_postprocess.api` provides the new additive API for new code.
-- The new API currently delegates to the legacy implementation internally.
+- The preferred data-access style is now the structured container API:
+  - `solution.views`
+  - `solution.summary`
+  - `solution.parameter_state`
+  - `solution.atomic_rates`
+  - `solution.interpolators`
+- The new API still delegates to the legacy implementation internally.
 
 ## Recommended usage
 
@@ -19,6 +25,14 @@ For new code:
 
 - prefer `hdg_postprocess.api.load_solution()`
 - prefer grouped access through `fields`, `analysis`, `sample`, and `plot`
+- prefer direct structured access such as `solution.views.simple.solution.physical`
+- avoid introducing new code that depends on legacy split-property aliases like `solution_simple_phys`
+
+For existing notebooks and scripts that still use the old split-property names:
+
+- they remain supported for now
+- treat them as compatibility aliases rather than the preferred API
+- plan future updates toward the structured container model
 
 ## Known limitations
 
