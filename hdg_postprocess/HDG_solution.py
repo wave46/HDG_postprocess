@@ -114,10 +114,14 @@ class HDGsolution:
         "_magnetic_field_simple": ("simple", "equilibrium", "magnetic_field"),
         "_jtor_simple": ("simple", "equilibrium", "jtor"),
         "_poloidal_flux_simple": ("simple", "equilibrium", "poloidal_flux"),
+        "_a_simple": ("simple", "equilibrium", "a"),
         "_magnetic_field_glob": ("glob", "equilibrium", "magnetic_field"),
         "_magnetic_field_unit_glob": ("glob", "equilibrium", "magnetic_field_unit"),
         "_jtor_glob": ("glob", "equilibrium", "jtor"),
         "_poloidal_flux_glob": ("glob", "equilibrium", "poloidal_flux"),
+        "_a_glob": ("glob", "equilibrium", "a"),
+        "_qcyl_simple": ("simple", "equilibrium", "qcyl"),
+        "_qcyl_glob": ("glob", "equilibrium", "qcyl"),
         "_magnetic_field_gauss": ("gauss", "equilibrium", "magnetic_field"),
         "_magnetic_field_unit_gauss": ("gauss", "equilibrium", "magnetic_field_unit"),
         "_jtor_gauss": ("gauss", "equilibrium", "jtor"),
@@ -183,10 +187,6 @@ class HDGsolution:
     _SUMMARY_CONTAINER_PATHS = {
         "_r_axis": ("equilibrium", "axis", "r"),
         "_z_axis": ("equilibrium", "axis", "z"),
-        "_a_simple": ("equilibrium", "simple", "a"),
-        "_a_glob": ("equilibrium", "glob", "a"),
-        "_qcyl_simple": ("equilibrium", "simple", "qcyl"),
-        "_qcyl_glob": ("equilibrium", "glob", "qcyl"),
         "_ion_gain_iz_total": ("sources", "ion_gain_iz_total"),
         "_ion_sink_rec_total": ("sources", "ion_sink_rec_total"),
         "_ion_sink_cx_total": ("sources", "ion_sink_cx_total"),
@@ -806,22 +806,22 @@ class HDGsolution:
     @property
     def a_glob(self):
         """minor radii on global mesh"""
-        return self._summary.equilibrium.glob.a
+        return self._views.glob.equilibrium.a
     
     @property
     def a_simple(self):
         """minor radii on simple mesh"""
-        return self._summary.equilibrium.simple.a
+        return self._views.simple.equilibrium.a
 
     @property
     def qcyl_glob(self):
         """Cylindrical safety factor on global mesh"""
-        return self._summary.equilibrium.glob.qcyl
+        return self._views.glob.equilibrium.qcyl
     
     @property
     def qcyl_simple(self):
         """Cylindrical safety factor on simple mesh"""
-        return self._summary.equilibrium.simple.qcyl
+        return self._views.simple.equilibrium.qcyl
 
     @property
     def boundary_summary(self):

@@ -13,6 +13,8 @@ class EquilibriumViewState:
     magnetic_field_unit: object = None
     jtor: object = None
     poloidal_flux: object = None
+    a: object = None
+    qcyl: object = None
 
 
 @dataclass
@@ -70,16 +72,8 @@ class AxisState:
 
 
 @dataclass
-class EquilibriumScalarViewState:
-    a: object = None
-    qcyl: object = None
-
-
-@dataclass
 class EquilibriumSummaryState:
     axis: AxisState = field(default_factory=AxisState)
-    simple: EquilibriumScalarViewState = field(default_factory=EquilibriumScalarViewState)
-    glob: EquilibriumScalarViewState = field(default_factory=EquilibriumScalarViewState)
 
 
 @dataclass
