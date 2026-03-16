@@ -251,14 +251,14 @@ def summary_along_the_wall(solution):
     result["r"] = solution.mesh.vertices_boundary_gauss[:, ::-1, 0]
     result["z"] = solution.mesh.vertices_boundary_gauss[:, ::-1, 1]
     result["psi"] = boundary_equilibrium.poloidal_flux[:, ::-1]
-    solution._boundary_summary = result
+    solution.summary.boundary.profile = result
     return result
 
 
 def calculate_boundary_summary(solution):
     solution.calculate_in_boundary_gauss_points(np.unique(solution._raw_solution_boundary_infos[0]["boundary_flags"]))
-    solution._boundary_summary = solution.summary_along_the_wall()
-    return solution._boundary_summary
+    solution.summary.boundary.profile = solution.summary_along_the_wall()
+    return solution.summary.boundary.profile
 
 
 def _parallel_conductivity(solution, key):

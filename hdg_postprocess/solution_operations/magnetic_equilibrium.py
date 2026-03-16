@@ -8,12 +8,14 @@ def define_magnetic_axis(solution):
         print("Comibining first simple solution full")
         solution.recombine_simple_full_solution()
     poloidal_flux_simple = solution.views.simple.equilibrium.poloidal_flux
-    solution._r_axis, solution._z_axis = solution.mesh.vertices_glob[np.where(poloidal_flux_simple == poloidal_flux_simple.min())][0]
+    axis_r, axis_z = solution.mesh.vertices_glob[np.where(poloidal_flux_simple == poloidal_flux_simple.min())][0]
+    solution._summary.equilibrium.axis.r = axis_r
+    solution._summary.equilibrium.axis.z = axis_z
 
 
 def define_minor_radii(solution, which="simple"):
     if which == "simple":
-        if (solution._r_axis is None) or (solution._z_axis is None):
+        if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
             solution.define_magnetic_axis()
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")
@@ -24,7 +26,7 @@ def define_minor_radii(solution, which="simple"):
             solution._a_glob.shape[0] * solution._a_glob.shape[1]
         )
     if which == "full":
-        if (solution._r_axis is None) or (solution._z_axis is None):
+        if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
             solution.define_magnetic_axis()
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")

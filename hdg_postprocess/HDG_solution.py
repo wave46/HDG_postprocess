@@ -86,11 +86,6 @@ def _make_generated_property(root_attr, path, doc, setter_attr=None):
 
 class HDGsolution:
     ""
-    _AUX_CONTAINER_PATHS = {
-        "_atomic_parameters": ("_parameter_state", "atomic"),
-        "_dnn_parameters": ("_parameter_state", "neutral_diffusion"),
-        "_dk_parameters": ("_parameter_state", "turbulence"),
-    }
     _VIEW_CONTAINER_PATHS = {
         "_solution_simple": ("simple", "solution", "conservative"),
         "_gradient_simple": ("simple", "gradient", "conservative"),
@@ -178,25 +173,7 @@ class HDGsolution:
         "_ohmic_source_simple": ("simple", "sources", "ohmic_source"),
         "_ohmic_source_gauss": ("gauss", "sources", "ohmic_source"),
     }
-    _SUMMARY_CONTAINER_PATHS = {
-        "_r_axis": ("equilibrium", "axis", "r"),
-        "_z_axis": ("equilibrium", "axis", "z"),
-        "_ion_gain_iz_total": ("sources", "ion_gain_iz_total"),
-        "_ion_sink_rec_total": ("sources", "ion_sink_rec_total"),
-        "_ion_sink_cx_total": ("sources", "ion_sink_cx_total"),
-        "_electron_sink_iz_total": ("sources", "electron_sink_iz_total"),
-        "_electron_sink_rec_total": ("sources", "electron_sink_rec_total"),
-        "_electron_gain_rec_total": ("sources", "electron_gain_rec_total"),
-        "_electron_sink_cooling_factor_total": ("sources", "electron_sink_cooling_factor_total"),
-        "_external_heating_total": ("sources", "external_heating_total"),
-        "_external_heating_e_total": ("sources", "external_heating_e_total"),
-        "_external_heating_i_total": ("sources", "external_heating_i_total"),
-        "_ohmic_source_total": ("sources", "ohmic_source_total"),
-        "_boundary_summary": ("boundary", "profile"),
-        "_ion_energy_sheath_loss_total": ("boundary", "ion_energy_sheath_loss_total"),
-        "_electron_energy_sheath_loss_total": ("boundary", "electron_energy_sheath_loss_total"),
-    }
-    
+
     def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters, 
                  n_partitions, mesh):
@@ -233,18 +210,6 @@ class HDGsolution:
             view_state = getattr(views, view_path[0])
             field_state = getattr(view_state, view_path[1])
             setattr(field_state, view_path[2], value)
-        summary = self.__dict__.get("_summary")
-        summary_path = self._SUMMARY_CONTAINER_PATHS.get(name)
-        if summary is not None and summary_path is not None:
-            summary_state = getattr(summary, summary_path[0])
-            for part in summary_path[1:-1]:
-                summary_state = getattr(summary_state, part)
-            setattr(summary_state, summary_path[-1], value)
-        aux_path = self._AUX_CONTAINER_PATHS.get(name)
-        if aux_path is not None:
-            aux_state = self.__dict__.get(aux_path[0])
-            if aux_state is not None:
-                setattr(aux_state, aux_path[1], value)
         return
 
     def _initial_setup(self):
@@ -258,15 +223,9 @@ class HDGsolution:
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
-        mapped_state_names = (
-            set(self._VIEW_CONTAINER_PATHS)
-            | set(self._SUMMARY_CONTAINER_PATHS)
-        )
+        mapped_state_names = set(self._VIEW_CONTAINER_PATHS)
         for name in sorted(mapped_state_names):
             setattr(self, name, None)
-        for name in self._AUX_CONTAINER_PATHS:
-            setattr(self, name, None)
-
         # defining the indexes of conservative variables
         self._cons_idx = {}
         for i,label in enumerate(self.parameters['physics']['conservative_variable_names']):
@@ -306,7 +265,7 @@ class HDGsolution:
         return self._parameter_state.atomic
     @atomic_parameters.setter
     def atomic_parameters(self,value):
-        self._atomic_parameters = value
+        self._parameter_state.atomic = value
 
     @property
     def dnn_parameters(self):
@@ -314,12 +273,12 @@ class HDGsolution:
         return self._parameter_state.neutral_diffusion
     @dnn_parameters.setter
     def dnn_parameters(self,value):
-        self._dnn_parameters = value
-        self._dnn_parameters['dnn_max_adim']=(self._dnn_parameters['dnn_max']/
+        self._parameter_state.neutral_diffusion = value
+        self._parameter_state.neutral_diffusion['dnn_max_adim']=(self._parameter_state.neutral_diffusion['dnn_max']/
                                               self.parameters['adimensionalization']['length_scale']**2*
                                               self.parameters['adimensionalization']['time_scale'])
         if not value['const']:
-            self._dnn_parameters['dnn_min_adim']=(self._dnn_parameters['dnn_min']/
+            self._parameter_state.neutral_diffusion['dnn_min_adim']=(self._parameter_state.neutral_diffusion['dnn_min']/
                                               self.parameters['adimensionalization']['length_scale']**2*
                                               self.parameters['adimensionalization']['time_scale'])
     @property
@@ -328,12 +287,12 @@ class HDGsolution:
         return self._parameter_state.turbulence
     @dk_parameters.setter
     def dk_parameters(self,value):
-        self._dk_parameters = value
-        self._dk_parameters['dk_max_adim']=(self._dk_parameters['dk_max']/
+        self._parameter_state.turbulence = value
+        self._parameter_state.turbulence['dk_max_adim']=(self._parameter_state.turbulence['dk_max']/
                                               self.parameters['adimensionalization']['length_scale']**2*
                                               self.parameters['adimensionalization']['time_scale'])
         
-        self._dk_parameters['dk_min_adim']=(self._dk_parameters['dk_min']/
+        self._parameter_state.turbulence['dk_min_adim']=(self._parameter_state.turbulence['dk_min']/
                                               self.parameters['adimensionalization']['length_scale']**2*
                                               self.parameters['adimensionalization']['time_scale'])
     @property
