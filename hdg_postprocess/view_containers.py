@@ -70,6 +70,29 @@ class SolutionSummaryState:
 
 
 @dataclass
+class ParameterState:
+    atomic: object = None
+    neutral_diffusion: object = None
+    turbulence: object = None
+
+
+@dataclass
+class AtomicRateState:
+    ionization_simple: object = None
+    recombination_simple: object = None
+    cx_simple: object = None
+
+
+@dataclass
+class InterpolatorState:
+    sample: object = None
+    solution: object = None
+    gradient: object = None
+    field: object = None
+    qcyl: object = None
+
+
+@dataclass
 class SolutionViewState:
     solution: SolutionFieldState = field(default_factory=SolutionFieldState)
     solution_skeleton: SolutionFieldState = field(default_factory=SolutionFieldState)

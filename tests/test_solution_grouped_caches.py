@@ -98,6 +98,52 @@ def test_grouped_caches_sync_neutral_derived_fields(manifest_path):
     assert sol._views.glob.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision
 
 
+def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+
+    atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
+    dnn_parameters = generate_baselines._make_dnn_params()
+    dk_parameters = {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0}
+
+    sol.atomic_parameters = atomic_parameters
+    sol.dnn_parameters = dnn_parameters
+    sol.dk_parameters = dk_parameters
+
+    sol.recombine_full_solution()
+    sol.recombine_simple_full_solution()
+    sol.calculate_ionization_rate("simple")
+    sol.calculate_recombination_rate("simple")
+    sol.calculate_cx_rate("simple")
+    sol.define_magnetic_axis()
+    sol.define_minor_radii(which="full")
+    sol.define_qcyl(which="full")
+    sol.define_interpolators()
+
+    assert sol._parameter_state.atomic is sol.atomic_parameters
+    assert sol._parameter_state.neutral_diffusion is sol.dnn_parameters
+    assert sol._parameter_state.turbulence is sol.dk_parameters
+    assert sol._parameter_state.neutral_diffusion["dnn_max_adim"] == sol.dnn_parameters["dnn_max_adim"]
+    assert sol._parameter_state.turbulence["dk_max_adim"] == sol.dk_parameters["dk_max_adim"]
+    assert sol._atomic_rates.ionization_simple is sol.ionization_rate_simple
+    assert sol._atomic_rates.recombination_simple is sol.recombination_rate_simple
+    assert sol._atomic_rates.cx_simple is sol.cx_rate_simple
+    assert sol._interpolators_state.sample is sol.sample_interpolator
+    assert sol._interpolators_state.solution is sol.solution_interpolators
+    assert sol._interpolators_state.gradient is sol.gradient_interpolators
+    assert sol._interpolators_state.field is sol.field_interpolators
+    assert sol._interpolators_state.qcyl is sol.qcyl_interpolator
+
+
 def test_grouped_caches_sync_sources_and_totals(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]

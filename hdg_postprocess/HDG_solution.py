@@ -6,7 +6,13 @@ from hdg_postprocess.routines.plasma import *
 from hdg_postprocess.routines.neutrals import *
 from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
-from hdg_postprocess.view_containers import SolutionSummaryState, SolutionViews
+from hdg_postprocess.view_containers import (
+    AtomicRateState,
+    InterpolatorState,
+    ParameterState,
+    SolutionSummaryState,
+    SolutionViews,
+)
 from hdg_postprocess.solution_operations import (
     calculate_boundary_summary as calculate_boundary_summary_impl,
     calculate_dnn as calculate_dnn_impl,
@@ -53,19 +59,19 @@ from hdg_postprocess.solution_operations import (
 import os
 class HDGsolution:
     ""
-    _LEGACY_NONE_DEFAULTS = (
-        "_atomic_parameters",
-        "_dnn_parameters",
-        "_ionization_rate_simple",
-        "_recombination_rate_simple",
-        "_cx_rate_simple",
-        "_dk_parameters",
-        "_sample_interpolator",
-        "_solution_interpolators",
-        "_gradient_interpolators",
-        "_field_interpolators",
-        "_qcyl_interpolator",
-    )
+    _AUX_CONTAINER_PATHS = {
+        "_atomic_parameters": ("_parameter_state", "atomic"),
+        "_dnn_parameters": ("_parameter_state", "neutral_diffusion"),
+        "_dk_parameters": ("_parameter_state", "turbulence"),
+        "_ionization_rate_simple": ("_atomic_rates", "ionization_simple"),
+        "_recombination_rate_simple": ("_atomic_rates", "recombination_simple"),
+        "_cx_rate_simple": ("_atomic_rates", "cx_simple"),
+        "_sample_interpolator": ("_interpolators_state", "sample"),
+        "_solution_interpolators": ("_interpolators_state", "solution"),
+        "_gradient_interpolators": ("_interpolators_state", "gradient"),
+        "_field_interpolators": ("_interpolators_state", "field"),
+        "_qcyl_interpolator": ("_interpolators_state", "qcyl"),
+    }
     _VIEW_CONTAINER_PATHS = {
         "_solution_simple": ("simple", "solution", "conservative"),
         "_gradient_simple": ("simple", "gradient", "conservative"),
@@ -307,6 +313,11 @@ class HDGsolution:
         if summary is not None and summary_path is not None:
             summary_state = getattr(summary, summary_path[0])
             setattr(summary_state, summary_path[1], value)
+        aux_path = self._AUX_CONTAINER_PATHS.get(name)
+        if aux_path is not None:
+            aux_state = self.__dict__.get(aux_path[0])
+            if aux_state is not None:
+                setattr(aux_state, aux_path[1], value)
         grouped_caches = self.__dict__.get("_grouped_caches")
         cache_path = self._GROUPED_CACHE_PATHS.get(name)
         if grouped_caches is None or cache_path is None:
@@ -321,6 +332,9 @@ class HDGsolution:
         self._combined_simple_solution = False
         self._views = SolutionViews()
         self._summary = SolutionSummaryState()
+        self._parameter_state = ParameterState()
+        self._atomic_rates = AtomicRateState()
+        self._interpolators_state = InterpolatorState()
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
@@ -415,7 +429,7 @@ class HDGsolution:
         )
         for name in sorted(mapped_state_names):
             setattr(self, name, None)
-        for name in self._LEGACY_NONE_DEFAULTS:
+        for name in self._AUX_CONTAINER_PATHS:
             setattr(self, name, None)
 
         # defining the indexes of conservative variables
@@ -454,7 +468,7 @@ class HDGsolution:
     @property
     def atomic_parameters(self):
         """Dictionary with atomic parameters"""
-        return self._atomic_parameters
+        return self._parameter_state.atomic
     @atomic_parameters.setter
     def atomic_parameters(self,value):
         self._atomic_parameters = value
@@ -462,7 +476,7 @@ class HDGsolution:
     @property
     def dnn_parameters(self):
         """Dictionary with atomic parameters"""
-        return self._dnn_parameters
+        return self._parameter_state.neutral_diffusion
     @dnn_parameters.setter
     def dnn_parameters(self,value):
         self._dnn_parameters = value
@@ -476,7 +490,7 @@ class HDGsolution:
     @property
     def dk_parameters(self):
         """Dictionary with atomic parameters"""
-        return self._dk_parameters
+        return self._parameter_state.turbulence
     @dk_parameters.setter
     def dk_parameters(self,value):
         self._dk_parameters = value
@@ -1002,17 +1016,17 @@ class HDGsolution:
     @property
     def ionization_rate_simple(self):
         """Ionization rate coefficient on a simple solution mesh"""
-        return self._ionization_rate_simple
+        return self._atomic_rates.ionization_simple
 
     @property
     def recombination_rate_simple(self):
         """Recombination rate coefficient on a simple solution mesh"""
-        return self._recombination_rate_simple
+        return self._atomic_rates.recombination_simple
     
     @property
     def cx_rate_simple(self):
         """Charge exchange rate coefficient on a simple solution mesh"""
-        return self._cx_rate_simple
+        return self._atomic_rates.cx_simple
 
     @property
     def dnn_simple(self):
@@ -1047,7 +1061,7 @@ class HDGsolution:
     @property
     def sample_interpolator(self):
         """Sample interpolator for acceleration"""
-        return self._sample_interpolator
+        return self._interpolators_state.sample
     @sample_interpolator.setter
     def sample_interpolator(self,value):
         self._sample_interpolator = value
@@ -1055,22 +1069,22 @@ class HDGsolution:
     @property
     def solution_interpolators(self):
         """A list of interpolators of solutions in conservative form"""
-        return self._solution_interpolators
+        return self._interpolators_state.solution
 
     @property
     def gradient_interpolators(self):
         """A list of interpolators of solutions in conservative form"""
-        return self._gradient_interpolators
+        return self._interpolators_state.gradient
 
     @property
     def field_interpolators(self):
         """A list of interpolators of magnetic field"""
-        return self._field_interpolators
+        return self._interpolators_state.field
     
     @property
     def qcyl_interpolator(self):
         """A list of interpolators of magnetic field"""
-        return self._qcyl_interpolator
+        return self._interpolators_state.qcyl
 
     @property
     def r_axis(self):
