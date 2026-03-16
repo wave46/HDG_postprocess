@@ -2,6 +2,7 @@ import numpy as np
 
 from hdg_postprocess.routines.atomic import *
 from hdg_postprocess.routines.plasma import *
+from hdg_postprocess.solution_operations import physical as physical_ops
 
 
 def calculate_ohmic_source(solution, which="simple"):
@@ -424,7 +425,7 @@ def _require_atomic_key(solution, key, message):
 def _ensure_simple_phys(solution):
     if not solution.metadata.flags.simple_phys_initialized:
         print("Initializing physical solution first")
-        solution.init_phys_variables("simple")
+        physical_ops.init_phys_variables(solution, "simple")
 
 
 def _ensure_full_solution(solution):

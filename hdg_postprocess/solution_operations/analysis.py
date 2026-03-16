@@ -1,5 +1,7 @@
 import numpy as np
 
+from hdg_postprocess.solution_operations import boundary as boundary_ops
+
 
 def calculate_power_balance(solution):
     """
@@ -7,9 +9,9 @@ def calculate_power_balance(solution):
     """
     power_balance = {}
     print("Calculating volumetric sources for power balance evaluation")
-    solution.calculate_volumetric_sources()
+    calculate_volumetric_sources(solution)
     print("Calculating power losses to the wall for power balance evaluation")
-    solution.calculate_power_losses_to_wall()
+    calculate_power_losses_to_wall(solution)
 
     source_summary = solution.summary.sources
     boundary_summary = solution.summary.boundary
@@ -117,7 +119,7 @@ def calculate_power_losses_to_wall(solution):
     boundary_summary = solution.summary.boundary
     if boundary_summary.profile is None:
         print("Calculating boundary summary first")
-        solution.calculate_boundary_summary()
+        boundary_ops.calculate_boundary_summary(solution)
 
     if boundary_summary.ion_energy_sheath_loss_total is None:
         boundary_summary.ion_energy_sheath_loss_total = (

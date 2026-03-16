@@ -11,6 +11,7 @@ from hdg_postprocess.routines.plasma import (
     calculate_n_cons,
     calculate_nn_cons,
 )
+from hdg_postprocess.solution_operations import physical as physical_ops
 
 
 def _ensure_simple_solution(solution):
@@ -22,7 +23,7 @@ def _ensure_simple_solution(solution):
 def _ensure_simple_physical(solution):
     if not solution.metadata.flags.simple_phys_initialized:
         print("Initializing physical solution first")
-        solution.init_phys_variables("simple")
+        physical_ops.init_phys_variables(solution, "simple")
 
 
 def _ensure_connectivity_big(solution):
@@ -241,7 +242,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     _ensure_simple_physical(solution)
     if not second_solution.metadata.flags.simple_phys_initialized:
         print("Initializing physical solution first")
-        second_solution.init_phys_variables("simple")
+        physical_ops.init_phys_variables(second_solution, "simple")
 
     colorbar_labels = [r"n, m$^{-3}$", r"$n_n$, m$^{-3}$", r"$T_i$", r"$T_e$", r"M", r"k"]
     left_simple_phys = solution.views.simple.solution.physical

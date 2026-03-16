@@ -46,8 +46,8 @@ def test_solution_plotting_smoke_and_mesh_linewidth(manifest_path):
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
 
-    fig1, axes1, conservative = sol.plot_overview(n_levels=5)
-    fig2, axes2, physical = sol.plot_overview_physical(n_levels=5)
+    fig1, axes1, conservative = sol.plot.overview(n_levels=5)
+    fig2, axes2, physical = sol.plot.physical_overview(n_levels=5)
 
     assert conservative.shape[1] == sol.neq
     assert physical.shape[0] == sol.views.simple.solution.conservative.shape[0]

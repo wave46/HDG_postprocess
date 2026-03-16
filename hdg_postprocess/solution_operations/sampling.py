@@ -20,81 +20,81 @@ def calculate_variables_along_line(solution, r_line, z_line, variable_list):
         temp = np.zeros_like(z_line)
         for i, (r, z) in enumerate(zip(r_line, z_line)):
             if variable == "n":
-                temp[i] = solution.n(r, z)
+                temp[i] = solution.pointwise.n(r, z)
             elif variable == "nn":
-                temp[i] = solution.nn(r, z)
+                temp[i] = solution.pointwise.nn(r, z)
             elif variable == "ti":
-                temp[i] = solution.ti(r, z)
+                temp[i] = solution.pointwise.ti(r, z)
             elif variable == "te":
-                temp[i] = solution.te(r, z)
+                temp[i] = solution.pointwise.te(r, z)
             elif variable == "M":
-                temp[i] = solution.M(r, z)
+                temp[i] = solution.pointwise.M(r, z)
             elif variable == "dnn":
-                temp[i] = solution.dnn(r, z)
+                temp[i] = solution.pointwise.dnn(r, z)
             elif variable == "mfp":
-                temp[i] = solution.mfp_nn(r, z)
+                temp[i] = solution.pointwise.mfp_nn(r, z)
             elif variable == "p_dyn":
-                temp[i] = solution.p_dyn(r, z)
+                temp[i] = solution.pointwise.dynamic_pressure(r, z)
             elif variable == "pi":
-                temp[i] = solution.pi(r, z)
+                temp[i] = solution.pointwise.ion_pressure(r, z)
             elif variable == "dpi_dx":
-                temp[i] = solution.grad_pi(r, z, "x")
+                temp[i] = solution.pointwise.grad_pi(r, z, "x")
             elif variable == "dpi_dy":
-                temp[i] = solution.grad_pi(r, z, "y")
+                temp[i] = solution.pointwise.grad_pi(r, z, "y")
             elif variable == "q_i_par":
-                temp[i] = solution.ion_heat_flux_par(r, z)
+                temp[i] = solution.pointwise.ion_heat_flux_parallel(r, z)
             elif variable == "q_i_par_conv":
-                temp[i] = solution.ion_heat_flux_par_conv(r, z)
+                temp[i] = solution.pointwise.ion_heat_flux_parallel_convective(r, z)
             elif variable == "q_i_par_cond":
-                temp[i] = solution.ion_heat_flux_par_cond(r, z)
+                temp[i] = solution.pointwise.ion_heat_flux_parallel_conductive(r, z)
             elif variable == "q_e_par":
-                temp[i] = solution.electron_heat_flux_par(r, z)
+                temp[i] = solution.pointwise.electron_heat_flux_parallel(r, z)
             elif variable == "q_e_par_conv":
-                temp[i] = solution.electron_heat_flux_par_conv(r, z)
+                temp[i] = solution.pointwise.electron_heat_flux_parallel_convective(r, z)
             elif variable == "q_e_par_cond":
-                temp[i] = solution.electron_heat_flux_par_cond(r, z)
+                temp[i] = solution.pointwise.electron_heat_flux_parallel_conductive(r, z)
             elif variable == "gamma":
-                temp[i] = solution.particle_flux_par(r, z)
+                temp[i] = solution.pointwise.particle_flux_parallel(r, z)
             elif variable == "u":
-                temp[i] = solution.u(r, z)
+                temp[i] = solution.pointwise.u(r, z)
             elif variable == "cs":
-                temp[i] = solution.cs(r, z)
+                temp[i] = solution.pointwise.cs(r, z)
             elif variable == "dk":
-                temp[i] = solution.dk(r, z)
+                temp[i] = solution.pointwise.dk(r, z)
             elif variable == "cx_rate":
-                temp[i] = solution.cx_rate(r, z)
+                temp[i] = solution.pointwise.cx_rate(r, z)
             elif variable == "iz_rate":
-                temp[i] = solution.iz_rate(r, z)
+                temp[i] = solution.pointwise.ionization_rate(r, z)
             elif variable == "btor":
-                temp[i] = solution.B(r, z, "theta")
+                temp[i] = solution.pointwise.magnetic_field(r, z, "theta")
             elif variable == "dbtor_dx":
-                temp[i] = solution.grad_B(r, z, "theta", "x")
+                temp[i] = solution.pointwise.grad_magnetic_field(r, z, "theta", "x")
             elif variable == "dbtor_dy":
-                temp[i] = solution.grad_B(r, z, "theta", "y")
+                temp[i] = solution.pointwise.grad_magnetic_field(r, z, "theta", "y")
             elif variable == "k":
-                temp[i] = solution.k(r, z)
+                temp[i] = solution.pointwise.k(r, z)
             elif variable == "psi":
-                temp[i] = solution.psi(r, z)
+                temp[i] = solution.pointwise.psi(r, z)
             elif variable == "Q_e_loss_iz":
-                temp[i] = solution.Q_e_loss_iz(r, z)
+                temp[i] = solution.pointwise.Q_e_loss_iz(r, z)
             elif variable == "Q_e_loss_rec":
-                temp[i] = solution.Q_e_loss_rec(r, z)
+                temp[i] = solution.pointwise.Q_e_loss_rec(r, z)
             elif variable == "Q_e_gain_rec":
-                temp[i] = solution.Q_e_gain_rec(r, z)
+                temp[i] = solution.pointwise.Q_e_gain_rec(r, z)
             elif variable == "Q_i_gain_iz":
-                temp[i] = solution.Q_i_gain_iz(r, z)
+                temp[i] = solution.pointwise.Q_i_gain_iz(r, z)
             elif variable == "Q_i_loss_rec":
-                temp[i] = solution.Q_i_loss_rec(r, z)
+                temp[i] = solution.pointwise.Q_i_loss_rec(r, z)
             elif variable == "Q_i_loss_cx":
-                temp[i] = solution.Q_i_loss_cx(r, z)
+                temp[i] = solution.pointwise.Q_i_loss_cx(r, z)
             elif variable == "Q_e_loss_tot":
-                temp[i] = solution.Q_e_loss_tot(r, z)
+                temp[i] = solution.pointwise.Q_e_loss_total(r, z)
             elif variable == "Q_i_loss_tot":
-                temp[i] = solution.Q_i_loss_tot(r, z)
+                temp[i] = solution.pointwise.Q_i_loss_total(r, z)
             elif variable == "Q_loss_tot":
-                temp[i] = solution.Q_loss_tot(r, z)
+                temp[i] = solution.pointwise.Q_loss_total(r, z)
             elif variable == "Siz":
-                temp[i] = solution.ionization_source_interp(r, z)
+                temp[i] = solution.pointwise.ionization_source(r, z)
             else:
                 raise KeyError(f"{variable} is not in the list of posible variables:  {defined_variables}")
         result[variable] = temp
@@ -115,7 +115,7 @@ def save_summary_line(solution, save_folder, r_line, z_line, variable_list):
             raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
     vertices = np.stack([r_line, z_line]).T
     np.save(f"{save_folder}vertices.npy", vertices)
-    values_on_line = solution.calculate_variables_along_line(r_line, z_line, variable_list)
+    values_on_line = calculate_variables_along_line(solution, r_line, z_line, variable_list)
     for variable, values in values_on_line.items():
         np.save(f"{save_folder}{variable}.npy", values)
     return values_on_line

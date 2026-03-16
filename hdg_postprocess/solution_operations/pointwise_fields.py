@@ -3,12 +3,13 @@ import numpy as np
 from hdg_postprocess.routines.atomic import *  # noqa: F403
 from hdg_postprocess.routines.neutrals import *  # noqa: F403
 from hdg_postprocess.routines.plasma import *  # noqa: F403
+from hdg_postprocess.solution_operations import sampling as sampling_ops
 
 
 def _ensure_interpolators(solution):
     if solution.interpolators.solution is None:
         print("Definition of interpolators will take some time for the initialization")
-        solution.define_interpolators()
+        sampling_ops.define_interpolators(solution)
 
 
 def _sample_state(solution, r, z):

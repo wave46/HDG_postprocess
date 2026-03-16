@@ -46,13 +46,13 @@ def test_solution_operations_demo_surface(manifest_path):
 
     sol.assembly.full()
     sol.assembly.simple()
-    sol.init_phys_variables("both")
-    sol.define_interpolators()
+    sol.fields.initialize_physical("both")
+    sol.sample.define_interpolators()
 
     assert sol.views.glob.solution.conservative.shape[0] == baseline["mesh"]["nelems_glob"]
     assert sol.views.simple.solution.physical.shape[1] == baseline["metadata"]["nphys"]
 
-    profile = sol.calculate_variables_along_line(
+    profile = sol.sample.line(
         baseline["sampled_profile"]["r"],
         baseline["sampled_profile"]["z"],
         cfg["profile_variables"],

@@ -266,7 +266,7 @@ def calculate_boundary_summary(solution):
         or solution.metadata.cache.boundary_gauss_boundaries != default_boundaries
     ):
         solution.assembly.boundary_gauss(default_boundaries)
-    solution.summary.boundary.profile = solution.summary_along_the_wall()
+    solution.summary.boundary.profile = summary_along_the_wall(solution)
     return solution.summary.boundary.profile
 
 

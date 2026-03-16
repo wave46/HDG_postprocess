@@ -18,19 +18,20 @@ compatible throughout the refactor:
 
 Methods:
 
-- `plot_overview()`
-- `plot_overview_physical()`
-- `init_phys_variables()`
-- `define_interpolators()`
-- `calculate_variables_along_line()`
-- `calculate_power_balance()`
-- `calculate_boundary_summary()`
-- `n()`
-- `ti()`
-- `te()`
-- `nn()`
-- `grad_ti()`
-- `grad_ti_par()`
+- `plot.overview()`
+- `plot.physical_overview()`
+- `fields.initialize_physical()`
+- `sample.define_interpolators()`
+- `sample.line()`
+- `analysis.power_balance()`
+- `analysis.boundary_summary()`
+- `analysis.wall_profile()`
+- `pointwise.n()`
+- `pointwise.ti()`
+- `pointwise.te()`
+- `pointwise.nn()`
+- `pointwise.grad_ti()`
+- `pointwise.grad_ti_parallel()`
 
 Properties and attributes:
 

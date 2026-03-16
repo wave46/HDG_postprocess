@@ -15,12 +15,12 @@ from hdg_postprocess.solution_facades import (
     SolutionEquilibrium,
     SolutionFields,
     SolutionNeutrals,
+    SolutionPointwise,
     SolutionPlotting,
     SolutionSampling,
     SolutionSources,
     SolutionTurbulence,
 )
-from hdg_postprocess.solution_wrappers import attach_solution_wrappers
 
 
 class HDGsolution:
@@ -81,6 +81,7 @@ class HDGsolution:
         self._turbulence = SolutionTurbulence(self)
         self._sample = SolutionSampling(self)
         self._plot = SolutionPlotting(self)
+        self._pointwise = SolutionPointwise(self)
 
     def _init_flags(self):
         self._metadata.flags.combined_simple_solution = False
@@ -232,5 +233,7 @@ class HDGsolution:
         """Facade for high-level plotting workflows."""
         return self._plot
 
-
-attach_solution_wrappers(HDGsolution)
+    @property
+    def pointwise(self):
+        """Facade for direct pointwise sampling of derived quantities."""
+        return self._pointwise

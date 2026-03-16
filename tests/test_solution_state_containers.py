@@ -43,7 +43,7 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
 
     sol.assembly.full()
     sol.assembly.simple()
-    sol.init_phys_variables("both")
+    sol.fields.initialize_physical("both")
     sol.equilibrium.define_axis()
     sol.equilibrium.define_minor_radii(view="glob")
     sol.equilibrium.define_minor_radii(view="simple")
@@ -129,7 +129,7 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
     sol.equilibrium.define_axis()
     sol.equilibrium.define_minor_radii(view="glob")
     sol.equilibrium.define_qcyl(view="glob")
-    sol.define_interpolators()
+    sol.sample.define_interpolators()
 
     assert sol.additional_parameters.atomic is atomic_parameters
     assert sol.additional_parameters.neutral_diffusion is dnn_parameters
@@ -170,7 +170,7 @@ def test_container_state_sync_sources_and_totals(manifest_path):
     sol.sources.ionization("simple")
     sol.sources.electron_sink_rec("simple")
     sol.sources.cx("simple")
-    sol.calculate_power_balance()
+    sol.analysis.power_balance()
 
     assert sol.summary.sources.ion_gain_iz_total is not None
     assert sol.summary.sources.electron_sink_iz_total is not None

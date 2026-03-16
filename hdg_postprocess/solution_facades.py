@@ -1,9 +1,15 @@
 import numpy as np
 
+from hdg_postprocess.solution_operations import analysis as analysis_ops
 from hdg_postprocess.solution_operations import assembly as assembly_ops
+from hdg_postprocess.solution_operations import boundary as boundary_ops
 from hdg_postprocess.solution_operations import magnetic_equilibrium as equilibrium_ops
 from hdg_postprocess.solution_operations import neutrals as neutrals_ops
+from hdg_postprocess.solution_operations import physical as physical_ops
+from hdg_postprocess.solution_operations import plotting as plotting_ops
+from hdg_postprocess.solution_operations import pointwise_fields as pointwise_fields_ops
 from hdg_postprocess.solution_operations import plasma_sources as plasma_source_ops
+from hdg_postprocess.solution_operations import sampling as sampling_ops
 from hdg_postprocess.solution_operations import turbulent_model as turbulent_model_ops
 
 
@@ -63,7 +69,7 @@ class SolutionFields:
     def physical(self, view="full", gradients=False, skeleton=False):
         if view == "simple":
             if not self._solution.metadata.flags.simple_phys_initialized:
-                self._solution.init_phys_variables("simple")
+                self.initialize_physical("simple")
             return (
                 self._solution.views.simple.gradient.physical
                 if gradients
@@ -71,7 +77,7 @@ class SolutionFields:
             )
         if view == "full":
             if not self._solution.metadata.flags.full_phys_initialized:
-                self._solution.init_phys_variables("full")
+                self.initialize_physical("full")
             return (
                 self._solution.views.glob.gradient.physical
                 if gradients
@@ -79,7 +85,7 @@ class SolutionFields:
             )
         if view == "gauss":
             if not self._solution.metadata.flags.gauss_phys_initialized:
-                self._solution.init_phys_variables("gauss")
+                self.initialize_physical("gauss")
             return (
                 self._solution.views.gauss.gradient.physical
                 if gradients
@@ -88,6 +94,12 @@ class SolutionFields:
         if view in {"boundary", "boundary_gauss"}:
             raise ValueError("Physical boundary fields are not initialized yet; use conservative boundary data for now.")
         raise ValueError(f"Unsupported physical view: {view}")
+
+    def initialize_physical(self, view="both"):
+        physical_ops.init_phys_variables(self._solution, which=view)
+
+    def to_physical(self, data):
+        return physical_ops.cons2phys(self._solution, data)
 
 
 class SolutionAssembly:
@@ -248,11 +260,20 @@ class SolutionAnalysis:
         self._solution = solution
 
     def power_balance(self):
-        return self._solution.calculate_power_balance()
+        return analysis_ops.calculate_power_balance(self._solution)
+
+    def volumetric_sources(self):
+        return analysis_ops.calculate_volumetric_sources(self._solution)
+
+    def power_losses_to_wall(self):
+        return analysis_ops.calculate_power_losses_to_wall(self._solution)
 
     def boundary_summary(self):
-        self._solution.calculate_boundary_summary()
+        boundary_ops.calculate_boundary_summary(self._solution)
         return self._solution.summary.boundary.profile
+
+    def wall_profile(self):
+        return boundary_ops.summary_along_the_wall(self._solution)
 
 
 class SolutionSampling:
@@ -269,13 +290,21 @@ class SolutionSampling:
     def line(self, r_line, z_line, variables):
         self._prepare_for_sampling()
         variable_list = [variables] if isinstance(variables, str) else list(variables)
-        return self._solution.calculate_variables_along_line(np.asarray(r_line), np.asarray(z_line), variable_list)
+        return sampling_ops.calculate_variables_along_line(self._solution, np.asarray(r_line), np.asarray(z_line), variable_list)
+
+    def save_line(self, save_folder, r_line, z_line, variables):
+        self._prepare_for_sampling()
+        variable_list = [variables] if isinstance(variables, str) else list(variables)
+        return sampling_ops.save_summary_line(self._solution, save_folder, np.asarray(r_line), np.asarray(z_line), variable_list)
+
+    def define_interpolators(self):
+        return sampling_ops.define_interpolators(self._solution)
 
     def _prepare_for_sampling(self):
         if not self._solution.metadata.flags.simple_phys_initialized:
-            self._solution.init_phys_variables("simple")
+            physical_ops.init_phys_variables(self._solution, which="simple")
         if self._solution.interpolators.solution is None:
-            self._solution.define_interpolators()
+            sampling_ops.define_interpolators(self._solution)
 
 
 class SolutionPlotting:
@@ -283,9 +312,145 @@ class SolutionPlotting:
         self._solution = solution
 
     def overview(self, *args, **kwargs):
-        return self._solution.plot_overview(*args, **kwargs)
+        return plotting_ops.plot_overview(self._solution, *args, **kwargs)
+
+    def overview_difference(self, *args, **kwargs):
+        return plotting_ops.plot_overview_difference(self._solution, *args, **kwargs)
 
     def physical_overview(self, *args, **kwargs):
         if not self._solution.metadata.flags.simple_phys_initialized:
-            self._solution.init_phys_variables("simple")
-        return self._solution.plot_overview_physical(*args, **kwargs)
+            physical_ops.init_phys_variables(self._solution, which="simple")
+        return plotting_ops.plot_overview_physical(self._solution, *args, **kwargs)
+
+    def physical_overview_difference(self, *args, **kwargs):
+        if not self._solution.metadata.flags.simple_phys_initialized:
+            physical_ops.init_phys_variables(self._solution, which="simple")
+        return plotting_ops.plot_overview_physical_difference(self._solution, *args, **kwargs)
+
+    def variables_overview(self, *args, **kwargs):
+        return plotting_ops.plot_variables_overview(self._solution, *args, **kwargs)
+
+
+class SolutionPointwise:
+    def __init__(self, solution):
+        self._solution = solution
+
+    def n(self, r, z):
+        return pointwise_fields_ops.n(self._solution, r, z)
+
+    def ti(self, r, z):
+        return pointwise_fields_ops.ti(self._solution, r, z)
+
+    def te(self, r, z):
+        return pointwise_fields_ops.te(self._solution, r, z)
+
+    def u(self, r, z):
+        return pointwise_fields_ops.u(self._solution, r, z)
+
+    def cs(self, r, z):
+        return pointwise_fields_ops.cs(self._solution, r, z)
+
+    def M(self, r, z):
+        return pointwise_fields_ops.M(self._solution, r, z)
+
+    def nn(self, r, z):
+        return pointwise_fields_ops.nn(self._solution, r, z)
+
+    def ionization_source(self, r, z):
+        return pointwise_fields_ops.ionization_source_interp(self._solution, r, z)
+
+    def ionization_rate(self, r, z):
+        return pointwise_fields_ops.iz_rate(self._solution, r, z)
+
+    def cx_rate(self, r, z):
+        return pointwise_fields_ops.cx_rate(self._solution, r, z)
+
+    def dnn(self, r, z):
+        return pointwise_fields_ops.dnn(self._solution, r, z)
+
+    def k(self, r, z):
+        return pointwise_fields_ops.k(self._solution, r, z)
+
+    def dk(self, r, z):
+        return pointwise_fields_ops.dk(self._solution, r, z)
+
+    def mfp_nn(self, r, z):
+        return pointwise_fields_ops.mfp_nn(self._solution, r, z)
+
+    def dynamic_pressure(self, r, z):
+        return pointwise_fields_ops.p_dyn(self._solution, r, z)
+
+    def ion_pressure(self, r, z):
+        return pointwise_fields_ops.pi(self._solution, r, z)
+
+    def grad_ti(self, r, z, coordinate):
+        return pointwise_fields_ops.grad_ti(self._solution, r, z, coordinate)
+
+    def grad_pi(self, r, z, coordinate):
+        return pointwise_fields_ops.grad_pi(self._solution, r, z, coordinate)
+
+    def grad_ti_parallel(self, r, z):
+        return pointwise_fields_ops.grad_ti_par(self._solution, r, z)
+
+    def grad_te(self, r, z, coordinate):
+        return pointwise_fields_ops.grad_te(self._solution, r, z, coordinate)
+
+    def grad_te_parallel(self, r, z):
+        return pointwise_fields_ops.grad_te_par(self._solution, r, z)
+
+    def particle_flux_parallel(self, r, z):
+        return pointwise_fields_ops.particle_flux_par(self._solution, r, z)
+
+    def ion_heat_flux_parallel_convective(self, r, z):
+        return pointwise_fields_ops.ion_heat_flux_par_conv(self._solution, r, z)
+
+    def ion_heat_flux_parallel_conductive(self, r, z):
+        return pointwise_fields_ops.ion_heat_flux_par_cond(self._solution, r, z)
+
+    def ion_heat_flux_parallel(self, r, z):
+        return pointwise_fields_ops.ion_heat_flux_par(self._solution, r, z)
+
+    def electron_heat_flux_parallel_convective(self, r, z):
+        return pointwise_fields_ops.electron_heat_flux_par_conv(self._solution, r, z)
+
+    def electron_heat_flux_parallel_conductive(self, r, z):
+        return pointwise_fields_ops.electron_heat_flux_par_cond(self._solution, r, z)
+
+    def electron_heat_flux_parallel(self, r, z):
+        return pointwise_fields_ops.electron_heat_flux_par(self._solution, r, z)
+
+    def psi(self, r, z):
+        return pointwise_fields_ops.psi(self._solution, r, z)
+
+    def magnetic_field(self, r, z, component):
+        return pointwise_fields_ops.B(self._solution, r, z, component)
+
+    def grad_magnetic_field(self, r, z, component, coordinate):
+        return pointwise_fields_ops.grad_B(self._solution, r, z, component, coordinate)
+
+    def Q_e_loss_iz(self, r, z):
+        return pointwise_fields_ops.Q_e_loss_iz(self._solution, r, z)
+
+    def Q_e_loss_rec(self, r, z):
+        return pointwise_fields_ops.Q_e_loss_rec(self._solution, r, z)
+
+    def Q_e_gain_rec(self, r, z):
+        return pointwise_fields_ops.Q_e_gain_rec(self._solution, r, z)
+
+    def Q_e_loss_total(self, r, z):
+        return pointwise_fields_ops.Q_e_loss_tot(self._solution, r, z)
+
+    def Q_i_gain_iz(self, r, z):
+        return pointwise_fields_ops.Q_i_gain_iz(self._solution, r, z)
+
+    def Q_i_loss_rec(self, r, z):
+        return pointwise_fields_ops.Q_i_loss_rec(self._solution, r, z)
+
+    def Q_i_loss_cx(self, r, z):
+        return pointwise_fields_ops.Q_i_loss_cx(self._solution, r, z)
+
+    def Q_i_loss_total(self, r, z):
+        return pointwise_fields_ops.Q_i_loss_tot(self._solution, r, z)
+
+    def Q_loss_total(self, r, z):
+        return pointwise_fields_ops.Q_loss_tot(self._solution, r, z)

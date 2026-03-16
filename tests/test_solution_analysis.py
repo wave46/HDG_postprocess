@@ -48,8 +48,8 @@ def test_solution_analysis_surface(manifest_path, baselines_dir):
     )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
-    boundary_summary = sol.summary_along_the_wall()
-    power_balance = sol.calculate_power_balance()
+    boundary_summary = sol.analysis.wall_profile()
+    power_balance = sol.analysis.power_balance()
 
     assert np.allclose(boundary_summary["b_n"][:10], baseline["boundary_summary"]["bn_head"])
     assert np.isclose(np.sum(boundary_summary["ds"]), baseline["boundary_summary"]["ds_total"])

@@ -5,6 +5,7 @@ from hdg_postprocess.routines.neutrals import (
     calculate_dnn_with_nn_collision_cons,
     calculate_mfp_cons,
 )
+from hdg_postprocess.solution_operations import physical as physical_ops
 
 
 def calculate_dnn(solution, which="simple"):
@@ -55,7 +56,7 @@ def calculate_mfp(solution, which="simple"):
     _ensure_neutral_settings(solution)
     if not solution.metadata.flags.simple_phys_initialized:
         print("Initializing physical solution first")
-        solution.init_phys_variables("both")
+        physical_ops.init_phys_variables(solution, "both")
     if which == "simple":
         _ensure_simple_phys(solution)
         calculate_mfp(solution, which="full")
@@ -64,7 +65,7 @@ def calculate_mfp(solution, which="simple"):
         _ensure_full_solution(solution)
         if not solution.metadata.flags.simple_phys_initialized:
             print("Initializing physical solution first")
-            solution.init_phys_variables("full")
+            physical_ops.init_phys_variables(solution, "full")
         if solution.views.glob.derived.dnn is None:
             calculate_dnn(solution, "full")
         solution.views.glob.derived.mfp = calculate_mfp_cons(
@@ -95,7 +96,7 @@ def _ensure_neutral_settings(solution):
 def _ensure_simple_phys(solution):
     if not solution.metadata.flags.simple_phys_initialized:
         print("Initializing physical solution first")
-        solution.init_phys_variables("simple")
+        physical_ops.init_phys_variables(solution, "simple")
 
 
 def _ensure_full_solution(solution):

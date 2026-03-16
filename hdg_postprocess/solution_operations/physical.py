@@ -35,33 +35,33 @@ def init_phys_variables(solution, which="both"):
             print("Comibining first simple solution full")
             solution.assembly.simple()
         simple_view = solution.views.simple
-        solution.cons2phys(simple_view.solution.conservative)
-        solution.cons2phys(simple_view.gradient.conservative)
+        cons2phys(solution, simple_view.solution.conservative)
+        cons2phys(solution, simple_view.gradient.conservative)
         flags.simple_phys_initialized = True
     elif which == "full":
         if not flags.combined_to_full:
             print("Comibining first solution full")
             solution.assembly.full()
         glob_view = solution.views.glob
-        solution.cons2phys(glob_view.solution.conservative)
-        solution.cons2phys(glob_view.gradient.conservative)
+        cons2phys(solution, glob_view.solution.conservative)
+        cons2phys(solution, glob_view.gradient.conservative)
         flags.full_phys_initialized = True
     elif which == "gauss":
         if not flags.full_phys_initialized:
             print("Comibining first full physical solution")
-            solution.init_phys_variables(which="full")
+            init_phys_variables(solution, which="full")
         if not flags.combined_gauss:
             print("Comibining first solution in gauss points")
             solution.assembly.gauss()
         gauss_view = solution.views.gauss
-        solution.cons2phys(gauss_view.solution.conservative)
-        solution.cons2phys(gauss_view.gradient.conservative)
+        cons2phys(solution, gauss_view.solution.conservative)
+        cons2phys(solution, gauss_view.gradient.conservative)
         flags.gauss_phys_initialized = True
     elif which == "both":
         print("Initializing simple physical solution full")
-        solution.init_phys_variables(which="simple")
+        init_phys_variables(solution, which="simple")
         print("Initializing full physical solution full")
-        solution.init_phys_variables(which="full")
+        init_phys_variables(solution, which="full")
 
 
 def cons2phys(solution, data):
