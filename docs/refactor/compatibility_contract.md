@@ -26,12 +26,12 @@ Methods:
 - `analysis.power_balance()`
 - `analysis.boundary_summary()`
 - `analysis.wall_profile()`
-- `pointwise.n()`
-- `pointwise.ti()`
-- `pointwise.te()`
-- `pointwise.nn()`
-- `pointwise.grad_ti()`
-- `pointwise.grad_ti_parallel()`
+- `pointwise.plasma.n()`
+- `pointwise.plasma.ti()`
+- `pointwise.plasma.te()`
+- `pointwise.plasma.nn()`
+- `pointwise.gradients.ti()`
+- `pointwise.gradients.ti_parallel()`
 
 Properties and attributes:
 

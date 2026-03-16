@@ -61,15 +61,15 @@ def test_pointwise_accessors_match_embedded_k_baseline(manifest_path):
     r = point["r"]
     z = point["z"]
 
-    assert np.isclose(sol.pointwise.n(r, z)[0], point["n"][0])
-    assert np.isclose(sol.pointwise.ti(r, z)[0], point["ti"][0])
-    assert np.isclose(sol.pointwise.te(r, z)[0], point["te"][0])
-    assert np.isclose(sol.pointwise.nn(r, z)[0], point["nn"][0])
-    assert np.isclose(sol.pointwise.M(r, z)[0], point["M"][0])
-    assert np.isclose(sol.pointwise.k(r, z)[0], point["k"][0])
-    assert np.isfinite(sol.pointwise.dk(r, z)[0])
-    assert np.isfinite(sol.pointwise.grad_ti(r, z, "x"))
-    assert np.isfinite(sol.pointwise.psi(r, z))
+    assert np.isclose(sol.pointwise.plasma.n(r, z)[0], point["n"][0])
+    assert np.isclose(sol.pointwise.plasma.ti(r, z)[0], point["ti"][0])
+    assert np.isclose(sol.pointwise.plasma.te(r, z)[0], point["te"][0])
+    assert np.isclose(sol.pointwise.plasma.nn(r, z)[0], point["nn"][0])
+    assert np.isclose(sol.pointwise.plasma.mach(r, z)[0], point["M"][0])
+    assert np.isclose(sol.pointwise.plasma.k(r, z)[0], point["k"][0])
+    assert np.isfinite(sol.pointwise.plasma.dk(r, z)[0])
+    assert np.isfinite(sol.pointwise.gradients.ti(r, z, "x"))
+    assert np.isfinite(sol.pointwise.fields.psi(r, z))
 
 
 def test_pointwise_source_and_field_accessors_are_finite(manifest_path):
@@ -89,12 +89,12 @@ def test_pointwise_source_and_field_accessors_are_finite(manifest_path):
     r = point["r"]
     z = point["z"]
 
-    assert np.isfinite(sol.pointwise.magnetic_field(r, z, "theta"))
-    assert np.isfinite(sol.pointwise.grad_magnetic_field(r, z, "theta", "x"))
-    assert np.isfinite(sol.pointwise.Q_e_loss_iz(r, z))
-    assert np.isfinite(sol.pointwise.Q_e_loss_rec(r, z))
-    assert np.isfinite(sol.pointwise.Q_e_gain_rec(r, z))
-    assert np.isfinite(sol.pointwise.Q_e_loss_total(r, z))
-    assert np.isfinite(sol.pointwise.Q_i_gain_iz(r, z))
-    assert np.isfinite(sol.pointwise.Q_i_loss_total(r, z))
-    assert np.isfinite(sol.pointwise.Q_loss_total(r, z))
+    assert np.isfinite(sol.pointwise.fields.magnetic_field(r, z, "theta"))
+    assert np.isfinite(sol.pointwise.fields.grad_magnetic_field(r, z, "theta", "x"))
+    assert np.isfinite(sol.pointwise.sources.Q_e_loss_iz(r, z))
+    assert np.isfinite(sol.pointwise.sources.Q_e_loss_rec(r, z))
+    assert np.isfinite(sol.pointwise.sources.Q_e_gain_rec(r, z))
+    assert np.isfinite(sol.pointwise.sources.Q_e_loss_total(r, z))
+    assert np.isfinite(sol.pointwise.sources.Q_i_gain_iz(r, z))
+    assert np.isfinite(sol.pointwise.sources.Q_i_loss_total(r, z))
+    assert np.isfinite(sol.pointwise.sources.Q_loss_total(r, z))

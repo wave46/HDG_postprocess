@@ -1,6 +1,6 @@
 import numpy as np
 
-from hdg_postprocess.view_containers import (
+from hdg_postprocess.solution_api import (
     AtomicRateState,
     InterpolatorState,
     SolutionMetadataState,
@@ -8,8 +8,6 @@ from hdg_postprocess.view_containers import (
     RawPartitionState,
     SolutionSummaryState,
     SolutionViews,
-)
-from hdg_postprocess.solution_facades import (
     SolutionAssembly,
     SolutionAnalysis,
     SolutionEquilibrium,
