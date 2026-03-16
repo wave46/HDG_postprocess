@@ -47,9 +47,9 @@ def test_solution_neutrals_surface(manifest_path, baselines_dir):
         sol.parameters["adimensionalization"],
     )
 
-    sol.calculate_dnn("simple")
-    sol.calculate_dnn_with_nn_collision("simple")
-    sol.calculate_mfp("simple")
+    sol.neutrals.dnn("simple")
+    sol.neutrals.dnn("simple", with_nn_collision=True)
+    sol.neutrals.mfp("simple")
 
     assert sol.views.simple.derived.dnn.shape[0] == baseline["mesh"]["nvertices_glob"]
     assert sol.views.glob.derived.dnn_with_nn_collision.shape[:2] == sol.views.glob.solution.conservative.shape[:2]

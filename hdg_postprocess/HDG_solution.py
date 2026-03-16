@@ -14,8 +14,11 @@ from hdg_postprocess.solution_facades import (
     SolutionAnalysis,
     SolutionEquilibrium,
     SolutionFields,
+    SolutionNeutrals,
     SolutionPlotting,
     SolutionSampling,
+    SolutionSources,
+    SolutionTurbulence,
 )
 from hdg_postprocess.solution_wrappers import attach_solution_wrappers
 
@@ -73,6 +76,9 @@ class HDGsolution:
         self._fields = SolutionFields(self)
         self._analysis = SolutionAnalysis(self)
         self._equilibrium = SolutionEquilibrium(self)
+        self._sources = SolutionSources(self)
+        self._neutrals = SolutionNeutrals(self)
+        self._turbulence = SolutionTurbulence(self)
         self._sample = SolutionSampling(self)
         self._plot = SolutionPlotting(self)
 
@@ -200,6 +206,21 @@ class HDGsolution:
     def equilibrium(self):
         """Facade for magnetic-axis and q-profile setup workflows."""
         return self._equilibrium
+
+    @property
+    def sources(self):
+        """Facade for volumetric source and atomic-rate workflows."""
+        return self._sources
+
+    @property
+    def neutrals(self):
+        """Facade for neutral transport-derived workflows."""
+        return self._neutrals
+
+    @property
+    def turbulence(self):
+        """Facade for turbulence-model-derived workflows."""
+        return self._turbulence
 
     @property
     def sample(self):

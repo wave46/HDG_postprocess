@@ -48,7 +48,7 @@ def test_solution_turbulent_model_surface(manifest_path, baselines_dir):
         "dk_max_adim": 0.0,
     }, sol.parameters["adimensionalization"])
 
-    sol.calculate_dk("simple")
+    sol.turbulence.dk("simple")
 
     assert sol.views.simple.derived.dk.shape[0] == baseline["mesh"]["nvertices_glob"]
     assert sol.views.glob.derived.dk.shape[:2] == sol.views.glob.solution.conservative.shape[:2]

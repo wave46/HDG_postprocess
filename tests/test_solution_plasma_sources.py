@@ -49,11 +49,11 @@ def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
     sol.mesh.calculate_gauss_volumes()
-    sol.calculate_ohmic_source("gauss")
-    sol.calculate_electron_sink_due_to_iz("gauss")
-    sol.calculate_ion_gain_due_to_iz("gauss")
-    sol.calculate_cooling_factor("simple")
-    sol.calculate_cx_source("full")
+    sol.sources.ohmic("gauss")
+    sol.sources.electron_sink_iz("gauss")
+    sol.sources.ion_gain_iz("gauss")
+    sol.sources.cooling_factor("simple")
+    sol.sources.cx("full")
 
     assert np.isclose(
         np.sum(sol.views.gauss.sources.ohmic_source * sol.mesh.volumes_gauss), baseline["power_balance"]["ohmic_heating"]

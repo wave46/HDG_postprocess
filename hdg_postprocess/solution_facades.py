@@ -132,6 +132,91 @@ class SolutionEquilibrium:
         return target_view.equilibrium.qcyl
 
 
+class SolutionSources:
+    def __init__(self, solution):
+        self._solution = solution
+
+    def ohmic(self, view="simple"):
+        self._solution.calculate_ohmic_source(view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.ohmic_source
+
+    def ionization_rate(self, view="simple"):
+        self._solution.calculate_ionization_rate(view)
+        return self._solution.atomic_rates.ionization_simple
+
+    def recombination_rate(self, view="simple"):
+        self._solution.calculate_recombination_rate(view)
+        return self._solution.atomic_rates.recombination_simple
+
+    def cx_rate(self, view="simple"):
+        self._solution.calculate_cx_rate(view)
+        return self._solution.atomic_rates.cx_simple
+
+    def ionization(self, view="simple"):
+        self._solution.calculate_ionization_source(view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.ionization_source
+
+    def ion_gain_iz(self, view="simple"):
+        self._solution.calculate_ion_gain_due_to_iz(view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.ion_gain_iz
+
+    def electron_sink_iz(self, view="simple"):
+        self._solution.calculate_electron_sink_due_to_iz(view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.electron_sink_iz
+
+    def electron_sink_rec(self, view="simple"):
+        self._solution.calculate_electron_sink_due_to_rec(view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.electron_sink_rec
+
+    def cooling_factor(self, view="simple"):
+        self._solution.calculate_cooling_factor(view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.cooling_factor
+
+    def cx(self, view="simple"):
+        self._solution.calculate_cx_source(view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.cx_source
+
+
+class SolutionNeutrals:
+    def __init__(self, solution):
+        self._solution = solution
+
+    def dnn(self, view="simple", with_nn_collision=False):
+        if with_nn_collision:
+            self._solution.calculate_dnn_with_nn_collision(view)
+            if view == "full":
+                return self._solution.views.glob.derived.dnn_with_nn_collision
+            return self._solution.views.simple.derived.dnn_with_nn_collision
+        self._solution.calculate_dnn(view)
+        if view == "full":
+            return self._solution.views.glob.derived.dnn
+        return self._solution.views.simple.derived.dnn
+
+    def mfp(self, view="simple"):
+        self._solution.calculate_mfp(view)
+        if view == "full":
+            return self._solution.views.glob.derived.mfp
+        return self._solution.views.simple.derived.mfp
+
+
+class SolutionTurbulence:
+    def __init__(self, solution):
+        self._solution = solution
+
+    def dk(self, view="simple"):
+        self._solution.calculate_dk(view)
+        if view == "full":
+            return self._solution.views.glob.derived.dk
+        return self._solution.views.simple.derived.dk
+
+
 class SolutionAnalysis:
     def __init__(self, solution):
         self._solution = solution
