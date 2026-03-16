@@ -57,6 +57,31 @@ from hdg_postprocess.solution_operations import (
     summary_along_the_wall as summary_along_the_wall_impl,
 )
 import os
+
+
+def _resolve_nested_attr(obj, path):
+    value = obj
+    for part in path:
+        value = getattr(value, part)
+    return value
+
+
+def _make_generated_property(root_attr, path, doc, setter_attr=None):
+    def getter(self):
+        return _resolve_nested_attr(getattr(self, root_attr), path)
+
+    getter.__name__ = f"get_{'_'.join((root_attr.strip('_'),) + tuple(path))}"
+
+    if setter_attr is None:
+        return property(getter, doc=doc)
+
+    def setter(self, value):
+        setattr(self, setter_attr, value)
+
+    setter.__name__ = f"set_{'_'.join((root_attr.strip('_'),) + tuple(path))}"
+    return property(getter, setter, doc=doc)
+
+
 class HDGsolution:
     ""
     _AUX_CONTAINER_PATHS = {
@@ -761,332 +786,6 @@ class HDGsolution:
         return self._phys_idx
 
     @property
-    def ionization_source(self):
-        """Ionization source on a full solution mesh using conservative values as inputs"""
-        return self._views.glob.sources.ionization_source
-
-    @property
-    def ionization_source_simple(self):
-        """Ionization source on a simple solution mesh"""
-        return self._views.simple.sources.ionization_source
-    
-    @property
-    def ionization_source_gauss(self):
-        """Ionization source on gauss points"""
-        return self._views.gauss.sources.ionization_source
-
-    @property
-    def ion_gain_iz(self):
-        """Ion energy sink due to ionization"""
-        return self._views.glob.sources.ion_gain_iz
-
-    @property
-    def ion_gain_iz_simple(self):
-        """Ion energy sink due to ionization on a simple solution mesh"""
-        return self._views.simple.sources.ion_gain_iz
-
-    @property
-    def ion_gain_iz_gauss(self):
-        """Ion energy sink due to ionization on gauss points"""
-        return self._views.gauss.sources.ion_gain_iz
-    
-    @property
-    def ion_gain_iz_total(self):
-        """Total ion energy sink due to ionization on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.ion_gain_iz_total
-    
-    @property
-    def ion_sink_rec(self):
-        """Ion energy sink due to recombination"""
-        return self._views.glob.sources.ion_sink_rec
-    
-    @property
-    def ion_sink_rec_simple(self):
-        """Ion energy sink due to recombination on a simple solution mesh"""
-        return self._views.simple.sources.ion_sink_rec
-    
-    @property
-    def ion_sink_rec_gauss(self):
-        """Ion energy sink due to recombination on gauss points"""
-        return self._views.gauss.sources.ion_sink_rec
-    
-    @property
-    def ion_sink_rec_total(self):
-        """Total ion energy sink due to recombination on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.ion_sink_rec_total
-    
-    @property
-    def ion_sink_cx(self):
-        """Ion energy sink due to charge exchange"""
-        return self._views.glob.sources.ion_sink_cx
-    
-    @property
-    def ion_sink_cx_simple(self):
-        """Ion energy sink due to charge exchange on a simple solution mesh"""
-        return self._views.simple.sources.ion_sink_cx
-    
-    @property
-    def ion_sink_cx_gauss(self):
-        """Ion energy sink due to charge exchange on gauss points"""
-        return self._views.gauss.sources.ion_sink_cx
-    
-    @property
-    def ion_sink_cx_total(self):
-        """Total ion energy sink due to charge exchange on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.ion_sink_cx_total
-
-    @property
-    def electron_sink_iz(self):
-        """Electron energy sink due to ionization"""
-        return self._views.glob.sources.electron_sink_iz
-        
-    @property
-    def electron_sink_iz_simple(self):
-        """Electron energy sink due to ionization on a simple solution mesh"""
-        return self._views.simple.sources.electron_sink_iz
-
-    @property
-    def electron_sink_iz_gauss(self):
-        """Electron energy sink due to ionization on gauss points"""
-        return self._views.gauss.sources.electron_sink_iz
-    
-    @property
-    def electron_sink_iz_total(self):
-        """Total electron energy sink due to ionization on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.electron_sink_iz_total
-
-    @property
-    def electron_sink_rec(self):
-        """Electron energy sink due to recombination"""
-        return self._views.glob.sources.electron_sink_rec
-
-    @property
-    def electron_sink_rec_simple(self):
-        """Electron energy sink due to recombination on a simple solution mesh"""
-        return self._views.simple.sources.electron_sink_rec
-
-    @property
-    def electron_sink_rec_gauss(self):
-        """Electron energy sink due to recombination on gauss points"""
-        return self._views.gauss.sources.electron_sink_rec
-    
-    @property
-    def electron_sink_rec_total(self):
-        """Total electron energy sink due to recombination on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.electron_sink_rec_total
-
-    @property
-    def electron_gain_rec(self):
-        """Ionization source on a simple solution mesh"""
-        return self._views.glob.sources.electron_gain_rec
-
-    @property
-    def electron_gain_rec_simple(self):
-        """Ionization source on a simple solution mesh"""
-        return self._views.simple.sources.electron_gain_rec
-
-    @property
-    def electron_gain_rec_gauss(self):
-        """Ionization source on gauss points"""
-        return self._views.gauss.sources.electron_gain_rec
-
-    @property
-    def electron_gain_rec_total(self):
-        """Total ionization source on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.electron_gain_rec_total
-    
-    @property
-    def electron_sink_cooling_factor(self):
-        """Sink due to cooling factor on a solution mesh"""
-        return self._views.glob.sources.electron_sink_cooling_factor
-
-    @property
-    def electron_sink_cooling_factor_simple(self):
-        """Sink due to cooling factor on a simple solution mesh"""
-        return self._views.simple.sources.electron_sink_cooling_factor
-
-    @property
-    def electron_sink_cooling_factor_gauss(self):
-        """Sink due to cooling factor on gauss points"""
-        return self._views.gauss.sources.electron_sink_cooling_factor
-    
-    @property
-    def cooling_factor(self):
-        """Cooling factor on a solution mesh"""
-        return self._views.glob.sources.cooling_factor
-    
-    @property
-    def cooling_factor_simple(self):
-        """Cooling factor on a simple solution mesh"""
-        return self._views.simple.sources.cooling_factor
-    
-    @property
-    def cooling_factor_gauss(self):
-        """Cooling factor on gauss points"""
-        return self._views.gauss.sources.cooling_factor
-    
-
-
-    @property
-    def cx_source(self):
-        """Charge-exchange source on a full solution mesh using conservative values as inputs"""
-        return self._views.glob.sources.cx_source
-
-    @property
-    def cx_source_simple(self):
-        """Charge-exchange source on a simple solution mesh"""
-        return self._views.simple.sources.cx_source
-    
-    @property
-    def cx_source_gauss(self):
-        """Charge-exchange source on gauss points"""
-        return self._views.gauss.sources.cx_source
-
-    @property
-    def external_heating(self):
-        """External heating source on a full solution mesh using conservative values as inputs"""
-        return self._views.glob.sources.external_heating
-    @property
-    def external_heating_simple(self):
-        """External heating source on a simple solution mesh"""
-        return self._views.simple.sources.external_heating
-    @property
-    def external_heating_gauss(self):
-        """External heating source on gauss points"""
-        return self._views.gauss.sources.external_heating
-    @property
-    def external_heating_total(self):
-        """Total external heating source on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.external_heating_total
-    
-
-    @property
-    def external_heating_e(self):
-        """External heating source on electrons on a full solution mesh using conservative values as inputs"""
-        return self._views.glob.sources.external_heating_e
-    @property
-    def external_heating_e_simple(self):
-        """External heating source on electrons on a simple solution mesh"""
-        return self._views.simple.sources.external_heating_e
-    @property
-    def external_heating_e_gauss(self): 
-        """External heating source on electrons on gauss points"""
-        return self._views.gauss.sources.external_heating_e
-    @property
-    def external_heating_e_total(self):
-        """Total external heating source on electrons on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.external_heating_e_total
-
-    @property
-    def external_heating_i(self):
-        """External heating source on ions on a full solution mesh using conservative values as inputs"""
-        return self._views.glob.sources.external_heating_i
-    @property
-    def external_heating_i_simple(self):
-        """External heating source on ions on a simple solution mesh"""
-        return self._views.simple.sources.external_heating_i
-    @property
-    def external_heating_i_gauss(self):
-        """External heating source on ions on gauss points"""
-        return self._views.gauss.sources.external_heating_i
-    @property
-    def external_heating_i_total(self):
-        """Total external heating source on ions on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.external_heating_i_total
-
-    @property
-    def ohmic_source(self):
-        """Ohmic heating source on a full solution mesh using conservative values as inputs"""
-        return self._views.glob.sources.ohmic_source
-
-    @property
-    def ohmic_source_simple(self):
-        """Ohmic heating source on a simple solution mesh"""
-        return self._views.simple.sources.ohmic_source
-
-    @property
-    def ohmic_source_gauss(self):
-        """Ohmic heating source on gauss points mesh"""
-        return self._views.gauss.sources.ohmic_source
-    @property
-    def ohmic_source_total(self):
-        """Total ohmic heating source on a full solution mesh using conservative values as inputs"""
-        return self._summary.sources.ohmic_source_total
-    
-    @property
-    def ionization_rate_simple(self):
-        """Ionization rate coefficient on a simple solution mesh"""
-        return self._atomic_rates.ionization_simple
-
-    @property
-    def recombination_rate_simple(self):
-        """Recombination rate coefficient on a simple solution mesh"""
-        return self._atomic_rates.recombination_simple
-    
-    @property
-    def cx_rate_simple(self):
-        """Charge exchange rate coefficient on a simple solution mesh"""
-        return self._atomic_rates.cx_simple
-
-    @property
-    def dnn_simple(self):
-        """Neutral diffusion on a simple solution mesh"""
-        return self._views.simple.derived.dnn
-
-    @property
-    def dnn_simple_with_nn_collision(self):
-        """Neutral diffusion with neutral-neutral diffusions on a global solution mesh"""
-        return self._views.glob.derived.dnn_with_nn_collision
-    
-    @property
-    def dnn_simple_with_nn_collision_simple(self):
-        """Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"""
-        return self._views.simple.derived.dnn_with_nn_collision
-
-    @property
-    def dk_simple(self):
-        """Turbulent diffusion on a simple solution mesh"""
-        return self._views.simple.derived.dk
-    
-    @property
-    def dk_glob(self):
-        """Turbulent diffusion on a full solution mesh"""
-        return self._views.glob.derived.dk
-    
-    @property
-    def mfp_simple(self):
-        """Neutral mean free path on a simple solution mesh"""
-        return self._views.simple.derived.mfp
-        
-    @property
-    def sample_interpolator(self):
-        """Sample interpolator for acceleration"""
-        return self._interpolators_state.sample
-    @sample_interpolator.setter
-    def sample_interpolator(self,value):
-        self._sample_interpolator = value
-    
-    @property
-    def solution_interpolators(self):
-        """A list of interpolators of solutions in conservative form"""
-        return self._interpolators_state.solution
-
-    @property
-    def gradient_interpolators(self):
-        """A list of interpolators of solutions in conservative form"""
-        return self._interpolators_state.gradient
-
-    @property
-    def field_interpolators(self):
-        """A list of interpolators of magnetic field"""
-        return self._interpolators_state.field
-    
-    @property
-    def qcyl_interpolator(self):
-        """A list of interpolators of magnetic field"""
-        return self._interpolators_state.qcyl
-
-    @property
     def r_axis(self):
         """R coordinate of magnetic axis"""
         return self._grouped_caches["equilibrium"]["axis"]["r"]
@@ -1472,3 +1171,84 @@ class HDGsolution:
 
     def Q_loss_tot(self,r,z):
         return pointwise_fields_impl.Q_loss_tot(self,r,z)
+
+
+_SOURCE_VIEW_DOCS = {
+    "ionization_source": "Ionization source",
+    "ion_gain_iz": "Ion energy sink due to ionization",
+    "ion_sink_rec": "Ion energy sink due to recombination",
+    "ion_sink_cx": "Ion energy sink due to charge exchange",
+    "electron_sink_iz": "Electron energy sink due to ionization",
+    "electron_sink_rec": "Electron energy sink due to recombination",
+    "electron_gain_rec": "Electron energy source due to recombination",
+    "electron_sink_cooling_factor": "Sink due to cooling factor",
+    "cooling_factor": "Cooling factor",
+    "cx_source": "Charge-exchange source",
+    "external_heating": "External heating source",
+    "external_heating_e": "External heating source on electrons",
+    "external_heating_i": "External heating source on ions",
+    "ohmic_source": "Ohmic heating source",
+}
+
+_SOURCE_VIEW_VARIANTS = {
+    "": ("glob", "on a full solution mesh using conservative values as inputs"),
+    "_simple": ("simple", "on a simple solution mesh"),
+    "_gauss": ("gauss", "on gauss points"),
+}
+
+_SOURCE_TOTAL_DOCS = {
+    "ion_gain_iz_total": "Total ion energy sink due to ionization on a full solution mesh using conservative values as inputs",
+    "ion_sink_rec_total": "Total ion energy sink due to recombination on a full solution mesh using conservative values as inputs",
+    "ion_sink_cx_total": "Total ion energy sink due to charge exchange on a full solution mesh using conservative values as inputs",
+    "electron_sink_iz_total": "Total electron energy sink due to ionization on a full solution mesh using conservative values as inputs",
+    "electron_sink_rec_total": "Total electron energy sink due to recombination on a full solution mesh using conservative values as inputs",
+    "electron_gain_rec_total": "Total electron energy source due to recombination on a full solution mesh using conservative values as inputs",
+    "external_heating_total": "Total external heating source on a full solution mesh using conservative values as inputs",
+    "external_heating_e_total": "Total external heating source on electrons on a full solution mesh using conservative values as inputs",
+    "external_heating_i_total": "Total external heating source on ions on a full solution mesh using conservative values as inputs",
+    "ohmic_source_total": "Total ohmic heating source on a full solution mesh using conservative values as inputs",
+}
+
+_ATOMIC_RATE_DOCS = {
+    "ionization_rate_simple": ("_atomic_rates", ("ionization_simple",), "Ionization rate coefficient on a simple solution mesh"),
+    "recombination_rate_simple": ("_atomic_rates", ("recombination_simple",), "Recombination rate coefficient on a simple solution mesh"),
+    "cx_rate_simple": ("_atomic_rates", ("cx_simple",), "Charge exchange rate coefficient on a simple solution mesh"),
+}
+
+_DERIVED_DOCS = {
+    "dnn_simple": ("_views", ("simple", "derived", "dnn"), "Neutral diffusion on a simple solution mesh"),
+    "dnn_simple_with_nn_collision": ("_views", ("glob", "derived", "dnn_with_nn_collision"), "Neutral diffusion with neutral-neutral diffusions on a global solution mesh"),
+    "dnn_simple_with_nn_collision_simple": ("_views", ("simple", "derived", "dnn_with_nn_collision"), "Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"),
+    "dk_simple": ("_views", ("simple", "derived", "dk"), "Turbulent diffusion on a simple solution mesh"),
+    "dk_glob": ("_views", ("glob", "derived", "dk"), "Turbulent diffusion on a full solution mesh"),
+    "mfp_simple": ("_views", ("simple", "derived", "mfp"), "Neutral mean free path on a simple solution mesh"),
+}
+
+_INTERPOLATOR_DOCS = {
+    "sample_interpolator": ("_interpolators_state", ("sample",), "Sample interpolator for acceleration", "_sample_interpolator"),
+    "solution_interpolators": ("_interpolators_state", ("solution",), "A list of interpolators of solutions in conservative form", None),
+    "gradient_interpolators": ("_interpolators_state", ("gradient",), "A list of interpolators of solutions in conservative form", None),
+    "field_interpolators": ("_interpolators_state", ("field",), "A list of interpolators of magnetic field", None),
+    "qcyl_interpolator": ("_interpolators_state", ("qcyl",), "A list of interpolators of magnetic field", None),
+}
+
+
+for _base_name, _doc_prefix in _SOURCE_VIEW_DOCS.items():
+    for _suffix, (_view_name, _doc_suffix) in _SOURCE_VIEW_VARIANTS.items():
+        setattr(
+            HDGsolution,
+            f"{_base_name}{_suffix}",
+            _make_generated_property("_views", (_view_name, "sources", _base_name), f"{_doc_prefix} {_doc_suffix}"),
+        )
+
+for _name, _doc in _SOURCE_TOTAL_DOCS.items():
+    setattr(HDGsolution, _name, _make_generated_property("_summary", ("sources", _name), _doc))
+
+for _name, (_root_attr, _path, _doc) in _ATOMIC_RATE_DOCS.items():
+    setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc))
+
+for _name, (_root_attr, _path, _doc) in _DERIVED_DOCS.items():
+    setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc))
+
+for _name, (_root_attr, _path, _doc, _setter_attr) in _INTERPOLATOR_DOCS.items():
+    setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc, setter_attr=_setter_attr))
