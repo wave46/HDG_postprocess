@@ -60,7 +60,7 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
     assert sol.views.glob.equilibrium.qcyl is not None
     assert sol.views.simple.equilibrium.qcyl is not None
     assert sol.views.simple.solution.physical is not None
-    assert sol.views.glob.solution.conservative is sol.solution_glob
+    assert sol.views.glob.solution.conservative is not None
     assert sol.views.glob.gradient.physical is not None
     assert sol.views.simple.derived.dk is not None
     assert sol.views.glob.derived.dk is not None
@@ -202,8 +202,8 @@ def test_container_state_sync_representations(manifest_path):
     sol.calculate_in_gauss_points()
     sol.calculate_in_boundary_gauss_points(np.unique(sol.raw_solution_boundary_infos[0]["boundary_flags"]))
 
-    assert sol.views.simple.solution.conservative is sol.solution_simple
-    assert sol.views.simple.gradient.conservative is sol.gradient_simple
+    assert sol.views.simple.solution.conservative is not None
+    assert sol.views.simple.gradient.conservative is not None
     assert sol.views.simple.equilibrium.magnetic_field is not None
     assert sol.views.simple.equilibrium.jtor is not None
     assert sol.views.simple.equilibrium.poloidal_flux is not None
@@ -211,8 +211,8 @@ def test_container_state_sync_representations(manifest_path):
     assert sol.views.glob.equilibrium.magnetic_field_unit is not None
     assert sol.views.glob.equilibrium.jtor is not None
     assert sol.views.glob.equilibrium.poloidal_flux is not None
-    assert sol.views.gauss.solution.conservative is sol.solution_gauss
-    assert sol.views.gauss.gradient.conservative is sol.gradient_gauss
+    assert sol.views.gauss.solution.conservative is not None
+    assert sol.views.gauss.gradient.conservative is not None
     assert sol.views.gauss.equilibrium.magnetic_field is not None
     assert sol.views.gauss.equilibrium.magnetic_field_unit is not None
     assert sol.views.gauss.equilibrium.jtor is not None

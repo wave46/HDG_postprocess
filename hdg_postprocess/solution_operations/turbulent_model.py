@@ -41,7 +41,7 @@ def calculate_dk(solution, which="simple"):
             solution.define_qcyl(which="full")
 
         solution._dk_glob = calculate_dk_cons(
-            solution.solution_glob,
+            solution.views.glob.solution.conservative,
             solution.dk_parameters,
             solution.views.glob.equilibrium.qcyl,
             solution.mesh.vertices_glob[solution.mesh.connectivity_glob][:, :, 0]

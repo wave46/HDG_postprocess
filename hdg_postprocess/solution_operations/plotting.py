@@ -32,8 +32,9 @@ def _ensure_connectivity_big(solution):
 
 def plot_overview(solution, n_levels=100):
     _ensure_simple_solution(solution)
+    simple_solution = solution.views.simple.solution.conservative
 
-    solutions_dimensional = solution.solution_simple.copy()
+    solutions_dimensional = simple_solution.copy()
     colorbar_labels = []
 
     for i in range(solution.neq):
@@ -104,8 +105,10 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
     if not second_solution._combined_simple_solution:
         print("Comibining first simple solution of the second one full")
         second_solution.recombine_simple_full_solution()
+    left_simple_solution = solution.views.simple.solution.conservative
+    right_simple_solution = second_solution.views.simple.solution.conservative
 
-    difference_dimensional = solution.solution_simple.copy() - second_solution.solution_simple.copy()
+    difference_dimensional = left_simple_solution.copy() - right_simple_solution.copy()
     colorbar_labels = []
     for i in range(solution.neq):
         cons_variable = solution.parameters["physics"]["conservative_variable_names"][i]
@@ -172,7 +175,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
 
     colorbar_labels = [r"n [m$^{-3}$]", r"$n_n$ [m$^{-3}$]", r"$T_i [eV]$", r"$T_e [eV] $", r"M", r"$k$ [m$^2$/s$^2$]"]
     simple_phys = solution.views.simple.solution.physical
-    solutions_plot = np.zeros_like(solution.solution_simple)
+    solutions_plot = np.zeros_like(solution.views.simple.solution.conservative)
     solutions_plot[:, 0] = simple_phys[:, 0]
     solutions_plot[:, 1] = simple_phys[:, -1]
     if solution.neq > 2:
@@ -243,7 +246,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     colorbar_labels = [r"n, m$^{-3}$", r"$n_n$, m$^{-3}$", r"$T_i$", r"$T_e$", r"M", r"k"]
     left_simple_phys = solution.views.simple.solution.physical
     right_simple_phys = second_solution.views.simple.solution.physical
-    solutions_plot = np.zeros_like(solution.solution_simple)
+    solutions_plot = np.zeros_like(solution.views.simple.solution.conservative)
     solutions_plot[:, 0] = left_simple_phys[:, 0] - right_simple_phys[:, 0]
     solutions_plot[:, 4] = left_simple_phys[:, 9] - right_simple_phys[:, 9]
     if solution.neq > 2:
@@ -289,6 +292,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
 
     _ensure_connectivity_big(solution)
     _ensure_simple_solution(solution)
+    simple_solution = solution.views.simple.solution.conservative
 
     var_to_plot = len(variable_list)
     if var_to_plot == 1:
@@ -305,31 +309,31 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
     ):
         if variable == "n":
             data = calculate_n_cons(
-                solution.solution_simple, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx
+                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx
             )
         elif variable == "nn":
             data = calculate_nn_cons(
-                solution.solution_simple, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx
+                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx
             )
         elif variable == "te":
             data = calculate_Te_cons(
-                solution.solution_simple,
+                simple_solution,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
                 solution.cons_idx,
             )
         elif variable == "ti":
             data = calculate_Ti_cons(
-                solution.solution_simple,
+                simple_solution,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
                 solution.cons_idx,
             )
         elif variable == "M":
-            data = calculate_M_cons(solution.solution_simple, solution.cons_idx)
+            data = calculate_M_cons(simple_solution, solution.cons_idx)
         elif variable == "dnn":
             data = calculate_dnn_cons(
-                solution.solution_simple,
+                simple_solution,
                 solution.dnn_parameters,
                 solution.atomic_parameters,
                 solution._e,
@@ -342,7 +346,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
             )
         elif variable == "k":
             data = calculate_k_cons(
-                solution.solution_simple,
+                simple_solution,
                 solution.parameters["adimensionalization"]["speed_scale"] ** 2,
                 solution.cons_idx,
             )
@@ -356,7 +360,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
             if solution.views.simple.equilibrium.qcyl is None:
                 solution.define_qcyl(which="simple")
             data = calculate_dk_cons(
-                solution.solution_simple,
+                simple_solution,
                 solution.dk_parameters,
                 solution.views.simple.equilibrium.qcyl,
                 solution.mesh.vertices_glob[:, 0] / solution.parameters["adimensionalization"]["length_scale"],

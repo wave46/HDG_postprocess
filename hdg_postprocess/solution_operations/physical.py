@@ -33,15 +33,17 @@ def init_phys_variables(solution, which="both"):
         if not solution.combined_simple_solution:
             print("Comibining first simple solution full")
             solution.recombine_simple_full_solution()
-        solution.cons2phys(solution.solution_simple)
-        solution.cons2phys(solution.gradient_simple)
+        simple_view = solution.views.simple
+        solution.cons2phys(simple_view.solution.conservative)
+        solution.cons2phys(simple_view.gradient.conservative)
         solution._simple_phys_initialized = True
     elif which == "full":
         if not solution.combined_to_full:
             print("Comibining first solution full")
             solution.recombine_full_solution()
-        solution.cons2phys(solution.solution_glob)
-        solution.cons2phys(solution.gradient_glob)
+        glob_view = solution.views.glob
+        solution.cons2phys(glob_view.solution.conservative)
+        solution.cons2phys(glob_view.gradient.conservative)
         solution._full_phys_initialized = True
     elif which == "both":
         print("Initializing simple physical solution full")
@@ -124,11 +126,11 @@ def cons2phys(solution, data):
         if len(data.shape) == 4:
             grad_phys = np.zeros((data.shape[0] * data.shape[1], solution.nphys, solution.ndim))
             data_loc = data.reshape((data.shape[0] * data.shape[1], solution.neq, solution.ndim))
-            sol_loc = solution.solution_glob.reshape((data.shape[0] * data.shape[1], solution.neq))
+            sol_loc = solution.views.glob.solution.conservative.reshape((data.shape[0] * data.shape[1], solution.neq))
         elif len(data.shape) == 3:
             grad_phys = np.zeros((data.shape[0], solution.nphys, solution.ndim))
             data_loc = data.copy()
-            sol_loc = solution.solution_simple.copy()
+            sol_loc = solution.views.simple.solution.conservative.copy()
         for i in range(solution.nphys):
             phys_variable = solution.parameters["physics"]["physical_variable_names"][i]
             if phys_variable == b"rho":

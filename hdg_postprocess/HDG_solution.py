@@ -783,17 +783,11 @@ _SOURCE_VIEW_DOCS = {
 }
 
 _STATE_PROPERTY_DOCS = {
-    "solution_simple": ("_views", ("simple", "solution", "conservative"), "solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq]"),
-    "gradient_simple": ("_views", ("simple", "gradient", "conservative"), "gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq x ndim]"),
     "combined_to_full": ("", ("_combined_to_full",), "Flag which tells if the solution has been combined to full"),
     "combined_boundary": ("", ("_combined_boundary",), "Flag which tells if the solution has been combined on a boundary of mesh"),
     "combined_simple_solution": ("", ("_combined_simple_solution",), "Flag which tells if the solution has been combined to simple one on full mesh"),
     "full_phys_initialized": ("", ("_full_phys_initialized",), "Flag which tells if physical values has been initialized (full)"),
     "simple_phys_initialized": ("", ("_simple_phys_initialized",), "Flag which tells if physical values has been initialized (simple)"),
-    "solution_glob": ("_views", ("glob", "solution", "conservative"), "Solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq]"),
-    "gradient_glob": ("_views", ("glob", "gradient", "conservative"), "Gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq x ndim]"),
-    "solution_gauss": ("_views", ("gauss", "solution", "conservative"), "Solution recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq]"),
-    "gradient_gauss": ("_views", ("gauss", "gradient", "conservative"), "Gradients recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq x ndim]"),
     "e": ("", ("_e",), "elemental_charge"),
     "cons_idx": ("", ("_cons_idx",), "dictionary with keys are the cons variables, values are the indexes o the corresponding equation"),
     "phys_idx": ("", ("_phys_idx",), "dictionary with keys are the phys variables, values are the indexes o the corresponding equation"),

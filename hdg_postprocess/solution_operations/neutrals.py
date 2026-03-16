@@ -16,7 +16,7 @@ def calculate_dnn(solution, which="simple"):
     if which == "full":
         _ensure_full_solution(solution)
         solution._dnn = calculate_dnn_cons(
-            solution.solution_glob,
+            solution.views.glob.solution.conservative,
             solution.dnn_parameters,
             solution.atomic_parameters,
             solution._e,
@@ -41,7 +41,7 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
     if which == "full":
         _ensure_full_solution(solution)
         solution._dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(
-            solution.solution_glob,
+            solution.views.glob.solution.conservative,
             solution.dnn_parameters,
             solution.atomic_parameters,
             solution._e,
@@ -72,7 +72,7 @@ def calculate_mfp(solution, which="simple"):
         if solution._dnn is None:
             solution.calculate_dnn("full")
         solution._mfp = calculate_mfp_cons(
-            solution.solution_glob,
+            solution.views.glob.solution.conservative,
             solution.dnn_parameters,
             solution.atomic_parameters,
             solution._e,
@@ -110,6 +110,6 @@ def _ensure_full_solution(solution):
 def _assign_simple_view(solution, attribute_name, full_values):
     simple_values = np.zeros(solution.mesh.vertices_glob.shape[0])
     simple_values[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = full_values.reshape(
-        solution.solution_glob.shape[0] * solution.solution_glob.shape[1]
+        solution.views.glob.solution.conservative.shape[0] * solution.views.glob.solution.conservative.shape[1]
     )
     setattr(solution, attribute_name, simple_values)
