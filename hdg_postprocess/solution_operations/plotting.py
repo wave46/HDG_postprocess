@@ -28,7 +28,7 @@ def _ensure_simple_physical(solution):
 
 def _ensure_connectivity_big(solution):
     if not solution.mesh.metadata.flags.connectivity_big_initialized:
-        solution.mesh.geometry.ensure_connectivity_big()
+        solution.mesh.geometry.connectivity_big
 
 
 def plot_overview(solution, n_levels=100):

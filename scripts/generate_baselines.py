@@ -138,7 +138,7 @@ def _roundtrip_names(values):
 def _mesh_baseline(mesh, element_probe=None):
     if not mesh.metadata.flags.combined_to_full:
         mesh.geometry.recombine_full()
-    mesh.geometry.ensure_connectivity_big()
+    mesh.geometry.connectivity_big
 
     baseline = {
         "mesh_extent": _to_builtin(mesh.metadata.extent),
@@ -150,14 +150,14 @@ def _mesh_baseline(mesh, element_probe=None):
     }
 
     if element_probe is not None:
-        mesh.geometry.ensure_element_locator()
+        mesh.geometry.element_locator
         baseline["element_probe"] = {
             "point": list(element_probe),
             "element_number": int(mesh.derived_geometry.element_locator(*element_probe)),
         }
 
     if mesh.metadata.reference_element is not None:
-        mesh.geometry.ensure_gauss_volumes()
+        mesh.geometry.gauss_volumes
         baseline["gauss_volumes"] = {
             "shape": list(mesh.derived_geometry.gauss_volumes.shape),
             "total": float(mesh.derived_geometry.gauss_volumes.sum()),
@@ -288,7 +288,7 @@ def _collect_solution_baseline(config):
         config["n_partitions"],
     )
     sol.mesh.metadata.reference_element = _load_reference_element(ROOT / config["reference_element"])
-    sol.mesh.geometry.ensure_element_locator()
+    sol.mesh.geometry.element_locator
 
     if config.get("with_atomic_setup"):
         sol.additional_parameters.set_atomic(_make_atomic_params(config["radiation_model"]))

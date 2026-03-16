@@ -72,7 +72,7 @@ def main():
     config = scenarios[args.scenario]
 
     mesh = load_mesh_for_scenario(config)
-    mesh.geometry.ensure_connectivity_big()
+    mesh.geometry.connectivity_big
     repeats = mesh.derived_geometry.connectivity_big.shape[0] // mesh.global_state.connectivity.shape[0]
     element_numbers = np.repeat(np.arange(len(mesh.global_state.connectivity)), repeats)
 

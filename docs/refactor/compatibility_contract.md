@@ -62,9 +62,9 @@ Methods:
 - `plot.raw()`
 - `plot.full()`
 - `geometry.recombine_full()`
-- `geometry.ensure_connectivity_big()`
-- `geometry.ensure_element_locator()`
-- `geometry.ensure_gauss_volumes()`
+- `geometry.connectivity_big`
+- `geometry.element_locator`
+- `geometry.gauss_volumes`
 - `geometry.adjacent_elements()`
 
 Properties and attributes:

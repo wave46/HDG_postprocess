@@ -63,7 +63,7 @@ def calculate_power_balance(solution):
 
 def calculate_volumetric_sources(solution):
     if not solution.mesh.metadata.flags.gauss_volumes_initialized:
-        solution.mesh.geometry.ensure_gauss_volumes()
+        solution.mesh.geometry.gauss_volumes
     gauss_sources = solution.views.gauss.sources
     if gauss_sources.ohmic_source is None:
         print("Calculating ohmic source on gauss points first")

@@ -127,12 +127,12 @@ def define_interpolators(solution):
         solution.assembly.simple()
     if not solution.mesh.metadata.flags.connectivity_big_initialized:
         print("Comibining first big connectivity")
-        solution.mesh.geometry.ensure_connectivity_big()
+        solution.mesh.geometry.connectivity_big
     if solution.mesh.metadata.reference_element is None:
         raise ValueError("Please, provide reference element")
     if not solution.mesh.metadata.flags.element_locator_initialized:
         print("Defining an element number mask")
-        solution.mesh.geometry.ensure_element_locator()
+        solution.mesh.geometry.element_locator
     glob_view = solution.views.glob
     if glob_view.equilibrium.qcyl is None:
         solution.equilibrium.define_qcyl(view="glob")
