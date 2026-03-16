@@ -52,10 +52,14 @@ def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
     sol.calculate_cooling_factor("simple")
     sol.calculate_cx_source("full")
 
-    assert np.isclose(np.sum(sol.ohmic_source_gauss * sol.mesh.volumes_gauss), baseline["power_balance"]["ohmic_heating"])
     assert np.isclose(
-        np.sum(sol.electron_sink_iz_gauss * sol.mesh.volumes_gauss), baseline["power_balance"]["electron_sink_iz"]
+        np.sum(sol.views.gauss.sources.ohmic_source * sol.mesh.volumes_gauss), baseline["power_balance"]["ohmic_heating"]
     )
-    assert np.isclose(np.sum(sol.ion_gain_iz_gauss * sol.mesh.volumes_gauss), baseline["power_balance"]["ion_gain_iz"])
-    assert sol.cooling_factor_simple.shape[0] == baseline["mesh"]["nvertices_glob"]
-    assert sol.cx_source.shape[0] == baseline["mesh"]["nelems_glob"]
+    assert np.isclose(
+        np.sum(sol.views.gauss.sources.electron_sink_iz * sol.mesh.volumes_gauss), baseline["power_balance"]["electron_sink_iz"]
+    )
+    assert np.isclose(
+        np.sum(sol.views.gauss.sources.ion_gain_iz * sol.mesh.volumes_gauss), baseline["power_balance"]["ion_gain_iz"]
+    )
+    assert sol.views.simple.sources.cooling_factor.shape[0] == baseline["mesh"]["nvertices_glob"]
+    assert sol.views.glob.sources.cx_source.shape[0] == baseline["mesh"]["nelems_glob"]

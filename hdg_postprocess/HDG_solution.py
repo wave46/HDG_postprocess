@@ -615,23 +615,6 @@ class HDGsolution:
         return pointwise_fields_impl.Q_loss_tot(self,r,z)
 
 
-_SOURCE_VIEW_DOCS = {
-    "ionization_source": "Ionization source",
-    "ion_gain_iz": "Ion energy sink due to ionization",
-    "ion_sink_rec": "Ion energy sink due to recombination",
-    "ion_sink_cx": "Ion energy sink due to charge exchange",
-    "electron_sink_iz": "Electron energy sink due to ionization",
-    "electron_sink_rec": "Electron energy sink due to recombination",
-    "electron_gain_rec": "Electron energy source due to recombination",
-    "electron_sink_cooling_factor": "Sink due to cooling factor",
-    "cooling_factor": "Cooling factor",
-    "cx_source": "Charge-exchange source",
-    "external_heating": "External heating source",
-    "external_heating_e": "External heating source on electrons",
-    "external_heating_i": "External heating source on ions",
-    "ohmic_source": "Ohmic heating source",
-}
-
 _STATE_PROPERTY_DOCS = {
     "combined_to_full": ("", ("_combined_to_full",), "Flag which tells if the solution has been combined to full"),
     "combined_boundary": ("", ("_combined_boundary",), "Flag which tells if the solution has been combined on a boundary of mesh"),
@@ -643,12 +626,6 @@ _STATE_PROPERTY_DOCS = {
     "phys_idx": ("", ("_phys_idx",), "dictionary with keys are the phys variables, values are the indexes o the corresponding equation"),
     "ion_energy_sheath_loss_total": ("_summary", ("boundary", "ion_energy_sheath_loss_total"), "Total ion energy loss in sheath on a full solution mesh using conservative values as inputs"),
     "electron_energy_sheath_loss_total": ("_summary", ("boundary", "electron_energy_sheath_loss_total"), "Total electron energy loss in sheath on a full solution mesh using conservative values as inputs"),
-}
-
-_SOURCE_VIEW_VARIANTS = {
-    "": ("glob", "on a full solution mesh using conservative values as inputs"),
-    "_simple": ("simple", "on a simple solution mesh"),
-    "_gauss": ("gauss", "on gauss points"),
 }
 
 _SOURCE_TOTAL_DOCS = {
@@ -666,14 +643,6 @@ _SOURCE_TOTAL_DOCS = {
 
 for _name, (_root_attr, _path, _doc) in _STATE_PROPERTY_DOCS.items():
     setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc))
-
-for _base_name, _doc_prefix in _SOURCE_VIEW_DOCS.items():
-    for _suffix, (_view_name, _doc_suffix) in _SOURCE_VIEW_VARIANTS.items():
-        setattr(
-            HDGsolution,
-            f"{_base_name}{_suffix}",
-            _make_generated_property("_views", (_view_name, "sources", _base_name), f"{_doc_prefix} {_doc_suffix}"),
-        )
 
 for _name, _doc in _SOURCE_TOTAL_DOCS.items():
     setattr(HDGsolution, _name, _make_generated_property("_summary", ("sources", _name), _doc))
