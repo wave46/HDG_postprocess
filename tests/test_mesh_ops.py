@@ -35,17 +35,17 @@ def test_mesh_ops_compatibility_surface(manifest_path, project_root):
     mesh.geometry.recombine_full()
     assert mesh.combined_to_full
 
-    mesh.geometry.connectivity_big()
+    _ = mesh.geometry.connectivity_big
     assert mesh.connectivity_big is not None
 
-    mesh.geometry.element_locator()
+    locator = mesh.geometry.element_locator
     probe = cfg["element_probe"]
-    assert int(mesh.element_number(probe[0], probe[1])) >= 0
+    assert int(locator(probe[0], probe[1])) >= 0
 
     ref = _load_reference_element(project_root / cfg["reference_element"])
     mesh.reference_element = ref
-    mesh.geometry.gauss_volumes()
+    _ = mesh.geometry.gauss_volumes
     assert mesh.volumes_gauss is not None
 
-    adjacent = mesh.geometry.adjacent_elements(int(mesh.element_number(probe[0], probe[1])))
+    adjacent = mesh.geometry.adjacent_elements(int(locator(probe[0], probe[1])))
     assert len(adjacent) > 0

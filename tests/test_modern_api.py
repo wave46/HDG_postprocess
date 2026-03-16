@@ -107,7 +107,7 @@ def test_modern_mesh_api(manifest_path, baselines_dir):
 
     mesh = load_mesh(cfg["mesh_path"], cfg["mesh_base"], cfg["n_partitions"])
     mesh.geometry.recombine_full()
-    connectivity_big = mesh.geometry.connectivity_big()
+    connectivity_big = mesh.geometry.connectivity_big
 
     assert mesh.p_order == baseline["p_order"]
     assert mesh.nelems_glob == baseline["nelems_glob"]

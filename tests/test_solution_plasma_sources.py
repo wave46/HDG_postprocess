@@ -48,7 +48,7 @@ def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
     )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
-    sol.mesh.geometry.gauss_volumes()
+    _ = sol.mesh.geometry.gauss_volumes
     sol.sources.ohmic("gauss")
     sol.sources.electron_sink_iz("gauss")
     sol.sources.ion_gain_iz("gauss")
