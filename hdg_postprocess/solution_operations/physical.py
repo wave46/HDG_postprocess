@@ -29,22 +29,23 @@ from hdg_postprocess.routines.plasma import (
 
 
 def init_phys_variables(solution, which="both"):
+    flags = solution.metadata.flags
     if which == "simple":
-        if not solution.combined_simple_solution:
+        if not flags.combined_simple_solution:
             print("Comibining first simple solution full")
             solution.recombine_simple_full_solution()
         simple_view = solution.views.simple
         solution.cons2phys(simple_view.solution.conservative)
         solution.cons2phys(simple_view.gradient.conservative)
-        solution.simple_phys_initialized = True
+        flags.simple_phys_initialized = True
     elif which == "full":
-        if not solution.combined_to_full:
+        if not flags.combined_to_full:
             print("Comibining first solution full")
             solution.recombine_full_solution()
         glob_view = solution.views.glob
         solution.cons2phys(glob_view.solution.conservative)
         solution.cons2phys(glob_view.gradient.conservative)
-        solution.full_phys_initialized = True
+        flags.full_phys_initialized = True
     elif which == "both":
         print("Initializing simple physical solution full")
         solution.init_phys_variables(which="simple")

@@ -73,11 +73,11 @@ def recombine_full_solution(solution):
     glob_view.equilibrium.magnetic_field_unit = glob_view.equilibrium.magnetic_field / np.sqrt(
         (glob_view.equilibrium.magnetic_field ** 2).sum(axis=-1)
     )[:, :, None]
-    solution.combined_to_full = True
+    solution.metadata.flags.combined_to_full = True
 
 
 def recombine_simple_full_solution(solution):
-    if not solution.combined_to_full:
+    if not solution.metadata.flags.combined_to_full:
         print("Comibining first solution full")
         solution.recombine_full_solution()
     glob_view = solution.views.glob
@@ -106,7 +106,7 @@ def recombine_simple_full_solution(solution):
         simple_view.equilibrium.poloidal_flux[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.poloidal_flux.reshape(
             glob_view.equilibrium.poloidal_flux.shape[0] * glob_view.equilibrium.poloidal_flux.shape[1]
         )
-    solution.combined_simple_solution = True
+    solution.metadata.flags.combined_simple_solution = True
 
     if "external_heating" in solution.parameters["physics"]:
         simple_view.sources.external_heating = solution.parameters["physics"]["external_heating"]
@@ -117,7 +117,7 @@ def recombine_simple_full_solution(solution):
 
 
 def recombine_boundary_solution(solution):
-    if not solution.combined_to_full:
+    if not solution.metadata.flags.combined_to_full:
         print("Comibining first solution full")
         solution.recombine_full_solution()
     if solution.mesh.connectivity_b_glob is None:
@@ -173,11 +173,11 @@ def recombine_boundary_solution(solution):
         for ind in indices:
             boundary_view.solution_skeleton.conservative[key].append(solution_skeleton_boundary[ind, :, :])
 
-    solution.combined_boundary = True
+    solution.metadata.flags.combined_boundary = True
 
 
 def calculate_in_gauss_points(solution):
-    if not solution.combined_to_full:
+    if not solution.metadata.flags.combined_to_full:
         print("Comibining first solution full")
         solution.recombine_full_solution()
     if solution.mesh.reference_element is None:
@@ -205,7 +205,7 @@ def calculate_in_gauss_points(solution):
 def calculate_in_boundary_gauss_points(solution, boundaries):
     if solution.mesh.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
-    if not solution.combined_boundary:
+    if not solution.metadata.flags.combined_boundary:
         print("Comibining first values on boundary")
         solution.recombine_boundary_solution()
     boundary_ordering, connectivity_ordered, iel_face_ordered = solution.mesh.calculate_gauss_boundary(

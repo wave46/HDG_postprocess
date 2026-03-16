@@ -4,7 +4,7 @@ from hdg_postprocess.routines.plasma import calculate_a, calculate_q_cyl
 
 
 def define_magnetic_axis(solution):
-    if not solution.combined_simple_solution:
+    if not solution.metadata.flags.combined_simple_solution:
         print("Comibining first simple solution full")
         solution.recombine_simple_full_solution()
     poloidal_flux_simple = solution.views.simple.equilibrium.poloidal_flux
@@ -43,7 +43,7 @@ def define_qcyl(solution, which="simple"):
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")
             solution.mesh.recombine_full_mesh()
-        if not solution.combined_simple_solution:
+        if not solution.metadata.flags.combined_simple_solution:
             print("Comibining first simple solution full")
             solution.recombine_simple_full_solution()
         if solution.views.simple.equilibrium.a is None:

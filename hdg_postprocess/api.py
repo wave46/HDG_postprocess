@@ -81,11 +81,11 @@ class _SolutionFields:
 
     def conservative(self, view="full", gradients=False):
         if view == "simple":
-            if not self._solution.combined_simple_solution:
+            if not self._solution.metadata.flags.combined_simple_solution:
                 self._solution.recombine_simple_full_solution()
             return self._solution.views.simple.gradient.conservative if gradients else self._solution.views.simple.solution.conservative
         if view == "full":
-            if not self._solution.combined_to_full:
+            if not self._solution.metadata.flags.combined_to_full:
                 self._solution.recombine_full_solution()
             return self._solution.views.glob.gradient.conservative if gradients else self._solution.views.glob.solution.conservative
         if view == "gauss":
@@ -95,11 +95,11 @@ class _SolutionFields:
 
     def physical(self, view="full", gradients=False):
         if view == "simple":
-            if not self._solution.simple_phys_initialized:
+            if not self._solution.metadata.flags.simple_phys_initialized:
                 self._solution.init_phys_variables("simple")
             return self._solution.views.simple.gradient.physical if gradients else self._solution.views.simple.solution.physical
         if view == "full":
-            if not self._solution.full_phys_initialized:
+            if not self._solution.metadata.flags.full_phys_initialized:
                 self._solution.init_phys_variables("full")
             return self._solution.views.glob.gradient.physical if gradients else self._solution.views.glob.solution.physical
         raise ValueError(f"Unsupported physical view: {view}")
@@ -134,7 +134,7 @@ class _SolutionSampling:
         return self._solution.calculate_variables_along_line(np.asarray(r_line), np.asarray(z_line), variable_list)
 
     def _prepare_for_sampling(self):
-        if not self._solution.simple_phys_initialized:
+        if not self._solution.metadata.flags.simple_phys_initialized:
             self._solution.init_phys_variables("simple")
         if self._solution.interpolators.solution is None:
             self._solution.define_interpolators()
@@ -148,7 +148,7 @@ class _SolutionPlotting:
         return self._solution.plot_overview(*args, **kwargs)
 
     def physical_overview(self, *args, **kwargs):
-        if not self._solution.simple_phys_initialized:
+        if not self._solution.metadata.flags.simple_phys_initialized:
             self._solution.init_phys_variables("simple")
         return self._solution.plot_overview_physical(*args, **kwargs)
 

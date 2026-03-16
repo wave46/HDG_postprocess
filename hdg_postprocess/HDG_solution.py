@@ -234,46 +234,6 @@ class HDGsolution:
         return self._interpolators_state
 
     @property
-    def combined_to_full(self):
-        return self._metadata.flags.combined_to_full
-
-    @combined_to_full.setter
-    def combined_to_full(self, value):
-        self._metadata.flags.combined_to_full = value
-
-    @property
-    def combined_boundary(self):
-        return self._metadata.flags.combined_boundary
-
-    @combined_boundary.setter
-    def combined_boundary(self, value):
-        self._metadata.flags.combined_boundary = value
-
-    @property
-    def combined_simple_solution(self):
-        return self._metadata.flags.combined_simple_solution
-
-    @combined_simple_solution.setter
-    def combined_simple_solution(self, value):
-        self._metadata.flags.combined_simple_solution = value
-
-    @property
-    def full_phys_initialized(self):
-        return self._metadata.flags.full_phys_initialized
-
-    @full_phys_initialized.setter
-    def full_phys_initialized(self, value):
-        self._metadata.flags.full_phys_initialized = value
-
-    @property
-    def simple_phys_initialized(self):
-        return self._metadata.flags.simple_phys_initialized
-
-    @simple_phys_initialized.setter
-    def simple_phys_initialized(self, value):
-        self._metadata.flags.simple_phys_initialized = value
-
-    @property
     def e(self):
         return self._metadata.constants.elemental_charge
 

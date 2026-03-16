@@ -14,13 +14,13 @@ from hdg_postprocess.routines.plasma import (
 
 
 def _ensure_simple_solution(solution):
-    if not solution.combined_simple_solution:
+    if not solution.metadata.flags.combined_simple_solution:
         print("Comibining first simple solution full")
         solution.recombine_simple_full_solution()
 
 
 def _ensure_simple_physical(solution):
-    if not solution.simple_phys_initialized:
+    if not solution.metadata.flags.simple_phys_initialized:
         print("Initializing physical solution first")
         solution.init_phys_variables("simple")
 
@@ -102,7 +102,7 @@ def plot_overview(solution, n_levels=100):
 
 def plot_overview_difference(solution, second_solution, n_levels=100):
     _ensure_simple_solution(solution)
-    if not second_solution.combined_simple_solution:
+    if not second_solution.metadata.flags.combined_simple_solution:
         print("Comibining first simple solution of the second one full")
         second_solution.recombine_simple_full_solution()
     left_simple_solution = solution.views.simple.solution.conservative
@@ -239,7 +239,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
 
 def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     _ensure_simple_physical(solution)
-    if not second_solution.simple_phys_initialized:
+    if not second_solution.metadata.flags.simple_phys_initialized:
         print("Initializing physical solution first")
         second_solution.init_phys_variables("simple")
 

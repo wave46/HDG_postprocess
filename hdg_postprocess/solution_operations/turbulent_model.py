@@ -11,7 +11,7 @@ def calculate_dk(solution, which="simple"):
         if solution.dk_parameters is None:
             raise ValueError("Please, provide turbulent diffusion settings for the simulation")
 
-        if not solution.combined_simple_solution:
+        if not solution.metadata.flags.combined_simple_solution:
             print("Initializing physical solution first")
             solution.recombine_simple_full_solution()
         if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
@@ -30,7 +30,7 @@ def calculate_dk(solution, which="simple"):
         if solution.dk_parameters is None:
             raise ValueError("Please, provide turbulent diffusion settings for the simulation")
 
-        if not solution.combined_simple_solution:
+        if not solution.metadata.flags.combined_simple_solution:
             print("Initializing physical solution first")
             solution.recombine_simple_full_solution()
         if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
