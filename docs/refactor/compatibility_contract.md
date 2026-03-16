@@ -59,13 +59,13 @@ Required workflows:
 
 Methods:
 
-- `plot_raw_meshes()`
-- `plot_full_mesh()`
-- `recombine_full_mesh()`
-- `create_connectivity_big()`
-- `make_element_number_funtion()`
-- `calculate_gauss_volumes()`
-- `find_adjacent_elements()`
+- `plot.raw()`
+- `plot.full()`
+- `geometry.recombine_full()`
+- `geometry.connectivity_big()`
+- `geometry.element_locator()`
+- `geometry.gauss_volumes()`
+- `geometry.adjacent_elements()`
 
 Properties and attributes:
 

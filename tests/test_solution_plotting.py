@@ -56,7 +56,7 @@ def test_solution_plotting_smoke_and_mesh_linewidth(manifest_path):
 
     fig3, ax3 = plt.subplots()
     sol.assembly.full()
-    ax3 = sol.mesh.plot_full_mesh(ax=ax3, linewidth=2.75)
+    ax3 = sol.mesh.plot.full(ax=ax3, linewidth=2.75)
     assert ax3.collections, "expected a mesh collection to be added"
     collection = ax3.collections[0]
     assert np.allclose(collection.get_linewidths(), 2.75)

@@ -28,7 +28,7 @@ def _ensure_simple_physical(solution):
 
 def _ensure_connectivity_big(solution):
     if solution.mesh.connectivity_big is None:
-        solution.mesh.create_connectivity_big()
+        solution.mesh.geometry.connectivity_big()
 
 
 def plot_overview(solution, n_levels=100):
@@ -79,7 +79,7 @@ def plot_overview(solution, n_levels=100):
     for i in range(solution.neq):
         cons_variable = solution.parameters["physics"]["conservative_variable_names"][i]
         if (cons_variable != b"Gamma") and (cons_variable != b"k"):
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 solutions_dimensional[:, i],
                 ax=axes[i // 2, i % 2],
                 log=True,
@@ -89,7 +89,7 @@ def plot_overview(solution, n_levels=100):
                 cmap="bwr",
             )
         else:
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 solutions_dimensional[:, i],
                 ax=axes[i // 2, i % 2],
                 log=False,
@@ -150,7 +150,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
     for i in range(solution.neq):
         cons_variable = solution.parameters["physics"]["conservative_variable_names"][i]
         if cons_variable != b"Gamma":
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 difference_dimensional[:, i],
                 ax=axes[i // 2, i % 2],
                 log=False,
@@ -159,7 +159,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
                 n_levels=n_levels,
             )
         else:
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 difference_dimensional[:, i],
                 ax=axes[i // 2, i % 2],
                 log=False,
@@ -201,7 +201,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
                 data[data < 0] = 1e8
             else:
                 data[data < 0] = 1e-3
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 data,
                 ax=axes[i // 2, i % 2],
                 log=True,
@@ -215,7 +215,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
             data = solutions_plot[:, i].copy()
             data[np.where(np.isnan(data))] = 0
             if i == 4:
-                axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+                axes[i // 2, i % 2] = solution.mesh.plot.full(
                     data,
                     ax=axes[i // 2, i % 2],
                     log=False,
@@ -226,7 +226,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
                     cmap="bwr",
                 )
             else:
-                axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+                axes[i // 2, i % 2] = solution.mesh.plot.full(
                     data,
                     ax=axes[i // 2, i % 2],
                     log=False,
@@ -264,7 +264,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
 
     for i in range(solution.neq):
         if i == 4:
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 solutions_plot[:, i],
                 ax=axes[i // 2, i % 2],
                 log=False,
@@ -274,7 +274,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
                 cmap="bwr",
             )
         else:
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 solutions_plot[:, i],
                 ax=axes[i // 2, i % 2],
                 log=False,
@@ -375,7 +375,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
         res[variable] = data
         cmap = "bwr" if variable == "M" else "jet"
         if var_to_plot > 2:
-            axes[i // 2, i % 2] = solution.mesh.plot_full_mesh(
+            axes[i // 2, i % 2] = solution.mesh.plot.full(
                 data,
                 ax=axes[i // 2, i % 2],
                 log=log,
@@ -388,7 +388,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 cmap=cmap,
             )
         elif var_to_plot == 2:
-            axes[i % 2] = solution.mesh.plot_full_mesh(
+            axes[i % 2] = solution.mesh.plot.full(
                 data,
                 ax=axes[i % 2],
                 log=log,
@@ -401,7 +401,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 cmap=cmap,
             )
         else:
-            axes = solution.mesh.plot_full_mesh(
+            axes = solution.mesh.plot.full(
                 data,
                 ax=axes,
                 log=log,

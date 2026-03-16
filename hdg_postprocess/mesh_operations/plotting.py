@@ -38,7 +38,9 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                    n_levels=100, limits=None, ticks=None, tick_labels=None, cmap="jet", linewidth=1.0):
     if not mesh._combined_to_full:
         print("Comibining to full mesh")
-        mesh.recombine_full_mesh()
+        from hdg_postprocess.mesh_operations.geometry import recombine_full_mesh
+
+        recombine_full_mesh(mesh)
 
     colors = "k"
     if ax is None:
@@ -112,12 +114,16 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
 def plot_mesh_outline(mesh, raw_boundary_info=None, ax=None):
     if not mesh._combined_to_full:
         print("Comibining to full mesh")
-        mesh.recombine_full_mesh()
+        from hdg_postprocess.mesh_operations.geometry import recombine_full_mesh
+
+        recombine_full_mesh(mesh)
     if not mesh._boundary_combined:
         if raw_boundary_info is None:
             raise ValueError("Please, provide raw boundary info as input to this method")
         print("Comibining boundary")
-        mesh.recombine_full_boundary(raw_boundary_info)
+        from hdg_postprocess.mesh_operations.boundary import recombine_full_boundary
+
+        recombine_full_boundary(mesh, raw_boundary_info)
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
     colors = ["r", "g", "b"]
@@ -142,12 +148,17 @@ def plot_mesh_outline(mesh, raw_boundary_info=None, ax=None):
 def plot_mesh_normals_tangentials(mesh, raw_boundary_info=None, ax=None, scale=None, scale_units=None):
     if not mesh._combined_to_full:
         print("Comibining to full mesh")
-        mesh.recombine_full_mesh()
+        from hdg_postprocess.mesh_operations.geometry import recombine_full_mesh
+
+        recombine_full_mesh(mesh)
     if mesh._vertices_boundary_gauss is None:
         if raw_boundary_info is None:
             raise ValueError("Please, provide raw boundary info as input to this method")
         print("Calculating at gauss points")
-        mesh.calculate_gauss_boundary(raw_boundary_info)
+        from hdg_postprocess.mesh_operations.boundary import calculate_gauss_boundary
+
+        unique_boundaries = tuple(np.unique(raw_boundary_info[0]["boundary_flags"]).tolist())
+        calculate_gauss_boundary(mesh, unique_boundaries, raw_boundary_info)
     r = mesh.vertices_boundary_gauss[:, ::-1, 0].flatten()
     z = mesh.vertices_boundary_gauss[:, ::-1, 1].flatten()
     n_r = mesh.normals_gauss[:, ::-1, 0].flatten()

@@ -26,7 +26,7 @@ def recombine_full_mesh(mesh):
 
 def create_connectivity_big(mesh):
     if not mesh._combined_to_full:
-        mesh.recombine_full_mesh()
+        recombine_full_mesh(mesh)
     base_path = Path(__file__).resolve().parents[1]
     rel_path = f'data/triangulations_element/{mesh.mesh_parameters["element_type"]}_P{mesh.p_order}.npy'
     path = (base_path / rel_path).resolve()
@@ -40,7 +40,7 @@ def create_connectivity_big(mesh):
 
 def make_mask(mesh):
     if mesh.connectivity_big is None:
-        mesh.create_connectivity_big()
+        create_connectivity_big(mesh)
 
     mesh._mask = Discrete2DMesh(
         mesh.vertices_glob, mesh.connectivity_big, np.ones(mesh.connectivity_big.shape[0]), limit=False, default_value=0
@@ -49,7 +49,7 @@ def make_mask(mesh):
 
 def make_element_number_function(mesh):
     if mesh.connectivity_big is None:
-        mesh.create_connectivity_big()
+        create_connectivity_big(mesh)
     element_numbers = np.repeat(
         np.arange(len(mesh.connectivity_glob)),
         mesh.connectivity_big.shape[0] // mesh.connectivity_glob.shape[0],
@@ -63,7 +63,7 @@ def calculate_gauss_volumes(mesh):
     if mesh.reference_element is None:
         raise ValueError("Please, provide reference element")
     if not mesh._combined_to_full:
-        mesh.recombine_full_mesh()
+        recombine_full_mesh(mesh)
 
     mesh._vertices_gauss = np.einsum("ij,kjh->kih", mesh.reference_element["N"], mesh.vertices_glob[mesh.connectivity_glob, :])
     J11_loc = np.einsum("ij,kj->ki", mesh.reference_element["Nxi"], mesh.vertices_glob[mesh.connectivity_glob, 0])
@@ -78,7 +78,7 @@ def calculate_gauss_volumes(mesh):
 def find_adjacent_elements(mesh, element_number):
     if not mesh._combined_to_full:
         print("Comibining to full mesh")
-        mesh.recombine_full_mesh()
+        recombine_full_mesh(mesh)
     vertices_numbers = mesh.connectivity_glob[element_number]
 
     adjacent_numbers = []

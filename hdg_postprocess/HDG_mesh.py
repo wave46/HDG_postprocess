@@ -1,28 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.collections import PolyCollection
-from matplotlib import cm
-from scipy.spatial import Delaunay
-from scipy.interpolate import LinearNDInterpolator
-from raysect.core.math.function.float import Discrete2DMesh
-from pathlib import Path
-from matplotlib.colors import LogNorm
-import os
-from hdg_postprocess.mesh_operations import (
-    boundary_ordering as boundary_ordering_impl,
-    calculate_gauss_boundary as calculate_gauss_boundary_impl,
-    calculate_gauss_volumes as calculate_gauss_volumes_impl,
-    create_connectivity_big as create_connectivity_big_impl,
-    find_adjacent_elements as find_adjacent_elements_impl,
-    make_element_number_function as make_element_number_function_impl,
-    make_mask as make_mask_impl,
-    plot_full_mesh as plot_full_mesh_impl,
-    plot_mesh_normals_tangentials as plot_mesh_normals_tangentials_impl,
-    plot_mesh_outline as plot_mesh_outline_impl,
-    plot_raw_meshes as plot_raw_meshes_impl,
-    recombine_full_boundary as recombine_full_boundary_impl,
-    recombine_full_mesh as recombine_full_mesh_impl,
-)
+from hdg_postprocess.mesh_api import MeshBoundary, MeshGeometry, MeshPlot
 class HDGmesh:
     """
     SOLEDGE-HDG mesh object  
@@ -55,7 +32,10 @@ class HDGmesh:
 
 
     def _initial_setup(self):
-        
+        self._boundary = MeshBoundary(self)
+        self._geometry = MeshGeometry(self)
+        self._plot = MeshPlot(self)
+
         if self.mesh_parameters['element_type'] == 'triangle':
             if self.mesh_parameters['nodes_per_element']==15:
                 self._p_order = 4
@@ -316,103 +296,17 @@ class HDGmesh:
     def reference_element(self,value):
         self._reference_element = value
 
-    def plot_raw_meshes(self, data=None, ax=None):
-        """
-        Plot all raw meshes to a matplotlib figure.
-        :param data: Data array defined on the soledgehdg mesh
-        """
-        return plot_raw_meshes_impl(self, data=data, ax=ax)
+    @property
+    def geometry(self):
+        """Facade for recombination and derived mesh geometry."""
+        return self._geometry
 
-    def plot_full_mesh(self, data=None, ax=None, log=False, label=None, connectivity=None, 
-                        n_levels=100,limits = None,ticks=None,tick_labels=None,cmap='jet', linewidth=1.0):
-        """
-        Plot all raw meshes to a matplotlib figure.
-        :param data: Data array defined on the soledgehdg mesh
-        :param ax: ax where to plot array defined on the soledgehdg mesh
-        :param log: if plot in log scale
-        :param label: label for the variable
-        :param connectivity: if None use the global one, (maybe refined, i.e. each triangle is also triangulated)
-        """
-        return plot_full_mesh_impl(
-            self, data=data, ax=ax, log=log, label=label, connectivity=connectivity,
-            n_levels=n_levels, limits=limits, ticks=ticks, tick_labels=tick_labels, cmap=cmap, linewidth=linewidth,
-        )
+    @property
+    def boundary(self):
+        """Facade for boundary recombination, ordering, and gauss geometry."""
+        return self._boundary
 
-    def plot_mesh_outline(self,raw_boundary_info=None, ax=None):
-        """
-        Plot mesh outline
-        :param raw_boundary_info: is the list of dictio naries with additional boundary info which is saved in solution
-        :param ax: ax where to plot 
-        """
-        return plot_mesh_outline_impl(self, raw_boundary_info=raw_boundary_info, ax=ax)
-
-    def plot_mesh_normals_tangentials(self,raw_boundary_info=None, ax=None,scale=None,scale_units=None):
-        """
-        Plots quiver plot of tangent and normal vectors to the mesh boundary at the gauss points
-        :param raw_boundary_info: is the list of dictio naries with additional boundary info which is saved in solution
-        :param ax: ax where to plot
-        :param scale: same meaning as in plt.quiver
-        :param scale_units: same meaning as in plt.quiver
-        by default the size of tangential and normal vectors is normalized to 1 mm on the plot
-        It may be adjusted using scale and scale_units settings
-        """
-        return plot_mesh_normals_tangentials_impl(self, raw_boundary_info=raw_boundary_info, ax=ax, scale=scale, scale_units=scale_units)
-
-    def recombine_full_mesh(self):
-        
-        recombine_full_mesh_impl(self)
-    
-    def recombine_full_boundary(self, raw_boundary_info):
-        """
-        Recombines full boundary connectivity with all needed information to calculate fluxes at the wall.
-        Handles cases where boundary types can have disconnected segments or additional closed loops.
-        """
-        recombine_full_boundary_impl(self, raw_boundary_info)
-        
-    def boundary_ordering(self, raw_boundary_info, boundaries):
-        """
-        Recombines ordered boundary connectivity for given boundaries with all needed information to calculate fluxes at the wall.
-        Ensures that looped segments are moved to the end of the array.
-        """
-    
-        return boundary_ordering_impl(self, raw_boundary_info, boundaries)
-
-
-
-
-    def create_connectivity_big(self):
-        create_connectivity_big_impl(self)
-
-    def make_mask(self):
-        """
-        to do create interpolator using
-        """
-        make_mask_impl(self)
-
-    def make_element_number_funtion(self):
-        """
-        creates a function which gives number of element for givern point
-        if outside of the mesh, it gives -1
-        """
-        make_element_number_function_impl(self)
-
-    def calculate_gauss_volumes(self):
-        """
-        calculates volumes for each gauss point in the full mesh
-        this is neede for volume integration later
-        """
-        calculate_gauss_volumes_impl(self)
-
-    def calculate_gauss_boundary(self,boundaries,raw_boundary_info):
-        """
-        calculates:
-        vertices in gauss points for boundary faces
-        tangential and normal vectors in each point
-        segment lengths corresponding to the points
-        """
-        return calculate_gauss_boundary_impl(self, boundaries, raw_boundary_info)
-    def find_adjacent_elements(self,element_number):
-        """ 
-        finds numbers of adjacent elements
-        """
-        return find_adjacent_elements_impl(self, element_number)
+    @property
+    def plot(self):
+        """Facade for mesh plotting workflows."""
+        return self._plot

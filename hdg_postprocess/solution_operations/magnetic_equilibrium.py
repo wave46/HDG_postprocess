@@ -20,7 +20,7 @@ def define_minor_radii(solution, which="simple"):
             define_magnetic_axis(solution)
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.recombine_full_mesh()
+            solution.mesh.geometry.recombine_full()
         define_minor_radii(solution, which="full")
         solution.views.simple.equilibrium.a = np.zeros(solution.mesh.vertices_glob.shape[0])
         solution.views.simple.equilibrium.a[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.views.glob.equilibrium.a.reshape(
@@ -31,7 +31,7 @@ def define_minor_radii(solution, which="simple"):
             define_magnetic_axis(solution)
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.recombine_full_mesh()
+            solution.mesh.geometry.recombine_full()
         solution.views.glob.equilibrium.a = calculate_a(
             solution.mesh.vertices_glob[solution.mesh.connectivity_glob],
             solution.summary.equilibrium.axis.r,
@@ -43,7 +43,7 @@ def define_qcyl(solution, which="simple"):
     if which == "simple":
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.recombine_full_mesh()
+            solution.mesh.geometry.recombine_full()
         if not solution.metadata.flags.combined_simple_solution:
             print("Comibining first simple solution full")
             assembly_ops.recombine_simple_full_solution(solution)
@@ -57,7 +57,7 @@ def define_qcyl(solution, which="simple"):
     elif which == "full":
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.recombine_full_mesh()
+            solution.mesh.geometry.recombine_full()
         if solution.views.glob.equilibrium.a is None:
             define_minor_radii(solution, "full")
         glob_equilibrium = solution.views.glob.equilibrium

@@ -32,20 +32,20 @@ def test_mesh_ops_compatibility_surface(manifest_path, project_root):
     cfg = scenarios["legacy_mesh_west"]
     mesh = load_from_file.load_HDG_mesh_from_file(cfg["mesh_path"], cfg["mesh_base"], cfg["n_partitions"])
 
-    mesh.recombine_full_mesh()
+    mesh.geometry.recombine_full()
     assert mesh.combined_to_full
 
-    mesh.create_connectivity_big()
+    mesh.geometry.connectivity_big()
     assert mesh.connectivity_big is not None
 
-    mesh.make_element_number_funtion()
+    mesh.geometry.element_locator()
     probe = cfg["element_probe"]
     assert int(mesh.element_number(probe[0], probe[1])) >= 0
 
     ref = _load_reference_element(project_root / cfg["reference_element"])
     mesh.reference_element = ref
-    mesh.calculate_gauss_volumes()
+    mesh.geometry.gauss_volumes()
     assert mesh.volumes_gauss is not None
 
-    adjacent = mesh.find_adjacent_elements(int(mesh.element_number(probe[0], probe[1])))
+    adjacent = mesh.geometry.adjacent_elements(int(mesh.element_number(probe[0], probe[1])))
     assert len(adjacent) > 0

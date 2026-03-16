@@ -4,7 +4,7 @@ import numpy as np
 def recombine_full_solution(solution):
     if not solution.mesh.combined_to_full:
         print("Comibining first mesh full")
-        solution.mesh.recombine_full_mesh()
+        solution.mesh.geometry.recombine_full()
 
     glob_view = solution.views.glob
     glob_view.solution.conservative = np.zeros(
@@ -124,7 +124,7 @@ def recombine_boundary_solution(solution):
         recombine_full_solution(solution)
     if solution.mesh.connectivity_b_glob is None:
         print("Comibining first boundary connectivity and info")
-        solution.mesh.recombine_full_boundary(solution.raw.boundary_infos)
+        solution.mesh.boundary.recombine_full(solution.raw.boundary_infos)
     if solution.mesh.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
 
@@ -225,7 +225,7 @@ def calculate_in_boundary_gauss_points(solution, boundaries):
             cache.boundary_gauss_connectivity,
             cache.boundary_gauss_face_elements,
         )
-    boundary_ordering, connectivity_ordered, iel_face_ordered = solution.mesh.calculate_gauss_boundary(
+    boundary_ordering, connectivity_ordered, iel_face_ordered = solution.mesh.boundary.gauss(
         normalized_boundaries, solution.raw.boundary_infos
     )
     boundary_view = solution.views.boundary

@@ -99,7 +99,7 @@ def recombine_full_boundary(mesh, raw_boundary_info):
 
 def boundary_ordering(mesh, raw_boundary_info, boundaries):
     if not mesh._boundary_combined:
-        mesh.recombine_full_boundary(raw_boundary_info)
+        recombine_full_boundary(mesh, raw_boundary_info)
 
     connected_boundaries = []
     segments = 0
@@ -161,12 +161,14 @@ def calculate_gauss_boundary(mesh, boundaries, raw_boundary_info):
     if mesh.reference_element is None:
         raise ValueError("Please, provide reference element")
     if not mesh._combined_to_full:
-        mesh.recombine_full_mesh()
+        from hdg_postprocess.mesh_operations.geometry import recombine_full_mesh
+
+        recombine_full_mesh(mesh)
     if not mesh._boundary_combined:
         if raw_boundary_info is None:
             raise ValueError("Please, provide raw boundary info as input to this method")
-        mesh.recombine_full_boundary(raw_boundary_info)
-    boundary_ordering_res, connectivity_ordered, iel_face_number = mesh.boundary_ordering(raw_boundary_info, boundaries)
+        recombine_full_boundary(mesh, raw_boundary_info)
+    boundary_ordering_res, connectivity_ordered, iel_face_number = boundary_ordering(mesh, raw_boundary_info, boundaries)
 
     mesh._vertices_boundary_gauss = np.einsum(
         "ij,kjh->kih", mesh.reference_element["N1d"], mesh.vertices_glob[connectivity_ordered, :]
