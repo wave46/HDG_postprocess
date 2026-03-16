@@ -837,30 +837,6 @@ _SOURCE_TOTAL_DOCS = {
     "ohmic_source_total": "Total ohmic heating source on a full solution mesh using conservative values as inputs",
 }
 
-_ATOMIC_RATE_DOCS = {
-    "ionization_rate_simple": ("_atomic_rates", ("ionization_simple",), "Ionization rate coefficient on a simple solution mesh"),
-    "recombination_rate_simple": ("_atomic_rates", ("recombination_simple",), "Recombination rate coefficient on a simple solution mesh"),
-    "cx_rate_simple": ("_atomic_rates", ("cx_simple",), "Charge exchange rate coefficient on a simple solution mesh"),
-}
-
-_DERIVED_DOCS = {
-    "dnn_simple": ("_views", ("simple", "derived", "dnn"), "Neutral diffusion on a simple solution mesh"),
-    "dnn_simple_with_nn_collision": ("_views", ("glob", "derived", "dnn_with_nn_collision"), "Neutral diffusion with neutral-neutral diffusions on a global solution mesh"),
-    "dnn_simple_with_nn_collision_simple": ("_views", ("simple", "derived", "dnn_with_nn_collision"), "Neutral diffusion with neutral-neutral diffusions on a simple solution mesh"),
-    "dk_simple": ("_views", ("simple", "derived", "dk"), "Turbulent diffusion on a simple solution mesh"),
-    "dk_glob": ("_views", ("glob", "derived", "dk"), "Turbulent diffusion on a full solution mesh"),
-    "mfp_simple": ("_views", ("simple", "derived", "mfp"), "Neutral mean free path on a simple solution mesh"),
-}
-
-_INTERPOLATOR_DOCS = {
-    "sample_interpolator": ("_interpolators_state", ("sample",), "Sample interpolator for acceleration", "_sample_interpolator"),
-    "solution_interpolators": ("_interpolators_state", ("solution",), "A list of interpolators of solutions in conservative form", None),
-    "gradient_interpolators": ("_interpolators_state", ("gradient",), "A list of interpolators of solutions in conservative form", None),
-    "field_interpolators": ("_interpolators_state", ("field",), "A list of interpolators of magnetic field", None),
-    "qcyl_interpolator": ("_interpolators_state", ("qcyl",), "A list of interpolators of magnetic field", None),
-}
-
-
 for _name, (_root_attr, _path, _doc) in _STATE_PROPERTY_DOCS.items():
     setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc))
 
@@ -874,12 +850,3 @@ for _base_name, _doc_prefix in _SOURCE_VIEW_DOCS.items():
 
 for _name, _doc in _SOURCE_TOTAL_DOCS.items():
     setattr(HDGsolution, _name, _make_generated_property("_summary", ("sources", _name), _doc))
-
-for _name, (_root_attr, _path, _doc) in _ATOMIC_RATE_DOCS.items():
-    setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc))
-
-for _name, (_root_attr, _path, _doc) in _DERIVED_DOCS.items():
-    setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc))
-
-for _name, (_root_attr, _path, _doc, _setter_attr) in _INTERPOLATOR_DOCS.items():
-    setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc, setter_attr=_setter_attr))

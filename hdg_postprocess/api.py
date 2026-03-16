@@ -136,7 +136,7 @@ class _SolutionSampling:
     def _prepare_for_sampling(self):
         if not self._solution.simple_phys_initialized:
             self._solution.init_phys_variables("simple")
-        if self._solution.solution_interpolators is None:
+        if self._solution.interpolators.solution is None:
             self._solution.define_interpolators()
 
 

@@ -344,9 +344,9 @@ def grad_ti_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution.field_interpolators[0](r, z)
-    bz = solution.field_interpolators[1](r, z)
-    bt = solution.field_interpolators[2](r, z)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
     return calculate_grad_Ti_par_cons(
         state,
         gradient,
