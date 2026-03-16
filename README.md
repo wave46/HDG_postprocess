@@ -61,6 +61,15 @@ boundary_profile = solution.summary.boundary.profile
 
 The preferred user-facing shape is the structured `views` / `summary` access pattern together with the grouped facades on `HDGsolution`.
 
+For pointwise sampling, the API is now also grouped semantically:
+
+```python
+n = solution.pointwise.plasma.n(r, z)
+grad_ti = solution.pointwise.gradients.ti(r, z, "x")
+btor = solution.pointwise.fields.magnetic_field(r, z, "theta")
+q_loss = solution.pointwise.sources.Q_loss_total(r, z)
+```
+
 ## Legacy API
 
 Existing notebooks and scripts can continue using the long-lived loader entrypoints:
@@ -104,4 +113,15 @@ The current branch has completed the safety-foundation phase:
 - partial split of mesh and solution internals
 - structured public API on `HDGsolution`
 
-The deeper simplification phase is still ahead. In particular, `HDG_solution.py` still contains substantial legacy orchestration and will need further extraction before the library can be considered fully refactored.
+The most disruptive `HDGsolution` cleanup is already done:
+
+- structured state now lives in the dedicated `solution_api` package
+- grouped facades are the preferred public API
+- the old flat wrapper layer has been removed
+
+The main remaining refactor targets are:
+
+- `HDG_mesh.py`
+- second-pass cleanup of `solution_operations`
+- second-pass cleanup of `routines`
+- broader user documentation and tutor-style examples

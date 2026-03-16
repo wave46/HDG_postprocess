@@ -2,17 +2,28 @@
 
 ## Current status
 
-The refactor is still in the compatibility-first phase.
+The refactor has moved past the heaviest compatibility bridge phase.
 
-- Demo-covered legacy entrypoints remain supported.
-- `hdg_postprocess.api` provides the new additive API for new code.
+- Demo-covered loader entrypoints remain supported.
+- `hdg_postprocess.api` is now a thin convenience loader that returns the structured `HDGsolution` directly.
 - The preferred data-access style is now the structured container API:
   - `solution.views`
   - `solution.summary`
+  - `solution.metadata`
   - `solution.additional_parameters`
   - `solution.atomic_rates`
   - `solution.interpolators`
-- The new API still delegates to the legacy implementation internally.
+- The preferred behavior-access style is now grouped facades on `HDGsolution`:
+  - `solution.fields`
+  - `solution.analysis`
+  - `solution.sample`
+  - `solution.plot`
+  - `solution.assembly`
+  - `solution.equilibrium`
+  - `solution.sources`
+  - `solution.neutrals`
+  - `solution.turbulence`
+  - `solution.pointwise`
 
 ## Recommended usage
 
@@ -24,26 +35,31 @@ For existing notebooks and analysis scripts:
 For new code:
 
 - prefer `hdg_postprocess.api.load_solution()`
-- prefer grouped access through `fields`, `analysis`, `sample`, and `plot`
+- prefer grouped access through facades such as `fields`, `analysis`, `sample`, `plot`, and `sources`
 - prefer direct structured access such as `solution.views.simple.solution.physical`
 - avoid introducing new code that depends on legacy split-property aliases; prefer paths like `solution.views.boundary_gauss.gradient.conservative`
+- for point sampling, prefer the semantic pointwise subfacades:
+  - `solution.pointwise.plasma`
+  - `solution.pointwise.fields`
+  - `solution.pointwise.gradients`
+  - `solution.pointwise.fluxes`
+  - `solution.pointwise.sources`
 
 For existing notebooks and scripts that still use the old split-property names:
 
-- they remain supported for now
-- treat them as compatibility aliases rather than the preferred API
-- plan future updates toward the structured container model
+- update them gradually toward the structured container-and-facade model
+- avoid adding new notebook cells that depend on removed flat wrappers such as old pointwise top-level methods
 
 ## Known limitations
 
-- The modern API is not yet the primary internal implementation.
 - Some setup-heavy analyses such as power balance still require assigning atomic and neutral settings explicitly, just as in the legacy API.
 - `raysect` is still used for production element location during interpolation.
+- Notebook execution was not revalidated automatically in this cleanup phase because the local environment does not currently have `nbformat` / `nbconvert` installed.
 
 ## Next simplification targets
 
-- continue extracting logic from `HDG_solution.py`
-- reduce duplicated orchestration across simple, full, gauss, and boundary representations
-- separate pure computation from plotting and cache management
-- clarify setup flows for atomic, neutral, and power-balance calculations
+- clean `HDG_mesh.py` with the same package-first structure used for the solution API
+- continue second-pass cleanup of `solution_operations` and `routines`
+- simplify facade internals where repeated orchestration is still visible
+- expand tutor-style documentation around the structured API and migration path
 - revisit a native compiled locator after the broader refactor is complete

@@ -1,9 +1,24 @@
 from hdg_postprocess.solution_operations import plasma_sources as plasma_source_ops
 
 
+class SourceRates:
+    def __init__(self, sources):
+        self._sources = sources
+
+    def ionization(self, view="simple"):
+        return self._sources._run_rate(plasma_source_ops.calculate_ionization_rate, "ionization_simple", view)
+
+    def recombination(self, view="simple"):
+        return self._sources._run_rate(plasma_source_ops.calculate_recombination_rate, "recombination_simple", view)
+
+    def cx(self, view="simple"):
+        return self._sources._run_rate(plasma_source_ops.calculate_cx_rate, "cx_simple", view)
+
+
 class SolutionSources:
     def __init__(self, solution):
         self._solution = solution
+        self.rates = SourceRates(self)
 
     def _target_view(self, view):
         return self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
@@ -20,13 +35,13 @@ class SolutionSources:
         return self._run_view_field(plasma_source_ops.calculate_ohmic_source, "ohmic_source", view)
 
     def ionization_rate(self, view="simple"):
-        return self._run_rate(plasma_source_ops.calculate_ionization_rate, "ionization_simple", view)
+        return self.rates.ionization(view)
 
     def recombination_rate(self, view="simple"):
-        return self._run_rate(plasma_source_ops.calculate_recombination_rate, "recombination_simple", view)
+        return self.rates.recombination(view)
 
     def cx_rate(self, view="simple"):
-        return self._run_rate(plasma_source_ops.calculate_cx_rate, "cx_simple", view)
+        return self.rates.cx(view)
 
     def ionization(self, view="simple"):
         return self._run_view_field(plasma_source_ops.calculate_ionization_source, "ionization_source", view)
