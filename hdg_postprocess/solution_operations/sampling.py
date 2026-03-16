@@ -136,32 +136,33 @@ def define_interpolators(solution):
     glob_view = solution.views.glob
     if glob_view.equilibrium.qcyl is None:
         solution.define_qcyl(which="full")
-    if solution._sample_interpolator is None:
+    interpolators = solution.interpolators
+    if interpolators.sample is None:
         if solution.mesh.mesh_parameters["element_type"] == "triangle":
-            solution._sample_interpolator = SoledgeHDG2DInterpolator(
+            interpolators.sample = SoledgeHDG2DInterpolator(
                 solution.mesh.vertices_glob, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.connectivity_glob,
                 solution.mesh.element_number, solution.mesh.reference_element["NodesCoord"],
                 solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
             )
         elif solution.mesh.mesh_parameters["element_type"] == "quadrilateral":
-            solution._sample_interpolator = SoledgeHDG2DInterpolator(
+            interpolators.sample = SoledgeHDG2DInterpolator(
                 solution.mesh.vertices_glob, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.connectivity_glob,
                 solution.mesh.element_number, solution.mesh.reference_element["NodesCoord1d"],
                 solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
             )
 
-    solution._solution_interpolators = []
-    solution._gradient_interpolators = []
+    interpolators.solution = []
+    interpolators.gradient = []
     for i in range(solution.neq):
-        solution._solution_interpolators.append(SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, glob_view.solution.conservative[:, :, i]))
+        interpolators.solution.append(SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.solution.conservative[:, :, i]))
         grad = [
-            SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, glob_view.gradient.conservative[:, :, i, 0]),
-            SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, glob_view.gradient.conservative[:, :, i, 1]),
+            SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.gradient.conservative[:, :, i, 0]),
+            SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.gradient.conservative[:, :, i, 1]),
         ]
-        solution._gradient_interpolators.append(grad)
+        interpolators.gradient.append(grad)
 
-    solution._field_interpolators = []
+    interpolators.field = []
     for i in range(3):
-        solution._field_interpolators.append(SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, glob_view.equilibrium.magnetic_field[:, :, i]))
-    solution._qcyl_interpolator = SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, glob_view.equilibrium.qcyl)
-    solution._psi_interpolator = SoledgeHDG2DInterpolator.instance(solution._sample_interpolator, glob_view.equilibrium.poloidal_flux)
+        interpolators.field.append(SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.magnetic_field[:, :, i]))
+    interpolators.qcyl = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.qcyl)
+    solution._psi_interpolator = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.poloidal_flux)

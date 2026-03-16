@@ -6,7 +6,7 @@ from hdg_postprocess.routines.plasma import *  # noqa: F403
 
 
 def _ensure_interpolators(solution):
-    if solution._solution_interpolators is None:
+    if solution.interpolators.solution is None:
         print("Definition of interpolators will take some time for the initialization")
         solution.define_interpolators()
 
@@ -15,7 +15,7 @@ def _sample_state(solution, r, z):
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     for i in range(solution.neq):
-        state[0, i] = solution._solution_interpolators[i](r, z)
+        state[0, i] = solution.interpolators.solution[i](r, z)
     return state
 
 
@@ -24,9 +24,9 @@ def _sample_state_and_gradient(solution, r, z):
     state = np.zeros([1, solution.neq])
     gradient = np.zeros([1, solution.neq, 2])
     for i in range(solution.neq):
-        state[0, i] = solution._solution_interpolators[i](r, z)
+        state[0, i] = solution.interpolators.solution[i](r, z)
         for k in range(2):
-            gradient[0, i, k] = solution._gradient_interpolators[i][k](r, z)
+            gradient[0, i, k] = solution.interpolators.gradient[i][k](r, z)
     return state, gradient
 
 
@@ -36,7 +36,7 @@ def n(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution._solution_interpolators[solution._cons_idx[b"rho"]](r, z)
+    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     return calculate_n_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
 
 
@@ -46,11 +46,11 @@ def ti(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution._solution_interpolators[solution._cons_idx[b"rho"]](r, z)
+    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution._solution_interpolators[solution._cons_idx[b"Gamma"]](r, z)
-    state[:, solution._cons_idx[b"nEi"]] = solution._solution_interpolators[solution._cons_idx[b"nEi"]](r, z)
+    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
+    state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]](r, z)
     return calculate_Ti_cons(
         state,
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -65,10 +65,10 @@ def te(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution._solution_interpolators[solution._cons_idx[b"rho"]](r, z)
+    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
         return 0
-    state[:, solution._cons_idx[b"nEe"]] = solution._solution_interpolators[solution._cons_idx[b"nEe"]](r, z)
+    state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]](r, z)
     return calculate_Te_cons(
         state,
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -83,10 +83,10 @@ def u(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution._solution_interpolators[solution._cons_idx[b"rho"]](r, z)
+    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution._solution_interpolators[solution._cons_idx[b"Gamma"]](r, z)
+    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
     return calculate_u_cons(state, solution.parameters["adimensionalization"]["speed_scale"], solution._cons_idx)
 
 
@@ -96,12 +96,12 @@ def cs(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution._solution_interpolators[solution._cons_idx[b"rho"]](r, z)
+    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution._solution_interpolators[solution._cons_idx[b"Gamma"]](r, z)
-    state[:, solution._cons_idx[b"nEi"]] = solution._solution_interpolators[solution._cons_idx[b"nEi"]](r, z)
-    state[:, solution._cons_idx[b"nEe"]] = solution._solution_interpolators[solution._cons_idx[b"nEe"]](r, z)
+    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
+    state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]](r, z)
+    state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]](r, z)
     return calculate_cs_cons(state, solution.parameters["adimensionalization"]["speed_scale"], solution._cons_idx)
 
 
@@ -111,12 +111,12 @@ def M(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution._solution_interpolators[solution._cons_idx[b"rho"]](r, z)
+    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution._solution_interpolators[solution._cons_idx[b"Gamma"]](r, z)
-    state[:, solution._cons_idx[b"nEi"]] = solution._solution_interpolators[solution._cons_idx[b"nEi"]](r, z)
-    state[:, solution._cons_idx[b"nEe"]] = solution._solution_interpolators[solution._cons_idx[b"nEe"]](r, z)
+    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
+    state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]](r, z)
+    state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]](r, z)
     return calculate_M_cons(state, solution._cons_idx)
 
 
@@ -126,7 +126,7 @@ def nn(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rhon"]] = solution._solution_interpolators[solution._cons_idx[b"rhon"]](r, z)
+    state[:, solution._cons_idx[b"rhon"]] = solution.interpolators.solution[solution._cons_idx[b"rhon"]](r, z)
     return calculate_nn_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
 
 
@@ -211,7 +211,7 @@ def k(solution, r, z):
 
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"k"]] = solution._solution_interpolators[solution._cons_idx[b"k"]](r, z)
+    state[:, solution._cons_idx[b"k"]] = solution.interpolators.solution[solution._cons_idx[b"k"]](r, z)
     return calculate_k_cons(state, solution.parameters["adimensionalization"]["k_scale"], solution._cons_idx)
 
 
@@ -227,9 +227,9 @@ def dk(solution, r, z):
         return 0
     axis = solution.summary.equilibrium.axis
     a = np.sqrt((r - axis.r) ** 2 + (z - axis.z) ** 2)
-    br = solution._field_interpolators[0](r, z)
-    bz = solution._field_interpolators[1](r, z)
-    bt = solution._field_interpolators[2](r, z)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
     q_cyl = calculate_q_cyl(r, br, bz, bt, a)
     return calculate_dk_cons(
         state,
@@ -385,9 +385,9 @@ def grad_te_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution._field_interpolators[0](r, z)
-    bz = solution._field_interpolators[1](r, z)
-    bt = solution._field_interpolators[2](r, z)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
     return calculate_grad_Te_par_cons(
         state,
         gradient,
@@ -404,7 +404,7 @@ def grad_te_par(solution, r, z):
 def particle_flux_par(solution, r, z):
     _ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"Gamma"]] = solution._solution_interpolators[solution._cons_idx[b"Gamma"]](r, z)
+    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
     return calculate_parallel_flux_cons(
         state,
         solution.parameters["adimensionalization"]["density_scale"]
@@ -433,9 +433,9 @@ def ion_heat_flux_par_cond(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution._field_interpolators[0](r, z)
-    bz = solution._field_interpolators[1](r, z)
-    bt = solution._field_interpolators[2](r, z)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
     return calculate_parallel_ion_heat_flux_par_cond_cons(
         state,
         gradient,
@@ -464,9 +464,9 @@ def ion_heat_flux_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution._field_interpolators[0](r, z)
-    bz = solution._field_interpolators[1](r, z)
-    bt = solution._field_interpolators[2](r, z)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
     return calculate_parallel_ion_heat_flux_par_cons(
         state,
         gradient,
@@ -514,9 +514,9 @@ def electron_heat_flux_par_cond(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution._field_interpolators[0](r, z)
-    bz = solution._field_interpolators[1](r, z)
-    bt = solution._field_interpolators[2](r, z)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
     return calculate_parallel_electron_heat_flux_par_cond_cons(
         state,
         gradient,
@@ -545,9 +545,9 @@ def electron_heat_flux_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution._field_interpolators[0](r, z)
-    bz = solution._field_interpolators[1](r, z)
-    bt = solution._field_interpolators[2](r, z)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
     return calculate_parallel_electron_heat_flux_par_cons(
         state,
         gradient,
@@ -590,7 +590,7 @@ def B(solution, r, z, component):
     else:
         raise ValueError(f"{component} is not a component of the problem")
     _ensure_interpolators(solution)
-    return solution._field_interpolators[idx](r, z)
+    return solution.interpolators.field[idx](r, z)
 
 
 def grad_B(solution, r, z, component, coordinate):
@@ -610,7 +610,7 @@ def grad_B(solution, r, z, component, coordinate):
     else:
         raise ValueError(f"{coordinate} is not a coordinate of the problem")
     _ensure_interpolators(solution)
-    return solution._field_interpolators[idx].gradient(r, z)[idx_grad]
+    return solution.interpolators.field[idx].gradient(r, z)[idx_grad]
 
 
 def Q_e_loss_iz(solution, r, z):

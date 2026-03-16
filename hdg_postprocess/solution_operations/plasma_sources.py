@@ -58,7 +58,7 @@ def calculate_ionization_rate(solution, which="simple"):
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
         _ensure_simple_phys(solution)
         solution.calculate_ionization_rate(which="full")
-        _assign_simple_view(solution, "_ionization_rate_simple", solution._ionization_rate)
+        solution._atomic_rates.ionization_simple = solution._ionization_rate
     elif which == "full":
         _ensure_full_solution(solution)
         solution._ionization_rate = calculate_iz_rate_cons(
@@ -75,7 +75,7 @@ def calculate_recombination_rate(solution, which="simple"):
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
         _ensure_simple_phys(solution)
         solution.calculate_recombination_rate(which="full")
-        _assign_simple_view(solution, "_recombination_rate_simple", solution._recombination_rate)
+        solution._atomic_rates.recombination_simple = solution._recombination_rate
     elif which == "full":
         _ensure_full_solution(solution)
         solution._recombination_rate = calculate_rec_rate_cons(
@@ -92,7 +92,7 @@ def calculate_cx_rate(solution, which="simple"):
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
         _ensure_simple_phys(solution)
         solution.calculate_cx_rate(which="full")
-        _assign_simple_view(solution, "_cx_rate_simple", solution._cx_rate)
+        solution._atomic_rates.cx_simple = solution._cx_rate
     elif which == "full":
         _ensure_full_solution(solution)
         solution._cx_rate = calculate_cx_rate_cons(

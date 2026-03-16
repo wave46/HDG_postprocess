@@ -90,14 +90,6 @@ class HDGsolution:
         "_atomic_parameters": ("_parameter_state", "atomic"),
         "_dnn_parameters": ("_parameter_state", "neutral_diffusion"),
         "_dk_parameters": ("_parameter_state", "turbulence"),
-        "_ionization_rate_simple": ("_atomic_rates", "ionization_simple"),
-        "_recombination_rate_simple": ("_atomic_rates", "recombination_simple"),
-        "_cx_rate_simple": ("_atomic_rates", "cx_simple"),
-        "_sample_interpolator": ("_interpolators_state", "sample"),
-        "_solution_interpolators": ("_interpolators_state", "solution"),
-        "_gradient_interpolators": ("_interpolators_state", "gradient"),
-        "_field_interpolators": ("_interpolators_state", "field"),
-        "_qcyl_interpolator": ("_interpolators_state", "qcyl"),
     }
     _VIEW_CONTAINER_PATHS = {
         "_solution_simple": ("simple", "solution", "conservative"),
