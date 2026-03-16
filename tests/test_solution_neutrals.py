@@ -48,9 +48,9 @@ def test_solution_neutrals_surface(manifest_path, baselines_dir):
     sol.calculate_dnn_with_nn_collision("simple")
     sol.calculate_mfp("simple")
 
-    assert sol.dnn_simple.shape[0] == baseline["mesh"]["nvertices_glob"]
-    assert sol.dnn_simple_with_nn_collision.shape[:2] == sol.solution_glob.shape[:2]
-    assert sol.dnn_simple_with_nn_collision_simple.shape == sol.dnn_simple.shape
-    assert sol.mfp_simple.shape[0] == baseline["mesh"]["nvertices_glob"]
-    assert np.isfinite(sol.dnn_simple).all()
-    assert np.isfinite(sol.mfp_simple).all()
+    assert sol.views.simple.derived.dnn.shape[0] == baseline["mesh"]["nvertices_glob"]
+    assert sol.views.glob.derived.dnn_with_nn_collision.shape[:2] == sol.views.glob.solution.conservative.shape[:2]
+    assert sol.views.simple.derived.dnn_with_nn_collision.shape == sol.views.simple.derived.dnn.shape
+    assert sol.views.simple.derived.mfp.shape[0] == baseline["mesh"]["nvertices_glob"]
+    assert np.isfinite(sol.views.simple.derived.dnn).all()
+    assert np.isfinite(sol.views.simple.derived.mfp).all()

@@ -49,8 +49,8 @@ def test_solution_operations_demo_surface(manifest_path):
     sol.init_phys_variables("both")
     sol.define_interpolators()
 
-    assert sol.solution_glob.shape[0] == baseline["mesh"]["nelems_glob"]
-    assert sol.solution_simple_phys.shape[1] == baseline["metadata"]["nphys"]
+    assert sol.views.glob.solution.conservative.shape[0] == baseline["mesh"]["nelems_glob"]
+    assert sol.views.simple.solution.physical.shape[1] == baseline["metadata"]["nphys"]
 
     profile = sol.calculate_variables_along_line(
         baseline["sampled_profile"]["r"],

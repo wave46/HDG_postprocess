@@ -45,10 +45,10 @@ def test_solution_magnetic_equilibrium_surface(manifest_path):
     sol.define_minor_radii("full")
     sol.define_qcyl("simple")
 
-    axis_flux = sol.poloidal_flux_simple.min()
-    axis_candidates = sol.mesh.vertices_glob[np.where(sol.poloidal_flux_simple == axis_flux)][0]
+    axis_flux = sol.views.simple.equilibrium.poloidal_flux.min()
+    axis_candidates = sol.mesh.vertices_glob[np.where(sol.views.simple.equilibrium.poloidal_flux == axis_flux)][0]
 
-    assert np.isclose(sol.r_axis, axis_candidates[0])
-    assert np.isclose(sol.z_axis, axis_candidates[1])
-    assert sol.a_glob.shape[:2] == sol.solution_glob.shape[:2]
-    assert sol.qcyl_simple.shape[0] == sol.mesh.vertices_glob.shape[0]
+    assert np.isclose(sol.summary.equilibrium.axis.r, axis_candidates[0])
+    assert np.isclose(sol.summary.equilibrium.axis.z, axis_candidates[1])
+    assert sol.views.glob.equilibrium.a.shape[:2] == sol.views.glob.solution.conservative.shape[:2]
+    assert sol.views.simple.equilibrium.qcyl.shape[0] == sol.mesh.vertices_glob.shape[0]

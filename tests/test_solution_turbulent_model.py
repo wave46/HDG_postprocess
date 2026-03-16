@@ -50,6 +50,6 @@ def test_solution_turbulent_model_surface(manifest_path, baselines_dir):
 
     sol.calculate_dk("simple")
 
-    assert sol.dk_simple.shape[0] == baseline["mesh"]["nvertices_glob"]
-    assert sol.dk_glob.shape[:2] == sol.solution_glob.shape[:2]
-    assert np.isfinite(sol.dk_simple).all()
+    assert sol.views.simple.derived.dk.shape[0] == baseline["mesh"]["nvertices_glob"]
+    assert sol.views.glob.derived.dk.shape[:2] == sol.views.glob.solution.conservative.shape[:2]
+    assert np.isfinite(sol.views.simple.derived.dk).all()

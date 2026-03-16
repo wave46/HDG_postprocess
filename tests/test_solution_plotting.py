@@ -50,7 +50,7 @@ def test_solution_plotting_smoke_and_mesh_linewidth(manifest_path):
     fig2, axes2, physical = sol.plot_overview_physical(n_levels=5)
 
     assert conservative.shape[1] == sol.neq
-    assert physical.shape[0] == sol.solution_simple.shape[0]
+    assert physical.shape[0] == sol.views.simple.solution.conservative.shape[0]
     assert np.asarray(axes1).size >= sol.neq
     assert np.asarray(axes2).size >= sol.neq
 
