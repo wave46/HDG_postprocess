@@ -181,6 +181,12 @@ class HDGsolution:
         "_ohmic_source_gauss": ("gauss", "sources", "ohmic_source"),
     }
     _SUMMARY_CONTAINER_PATHS = {
+        "_r_axis": ("equilibrium", "axis", "r"),
+        "_z_axis": ("equilibrium", "axis", "z"),
+        "_a_simple": ("equilibrium", "simple", "a"),
+        "_a_glob": ("equilibrium", "glob", "a"),
+        "_qcyl_simple": ("equilibrium", "simple", "qcyl"),
+        "_qcyl_glob": ("equilibrium", "glob", "qcyl"),
         "_ion_gain_iz_total": ("sources", "ion_gain_iz_total"),
         "_ion_sink_rec_total": ("sources", "ion_sink_rec_total"),
         "_ion_sink_cx_total": ("sources", "ion_sink_cx_total"),
@@ -337,7 +343,9 @@ class HDGsolution:
         summary_path = self._SUMMARY_CONTAINER_PATHS.get(name)
         if summary is not None and summary_path is not None:
             summary_state = getattr(summary, summary_path[0])
-            setattr(summary_state, summary_path[1], value)
+            for part in summary_path[1:-1]:
+                summary_state = getattr(summary_state, part)
+            setattr(summary_state, summary_path[-1], value)
         aux_path = self._AUX_CONTAINER_PATHS.get(name)
         if aux_path is not None:
             aux_state = self.__dict__.get(aux_path[0])
@@ -788,32 +796,32 @@ class HDGsolution:
     @property
     def r_axis(self):
         """R coordinate of magnetic axis"""
-        return self._grouped_caches["equilibrium"]["axis"]["r"]
+        return self._summary.equilibrium.axis.r
     
     @property
     def z_axis(self):
         """Z coordinate of magnetic axis"""
-        return self._grouped_caches["equilibrium"]["axis"]["z"]
+        return self._summary.equilibrium.axis.z
 
     @property
     def a_glob(self):
         """minor radii on global mesh"""
-        return self._grouped_caches["equilibrium"]["glob"]["a"]
+        return self._summary.equilibrium.glob.a
     
     @property
     def a_simple(self):
         """minor radii on simple mesh"""
-        return self._grouped_caches["equilibrium"]["simple"]["a"]
+        return self._summary.equilibrium.simple.a
 
     @property
     def qcyl_glob(self):
         """Cylindrical safety factor on global mesh"""
-        return self._grouped_caches["equilibrium"]["glob"]["qcyl"]
+        return self._summary.equilibrium.glob.qcyl
     
     @property
     def qcyl_simple(self):
         """Cylindrical safety factor on simple mesh"""
-        return self._grouped_caches["equilibrium"]["simple"]["qcyl"]
+        return self._summary.equilibrium.simple.qcyl
 
     @property
     def boundary_summary(self):

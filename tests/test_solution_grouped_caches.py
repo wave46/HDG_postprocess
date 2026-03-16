@@ -57,6 +57,12 @@ def test_grouped_caches_sync_physical_and_equilibrium(manifest_path):
     assert sol._grouped_caches["physical"]["glob"]["solution"] is sol.solution_glob_phys
     assert sol._grouped_caches["equilibrium"]["axis"]["r"] == sol.r_axis
     assert sol._grouped_caches["equilibrium"]["glob"]["qcyl"] is sol.qcyl_glob
+    assert sol._summary.equilibrium.axis.r == sol.r_axis
+    assert sol._summary.equilibrium.axis.z == sol.z_axis
+    assert sol._summary.equilibrium.glob.a is sol.a_glob
+    assert sol._summary.equilibrium.simple.a is sol.a_simple
+    assert sol._summary.equilibrium.glob.qcyl is sol.qcyl_glob
+    assert sol._summary.equilibrium.simple.qcyl is sol.qcyl_simple
     assert sol._grouped_caches["derived"]["simple"]["dk"] is sol.dk_simple
     assert sol._grouped_caches["derived"]["glob"]["dk"] is sol.dk_glob
     assert sol._views.simple.solution.physical is sol.solution_simple_phys

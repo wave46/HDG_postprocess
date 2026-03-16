@@ -64,9 +64,29 @@ class BoundarySummaryState:
 
 
 @dataclass
+class AxisState:
+    r: object = None
+    z: object = None
+
+
+@dataclass
+class EquilibriumScalarViewState:
+    a: object = None
+    qcyl: object = None
+
+
+@dataclass
+class EquilibriumSummaryState:
+    axis: AxisState = field(default_factory=AxisState)
+    simple: EquilibriumScalarViewState = field(default_factory=EquilibriumScalarViewState)
+    glob: EquilibriumScalarViewState = field(default_factory=EquilibriumScalarViewState)
+
+
+@dataclass
 class SolutionSummaryState:
     sources: SourceSummaryState = field(default_factory=SourceSummaryState)
     boundary: BoundarySummaryState = field(default_factory=BoundarySummaryState)
+    equilibrium: EquilibriumSummaryState = field(default_factory=EquilibriumSummaryState)
 
 
 @dataclass
