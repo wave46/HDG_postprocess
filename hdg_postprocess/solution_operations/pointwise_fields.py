@@ -131,16 +131,16 @@ def nn(solution, r, z):
 
 
 def ionization_source_interp(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_iz_source_cons(
         state,
-        solution.atomic_parameters["iz"],
+        solution.additional_parameters.atomic["iz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -149,16 +149,16 @@ def ionization_source_interp(solution, r, z):
 
 
 def iz_rate(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_iz_rate_cons(
         state,
-        solution.atomic_parameters["iz"],
+        solution.additional_parameters.atomic["iz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -166,35 +166,35 @@ def iz_rate(solution, r, z):
 
 
 def cx_rate(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.atomic_parameters.keys():
+    if "cx" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide charge exchange atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_cx_rate_cons(
         state,
-        solution.atomic_parameters["cx"],
+        solution.additional_parameters.atomic["cx"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
     )
 
 
 def dnn(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.atomic_parameters.keys():
+    if "cx" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_dnn_cons(
         state,
-        solution.dnn_parameters,
-        solution.atomic_parameters,
+        solution.additional_parameters.neutral_diffusion,
+        solution.additional_parameters.atomic,
         solution._e,
         solution.parameters["adimensionalization"]["mass_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -216,7 +216,7 @@ def k(solution, r, z):
 
 
 def dk(solution, r, z):
-    if solution.dk_parameters is None:
+    if solution.additional_parameters.turbulence is None:
         raise ValueError("Please, provide turbulent diffusion settings for the simulation")
     _ensure_interpolators(solution)
     if solution.summary.equilibrium.axis.r is None:
@@ -233,7 +233,7 @@ def dk(solution, r, z):
     q_cyl = calculate_q_cyl(r, br, bz, bt, a)
     return calculate_dk_cons(
         state,
-        solution.dk_parameters,
+        solution.additional_parameters.turbulence,
         q_cyl,
         r / solution.parameters["adimensionalization"]["length_scale"],
         solution.parameters["adimensionalization"]["length_scale"] ** 2
@@ -243,19 +243,19 @@ def dk(solution, r, z):
 
 
 def mfp_nn(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.atomic_parameters.keys():
+    if "cx" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_mfp_cons(
         state,
-        solution.dnn_parameters,
-        solution.atomic_parameters,
+        solution.additional_parameters.neutral_diffusion,
+        solution.additional_parameters.atomic,
         solution._e,
         solution.parameters["adimensionalization"]["mass_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -614,16 +614,16 @@ def grad_B(solution, r, z, component, coordinate):
 
 
 def Q_e_loss_iz(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "Eiz" not in solution.atomic_parameters.keys():
+    if "Eiz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide Eiz atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_sink_due_to_iz_cons(
         state,
-        solution.atomic_parameters["Eiz"],
+        solution.additional_parameters.atomic["Eiz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -633,16 +633,16 @@ def Q_e_loss_iz(solution, r, z):
 
 
 def Q_e_loss_rec(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "Erec" not in solution.atomic_parameters.keys():
+    if "Erec" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide Erec atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_sink_due_to_rec_cons(
         state,
-        solution.atomic_parameters["Erec"],
+        solution.additional_parameters.atomic["Erec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -652,16 +652,16 @@ def Q_e_loss_rec(solution, r, z):
 
 
 def Q_e_gain_rec(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "rec" not in solution.atomic_parameters.keys():
+    if "rec" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide recombination atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_gain_due_to_rec_cons(
         state,
-        solution.atomic_parameters["rec"],
+        solution.additional_parameters.atomic["rec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -671,20 +671,20 @@ def Q_e_gain_rec(solution, r, z):
 
 
 def Q_e_loss_tot(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "Eiz" not in solution.atomic_parameters.keys():
+    if "Eiz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide Eiz atomic settings for the simulation")
-    if "Erec" not in solution.atomic_parameters.keys():
+    if "Erec" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide Erec atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_total_loss_cons(
         state,
-        solution.atomic_parameters["Eiz"],
-        solution.atomic_parameters["Erec"],
-        solution.atomic_parameters["rec"],
+        solution.additional_parameters.atomic["Eiz"],
+        solution.additional_parameters.atomic["Erec"],
+        solution.additional_parameters.atomic["rec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -694,16 +694,16 @@ def Q_e_loss_tot(solution, r, z):
 
 
 def Q_i_gain_iz(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_gain_due_to_iz_cons(
         state,
-        solution.atomic_parameters["iz"],
+        solution.additional_parameters.atomic["iz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -714,16 +714,16 @@ def Q_i_gain_iz(solution, r, z):
 
 
 def Q_i_loss_rec(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "rec" not in solution.atomic_parameters.keys():
+    if "rec" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide recombination atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_sink_due_to_rec_cons(
         state,
-        solution.atomic_parameters["rec"],
+        solution.additional_parameters.atomic["rec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -733,16 +733,16 @@ def Q_i_loss_rec(solution, r, z):
 
 
 def Q_i_loss_cx(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.atomic_parameters.keys():
+    if "cx" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide charge exchange atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_sink_due_to_cx_cons(
         state,
-        solution.atomic_parameters["cx"],
+        solution.additional_parameters.atomic["cx"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -753,22 +753,22 @@ def Q_i_loss_cx(solution, r, z):
 
 
 def Q_i_loss_tot(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
-    if "rec" not in solution.atomic_parameters.keys():
+    if "rec" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide recombination atomic settings for the simulation")
-    if "cx" not in solution.atomic_parameters.keys():
+    if "cx" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide charge exchange atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_total_loss_cons(
         state,
-        solution.atomic_parameters["iz"],
-        solution.atomic_parameters["rec"],
-        solution.atomic_parameters["cx"],
+        solution.additional_parameters.atomic["iz"],
+        solution.additional_parameters.atomic["rec"],
+        solution.additional_parameters.atomic["cx"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -783,28 +783,28 @@ def Q_i_loss_tot(solution, r, z):
 
 
 def Q_loss_tot(solution, r, z):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
-    if "rec" not in solution.atomic_parameters.keys():
+    if "rec" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide recombination atomic settings for the simulation")
-    if "cx" not in solution.atomic_parameters.keys():
+    if "cx" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-    if "Eiz" not in solution.atomic_parameters.keys():
+    if "Eiz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide Eiz atomic settings for the simulation")
-    if "Erec" not in solution.atomic_parameters.keys():
+    if "Erec" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide Erec atomic settings for the simulation")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_total_loss_cons(
         state,
-        solution.atomic_parameters["iz"],
-        solution.atomic_parameters["rec"],
-        solution.atomic_parameters["cx"],
-        solution.atomic_parameters["Eiz"],
-        solution.atomic_parameters["Erec"],
+        solution.additional_parameters.atomic["iz"],
+        solution.additional_parameters.atomic["rec"],
+        solution.additional_parameters.atomic["cx"],
+        solution.additional_parameters.atomic["Eiz"],
+        solution.additional_parameters.atomic["Erec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],

@@ -41,8 +41,11 @@ def test_solution_neutrals_surface(manifest_path, baselines_dir):
         cfg["n_partitions"],
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
-    sol.atomic_parameters = generate_baselines._make_atomic_params("none")
-    sol.dnn_parameters = generate_baselines._make_dnn_params()
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params("none"))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
 
     sol.calculate_dnn("simple")
     sol.calculate_dnn_with_nn_collision("simple")

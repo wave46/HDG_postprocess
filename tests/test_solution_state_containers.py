@@ -49,7 +49,10 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
     sol.define_minor_radii(which="simple")
     sol.define_qcyl(which="full")
     sol.define_qcyl(which="simple")
-    sol.dk_parameters = {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0}
+    sol.additional_parameters.set_turbulence(
+        {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0},
+        sol.parameters["adimensionalization"],
+    )
     sol.calculate_dk("full")
     sol.calculate_dk("simple")
 
@@ -78,8 +81,11 @@ def test_container_state_sync_neutral_derived_fields(manifest_path):
         cfg["n_partitions"],
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
-    sol.atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
-    sol.dnn_parameters = generate_baselines._make_dnn_params()
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
     sol.recombine_full_solution()
@@ -111,9 +117,9 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
     dnn_parameters = generate_baselines._make_dnn_params()
     dk_parameters = {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0}
 
-    sol.atomic_parameters = atomic_parameters
-    sol.dnn_parameters = dnn_parameters
-    sol.dk_parameters = dk_parameters
+    sol.additional_parameters.set_atomic(atomic_parameters)
+    sol.additional_parameters.set_neutral_diffusion(dnn_parameters, sol.parameters["adimensionalization"])
+    sol.additional_parameters.set_turbulence(dk_parameters, sol.parameters["adimensionalization"])
 
     sol.recombine_full_solution()
     sol.recombine_simple_full_solution()
@@ -125,11 +131,11 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
     sol.define_qcyl(which="full")
     sol.define_interpolators()
 
-    assert sol.parameter_state.atomic is sol.atomic_parameters
-    assert sol.parameter_state.neutral_diffusion is sol.dnn_parameters
-    assert sol.parameter_state.turbulence is sol.dk_parameters
-    assert sol.parameter_state.neutral_diffusion["dnn_max_adim"] == sol.dnn_parameters["dnn_max_adim"]
-    assert sol.parameter_state.turbulence["dk_max_adim"] == sol.dk_parameters["dk_max_adim"]
+    assert sol.additional_parameters.atomic is atomic_parameters
+    assert sol.additional_parameters.neutral_diffusion is dnn_parameters
+    assert sol.additional_parameters.turbulence is dk_parameters
+    assert sol.additional_parameters.neutral_diffusion["dnn_max_adim"] == dnn_parameters["dnn_max_adim"]
+    assert sol.additional_parameters.turbulence["dk_max_adim"] == dk_parameters["dk_max_adim"]
     assert sol.atomic_rates.ionization_simple is not None
     assert sol.atomic_rates.recombination_simple is not None
     assert sol.atomic_rates.cx_simple is not None
@@ -152,8 +158,11 @@ def test_container_state_sync_sources_and_totals(manifest_path):
         cfg["n_partitions"],
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
-    sol.atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
-    sol.dnn_parameters = generate_baselines._make_dnn_params()
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
     sol.recombine_full_solution()
@@ -196,7 +205,7 @@ def test_container_state_sync_representations(manifest_path):
     sol.recombine_simple_full_solution()
     sol.recombine_boundary_solution()
     sol.calculate_in_gauss_points()
-    sol.calculate_in_boundary_gauss_points(np.unique(sol.raw_solution_boundary_infos[0]["boundary_flags"]))
+    sol.calculate_in_boundary_gauss_points(np.unique(sol.raw.boundary_infos[0]["boundary_flags"]))
 
     assert sol.views.simple.solution.conservative is not None
     assert sol.views.simple.gradient.conservative is not None

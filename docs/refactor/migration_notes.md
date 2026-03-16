@@ -9,7 +9,7 @@ The refactor is still in the compatibility-first phase.
 - The preferred data-access style is now the structured container API:
   - `solution.views`
   - `solution.summary`
-  - `solution.parameter_state`
+  - `solution.additional_parameters`
   - `solution.atomic_rates`
   - `solution.interpolators`
 - The new API still delegates to the legacy implementation internally.

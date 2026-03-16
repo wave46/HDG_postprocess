@@ -36,8 +36,7 @@ Properties and attributes:
 
 - `mesh`
 - `parameters`
-- `atomic_parameters`
-- `dnn_parameters`
+- `additional_parameters`
 - `phys_idx`
 
 Preferred replacement API for new code:

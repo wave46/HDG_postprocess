@@ -36,8 +36,8 @@ class PostprocessedSolution:
         return self.legacy.summary
 
     @property
-    def parameters_state(self):
-        return self.legacy.parameter_state
+    def additional_parameters(self):
+        return self.legacy.additional_parameters
 
     @property
     def atomic_rates(self):

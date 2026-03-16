@@ -52,7 +52,10 @@ def test_pointwise_accessors_match_embedded_k_baseline(manifest_path):
     baseline = json.load(open("tests/baselines/embedded_k_model.json"))
 
     sol = _load_solution(cfg)
-    sol.dk_parameters = {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0}
+    sol.additional_parameters.set_turbulence(
+        {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0},
+        sol.parameters["adimensionalization"],
+    )
 
     point = baseline["interpolated_points"]["values"]["midplane"][0]
     r = point["r"]
@@ -75,8 +78,11 @@ def test_pointwise_source_and_field_accessors_are_finite(manifest_path):
     baseline = json.load(open("tests/baselines/power_balance_with_cooling.json"))
 
     sol = _load_solution(cfg)
-    sol.atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
-    sol.dnn_parameters = generate_baselines._make_dnn_params()
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
     point = baseline["interpolated_points"]["values"]["midplane"][0]

@@ -16,7 +16,7 @@ def recombine_full_solution(solution):
     glob_view.equilibrium.magnetic_field = np.zeros(
         (solution.mesh._nelems_glob, solution.mesh.mesh_parameters["nodes_per_element"], 3)
     )
-    if "poloidal_flux" in solution.raw_equilibriums[0].keys():
+    if "poloidal_flux" in solution.raw.equilibriums[0].keys():
         glob_view.equilibrium.poloidal_flux = np.zeros(
             (solution.mesh._nelems_glob, solution.mesh.mesh_parameters["nodes_per_element"])
         )
@@ -26,31 +26,31 @@ def recombine_full_solution(solution):
         )
 
     for i in range(solution.n_partitions):
-        raw_solution = solution.raw_solutions[i].reshape(
-            solution.raw_solutions[i].shape[0] // solution.mesh.mesh_parameters["nodes_per_element"],
+        raw_solution = solution.raw.solutions[i].reshape(
+            solution.raw.solutions[i].shape[0] // solution.mesh.mesh_parameters["nodes_per_element"],
             solution.mesh.mesh_parameters["nodes_per_element"],
             solution.neq,
         )
-        raw_gradient = solution.raw_gradients[i].reshape(
-            solution.raw_gradients[i].shape[0] // solution.mesh.mesh_parameters["nodes_per_element"],
+        raw_gradient = solution.raw.gradients[i].reshape(
+            solution.raw.gradients[i].shape[0] // solution.mesh.mesh_parameters["nodes_per_element"],
             solution.mesh.mesh_parameters["nodes_per_element"],
             solution.neq,
             solution.ndim,
         )
-        raw_field = solution.raw_equilibriums[i]["magnetic_field"][solution.mesh.raw_connectivity[i]]
+        raw_field = solution.raw.equilibriums[i]["magnetic_field"][solution.mesh.raw_connectivity[i]]
 
-        if "poloidal_flux" in solution.raw_equilibriums[0].keys():
-            raw_poloidal_flux = solution.raw_equilibriums[i]["poloidal_flux"][solution.mesh.raw_connectivity[i]]
+        if "poloidal_flux" in solution.raw.equilibriums[0].keys():
+            raw_poloidal_flux = solution.raw.equilibriums[i]["poloidal_flux"][solution.mesh.raw_connectivity[i]]
 
         if solution.parameters["switches"]["ohmicsrc"][0] == 1:
-            raw_jtor = solution.raw_equilibriums[i]["plasma_current"][solution.mesh.raw_connectivity[i]]
+            raw_jtor = solution.raw.equilibriums[i]["plasma_current"][solution.mesh.raw_connectivity[i]]
 
         if solution.n_partitions > 1:
             mask = ~solution.mesh.raw_ghost_elements[i].astype(bool).flatten()
             glob_view.solution.conservative[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_solution[mask, :]
             glob_view.gradient.conservative[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_gradient[mask, :, :]
             glob_view.equilibrium.magnetic_field[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_field[mask, :]
-            if "poloidal_flux" in solution.raw_equilibriums[0].keys():
+            if "poloidal_flux" in solution.raw.equilibriums[0].keys():
                 glob_view.equilibrium.poloidal_flux[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_poloidal_flux[mask]
             if solution.parameters["switches"]["ohmicsrc"][0] == 1:
                 glob_view.equilibrium.jtor[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_jtor[mask, :]
@@ -58,7 +58,7 @@ def recombine_full_solution(solution):
             glob_view.solution.conservative = raw_solution
             glob_view.gradient.conservative = raw_gradient
             glob_view.equilibrium.magnetic_field = raw_field
-            if "poloidal_flux" in solution.raw_equilibriums[0].keys():
+            if "poloidal_flux" in solution.raw.equilibriums[0].keys():
                 glob_view.equilibrium.poloidal_flux = raw_poloidal_flux
             if solution.parameters["switches"]["ohmicsrc"][0] == 1:
                 glob_view.equilibrium.jtor = raw_jtor
@@ -101,7 +101,7 @@ def recombine_simple_full_solution(solution):
         simple_view.equilibrium.jtor[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.jtor.reshape(
             glob_view.equilibrium.jtor.shape[0] * glob_view.equilibrium.jtor.shape[1]
         )
-    if "poloidal_flux" in solution.raw_equilibriums[0].keys():
+    if "poloidal_flux" in solution.raw.equilibriums[0].keys():
         simple_view.equilibrium.poloidal_flux = np.zeros([solution.mesh.vertices_glob.shape[0]])
         simple_view.equilibrium.poloidal_flux[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.poloidal_flux.reshape(
             glob_view.equilibrium.poloidal_flux.shape[0] * glob_view.equilibrium.poloidal_flux.shape[1]
@@ -122,7 +122,7 @@ def recombine_boundary_solution(solution):
         solution.recombine_full_solution()
     if solution.mesh.connectivity_b_glob is None:
         print("Comibining first boundary connectivity and info")
-        solution.mesh.recombine_full_boundary(solution.raw_solution_boundary_infos)
+        solution.mesh.recombine_full_boundary(solution.raw.boundary_infos)
     if solution.mesh.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
 
@@ -153,16 +153,16 @@ def recombine_boundary_solution(solution):
         solution_skeleton_boundary = np.ones((solution.mesh._nfaces_glob, solution.mesh.mesh_parameters["nodes_per_face"], solution.neq))
         for i in range(solution.n_partitions):
             non_ghost = ~solution.mesh.raw_ghost_faces[i].flatten()
-            raw_solution = solution.raw_solutions_skeleton[i].reshape(
-                solution.raw_solutions_skeleton[i].shape[0] // solution.mesh.mesh_parameters["nodes_per_face"],
+            raw_solution = solution.raw.solutions_skeleton[i].reshape(
+                solution.raw.solutions_skeleton[i].shape[0] // solution.mesh.mesh_parameters["nodes_per_face"],
                 solution.mesh.mesh_parameters["nodes_per_face"],
                 solution.neq,
             )
             solution_skeleton_boundary[solution.mesh.raw_rest_mesh_data[i]["loc2glob_fa"][:][non_ghost], :] = raw_solution[non_ghost]
         solution_skeleton_boundary = solution_skeleton_boundary[solution.mesh._filled, :, :]
     else:
-        solution_skeleton_boundary = solution.raw_solutions_skeleton[0].reshape(
-            solution.raw_solutions_skeleton[0].shape[0] // solution.mesh.mesh_parameters["nodes_per_face"],
+        solution_skeleton_boundary = solution.raw.solutions_skeleton[0].reshape(
+            solution.raw.solutions_skeleton[0].shape[0] // solution.mesh.mesh_parameters["nodes_per_face"],
             solution.mesh.mesh_parameters["nodes_per_face"],
             solution.neq,
         )
@@ -209,7 +209,7 @@ def calculate_in_boundary_gauss_points(solution, boundaries):
         print("Comibining first values on boundary")
         solution.recombine_boundary_solution()
     boundary_ordering, connectivity_ordered, iel_face_ordered = solution.mesh.calculate_gauss_boundary(
-        boundaries, solution.raw_solution_boundary_infos
+        boundaries, solution.raw.boundary_infos
     )
     boundary_view = solution.views.boundary
     boundary_solution = boundary_view.solution.conservative

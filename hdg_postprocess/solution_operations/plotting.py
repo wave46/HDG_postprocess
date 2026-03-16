@@ -334,8 +334,8 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
         elif variable == "dnn":
             data = calculate_dnn_cons(
                 simple_solution,
-                solution.dnn_parameters,
-                solution.atomic_parameters,
+                solution.additional_parameters.neutral_diffusion,
+                solution.additional_parameters.atomic,
                 solution._e,
                 solution.parameters["adimensionalization"]["mass_scale"],
                 solution.parameters["adimensionalization"]["temperature_scale"],
@@ -351,7 +351,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 solution.cons_idx,
             )
         elif variable == "dk":
-            if solution.dk_parameters is None:
+            if solution.additional_parameters.turbulence is None:
                 raise ValueError("Please, provide turbulent diffusion settings for the simulation")
             if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
                 solution.define_magnetic_axis()
@@ -361,7 +361,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 solution.define_qcyl(which="simple")
             data = calculate_dk_cons(
                 simple_solution,
-                solution.dk_parameters,
+                solution.additional_parameters.turbulence,
                 solution.views.simple.equilibrium.qcyl,
                 solution.mesh.vertices_glob[:, 0] / solution.parameters["adimensionalization"]["length_scale"],
                 solution.parameters["adimensionalization"]["length_scale"] ** 2

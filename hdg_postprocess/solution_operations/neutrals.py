@@ -17,8 +17,8 @@ def calculate_dnn(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.derived.dnn = calculate_dnn_cons(
             solution.views.glob.solution.conservative,
-            solution.dnn_parameters,
-            solution.atomic_parameters,
+            solution.additional_parameters.neutral_diffusion,
+            solution.additional_parameters.atomic,
             solution._e,
             solution.parameters["adimensionalization"]["mass_scale"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -41,8 +41,8 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.derived.dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(
             solution.views.glob.solution.conservative,
-            solution.dnn_parameters,
-            solution.atomic_parameters,
+            solution.additional_parameters.neutral_diffusion,
+            solution.additional_parameters.atomic,
             solution._e,
             solution.parameters["adimensionalization"]["mass_scale"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -69,8 +69,8 @@ def calculate_mfp(solution, which="simple"):
             solution.calculate_dnn("full")
         solution.views.glob.derived.mfp = calculate_mfp_cons(
             solution.views.glob.solution.conservative,
-            solution.dnn_parameters,
-            solution.atomic_parameters,
+            solution.additional_parameters.neutral_diffusion,
+            solution.additional_parameters.atomic,
             solution._e,
             solution.parameters["adimensionalization"]["mass_scale"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -82,13 +82,13 @@ def calculate_mfp(solution, which="simple"):
 
 
 def _ensure_neutral_settings(solution):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if solution.dnn_parameters is None:
+    if solution.additional_parameters.neutral_diffusion is None:
         raise ValueError("Please, provide neutral diffusion settings for the simulation")
-    if "iz" not in solution.atomic_parameters.keys():
+    if "iz" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
-    if "cx" not in solution.atomic_parameters.keys():
+    if "cx" not in solution.additional_parameters.atomic.keys():
         raise ValueError("Please, provide ionization atomic settings for the simulation")
 
 

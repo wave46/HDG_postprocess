@@ -42,8 +42,11 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     )
     solution.legacy.mesh.reference_element = _load_reference_element(cfg["reference_element"])
     if cfg.get("with_atomic_setup"):
-        solution.legacy.atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
-        solution.legacy.dnn_parameters = generate_baselines._make_dnn_params()
+        solution.legacy.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+        solution.legacy.additional_parameters.set_neutral_diffusion(
+            generate_baselines._make_dnn_params(),
+            solution.legacy.parameters["adimensionalization"],
+        )
         solution.legacy.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
     full_cons = solution.fields.conservative(view="full")

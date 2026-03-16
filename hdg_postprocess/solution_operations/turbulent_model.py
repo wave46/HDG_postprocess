@@ -8,7 +8,7 @@ def calculate_dk(solution, which="simple"):
     Calculate turbulent diffusion derived from the k-equation model.
     """
     if which == "simple":
-        if solution.dk_parameters is None:
+        if solution.additional_parameters.turbulence is None:
             raise ValueError("Please, provide turbulent diffusion settings for the simulation")
 
         if not solution.metadata.flags.combined_simple_solution:
@@ -27,7 +27,7 @@ def calculate_dk(solution, which="simple"):
         )
 
     if which == "full":
-        if solution.dk_parameters is None:
+        if solution.additional_parameters.turbulence is None:
             raise ValueError("Please, provide turbulent diffusion settings for the simulation")
 
         if not solution.metadata.flags.combined_simple_solution:
@@ -42,7 +42,7 @@ def calculate_dk(solution, which="simple"):
 
         solution.views.glob.derived.dk = calculate_dk_cons(
             solution.views.glob.solution.conservative,
-            solution.dk_parameters,
+            solution.additional_parameters.turbulence,
             solution.views.glob.equilibrium.qcyl,
             solution.mesh.vertices_glob[solution.mesh.connectivity_glob][:, :, 0]
             / solution.parameters["adimensionalization"]["length_scale"],

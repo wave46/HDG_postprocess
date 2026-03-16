@@ -115,28 +115,6 @@ class HDGsolution:
         return self._parameters
 
     @property
-    def atomic_parameters(self):
-        """Dictionary with atomic parameters"""
-        return self._parameter_state.atomic
-    @atomic_parameters.setter
-    def atomic_parameters(self,value):
-        self._parameter_state.set_atomic(value)
-
-    @property
-    def dnn_parameters(self):
-        """Dictionary with atomic parameters"""
-        return self._parameter_state.neutral_diffusion
-    @dnn_parameters.setter
-    def dnn_parameters(self,value):
-        self._parameter_state.set_neutral_diffusion(value, self.parameters["adimensionalization"])
-    @property
-    def dk_parameters(self):
-        """Dictionary with atomic parameters"""
-        return self._parameter_state.turbulence
-    @dk_parameters.setter
-    def dk_parameters(self,value):
-        self._parameter_state.set_turbulence(value, self.parameters["adimensionalization"])
-    @property
     def neq(self):
         """number of equations"""
         return self._neq
@@ -150,31 +128,6 @@ class HDGsolution:
     def nphys(self):
         """number of physical variables"""
         return self._nphys
-
-    @property
-    def raw_solutions(self):
-        """raw soutions on nodes partitions"""
-        return self._raw.solutions
-
-    @property
-    def raw_solutions_skeleton(self):
-        """raw soutions on skeleton on partitions"""
-        return self._raw.solutions_skeleton
-
-    @property
-    def raw_gradients(self):
-        """raw gradients on nodes on partitions"""
-        return self._raw.gradients
-    
-    @property
-    def raw_equilibriums(self):
-        """raw equilibrium dictionaries on nodes on partitions"""
-        return self._raw.equilibriums
-
-    @property
-    def raw_solution_boundary_infos(self):
-        """raw bounday info dictionaries on nodes on partitions"""
-        return self._raw.boundary_infos
 
     @property
     def mesh(self):
@@ -202,8 +155,8 @@ class HDGsolution:
         return self._metadata
 
     @property
-    def parameter_state(self):
-        """Public structured access to setup parameter state."""
+    def additional_parameters(self):
+        """Public structured access to derived setup parameters not stored in the simulation input."""
         return self._parameter_state
 
     @property

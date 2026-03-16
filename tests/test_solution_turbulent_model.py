@@ -41,12 +41,12 @@ def test_solution_turbulent_model_surface(manifest_path, baselines_dir):
         cfg["n_partitions"],
     )
     sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
-    sol.dk_parameters = {
+    sol.additional_parameters.set_turbulence({
         "dk_min": 1e-6,
         "dk_max": 1e2,
         "dk_min_adim": 0.0,
         "dk_max_adim": 0.0,
-    }
+    }, sol.parameters["adimensionalization"])
 
     sol.calculate_dk("simple")
 

@@ -63,7 +63,7 @@ def calculate_ionization_rate(solution, which="simple"):
         _ensure_full_solution(solution)
         solution._ionization_rate = calculate_iz_rate_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["iz"],
+            solution.additional_parameters.atomic["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -80,7 +80,7 @@ def calculate_recombination_rate(solution, which="simple"):
         _ensure_full_solution(solution)
         solution._recombination_rate = calculate_rec_rate_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["rec"],
+            solution.additional_parameters.atomic["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -97,7 +97,7 @@ def calculate_cx_rate(solution, which="simple"):
         _ensure_full_solution(solution)
         solution._cx_rate = calculate_cx_rate_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["cx"],
+            solution.additional_parameters.atomic["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["physics"]["Mref"],
         )
@@ -113,7 +113,7 @@ def calculate_ionization_source(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.ionization_source = calculate_iz_source_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["iz"],
+            solution.additional_parameters.atomic["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -123,7 +123,7 @@ def calculate_ionization_source(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.ionization_source = calculate_iz_source_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["iz"],
+            solution.additional_parameters.atomic["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -143,7 +143,7 @@ def calculate_ion_gain_due_to_iz(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["iz"],
+            solution.additional_parameters.atomic["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -155,7 +155,7 @@ def calculate_ion_gain_due_to_iz(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["iz"],
+            solution.additional_parameters.atomic["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -177,7 +177,7 @@ def calculate_ion_sink_due_to_rec(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["rec"],
+            solution.additional_parameters.atomic["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -188,7 +188,7 @@ def calculate_ion_sink_due_to_rec(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["rec"],
+            solution.additional_parameters.atomic["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -209,7 +209,7 @@ def calculate_ion_sink_due_to_cx(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["cx"],
+            solution.additional_parameters.atomic["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -221,7 +221,7 @@ def calculate_ion_sink_due_to_cx(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["cx"],
+            solution.additional_parameters.atomic["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -243,7 +243,7 @@ def calculate_electron_sink_due_to_iz(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["Eiz"],
+            solution.additional_parameters.atomic["Eiz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -254,7 +254,7 @@ def calculate_electron_sink_due_to_iz(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["Eiz"],
+            solution.additional_parameters.atomic["Eiz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -275,7 +275,7 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["Erec"],
+            solution.additional_parameters.atomic["Erec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -286,7 +286,7 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["Erec"],
+            solution.additional_parameters.atomic["Erec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -305,7 +305,7 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["rec"],
+            solution.additional_parameters.atomic["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -316,7 +316,7 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["rec"],
+            solution.additional_parameters.atomic["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -339,7 +339,7 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["cooling_factor"],
+            solution.additional_parameters.atomic["cooling_factor"],
             solution.parameters["physics"]["impurity_concentration"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
@@ -350,7 +350,7 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["cooling_factor"],
+            solution.additional_parameters.atomic["cooling_factor"],
             solution.parameters["physics"]["impurity_concentration"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
@@ -369,7 +369,7 @@ def calculate_cooling_factor(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.cooling_factor = calculate_cooling_factor_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["cooling_factor"],
+            solution.additional_parameters.atomic["cooling_factor"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["physics"]["Mref"],
             solution.parameters["adimensionalization"]["charge_scale"],
@@ -378,7 +378,7 @@ def calculate_cooling_factor(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.cooling_factor = calculate_cooling_factor_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["cooling_factor"],
+            solution.additional_parameters.atomic["cooling_factor"],
             solution.parameters["physics"]["impurity_concentration"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
@@ -396,7 +396,7 @@ def calculate_cx_source(solution, which="simple"):
         _ensure_full_solution(solution)
         solution.views.glob.sources.cx_source = calculate_cx_source_cons(
             solution.views.glob.solution.conservative,
-            solution.atomic_parameters["cx"],
+            solution.additional_parameters.atomic["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -406,7 +406,7 @@ def calculate_cx_source(solution, which="simple"):
         _ensure_gauss_solution(solution)
         solution.views.gauss.sources.cx_source = calculate_cx_source_cons(
             solution.views.gauss.solution.conservative,
-            solution.atomic_parameters["cx"],
+            solution.additional_parameters.atomic["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
             solution.parameters["adimensionalization"]["density_scale"],
             solution.parameters["physics"]["Mref"],
@@ -415,9 +415,9 @@ def calculate_cx_source(solution, which="simple"):
 
 
 def _require_atomic_key(solution, key, message):
-    if solution.atomic_parameters is None:
+    if solution.additional_parameters.atomic is None:
         raise ValueError("Please, provide atomic settings for the simulation")
-    if key not in solution.atomic_parameters.keys():
+    if key not in solution.additional_parameters.atomic.keys():
         raise ValueError(message)
 
 

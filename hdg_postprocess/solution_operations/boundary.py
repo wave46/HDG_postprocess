@@ -492,8 +492,8 @@ def _calculate_neutral_flux(solution, boundary_solution):
     return calculate_neutral_perp_flux_wall_cons(
         boundary_solution,
         boundary_gauss.gradient.conservative,
-        solution.dnn_parameters,
-        solution.atomic_parameters,
+        solution.additional_parameters.neutral_diffusion,
+        solution.additional_parameters.atomic,
         boundary_gauss.equilibrium.magnetic_field[:, :, 0],
         boundary_gauss.equilibrium.magnetic_field[:, :, 1],
         boundary_gauss.equilibrium.magnetic_field[:, :, 2],
