@@ -40,14 +40,14 @@ def test_modern_solution_api(manifest_path, baselines_dir):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    solution.legacy.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    solution.mesh.reference_element = _load_reference_element(cfg["reference_element"])
     if cfg.get("with_atomic_setup"):
-        solution.legacy.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
-        solution.legacy.additional_parameters.set_neutral_diffusion(
+        solution.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+        solution.additional_parameters.set_neutral_diffusion(
             generate_baselines._make_dnn_params(),
-            solution.legacy.parameters["adimensionalization"],
+            solution.parameters["adimensionalization"],
         )
-        solution.legacy.parameters["physics"]["R_E"] = cfg["r_e_override"]
+        solution.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
     full_cons = solution.fields.conservative(view="full")
     simple_phys = solution.fields.physical(view="simple")
@@ -78,9 +78,10 @@ def test_modern_mesh_api(manifest_path, baselines_dir):
     baseline = load_baseline(baselines_dir, "legacy_mesh_west")
 
     mesh = load_mesh(cfg["mesh_path"], cfg["mesh_base"], cfg["n_partitions"])
-    mesh.topology.recombine_full()
-    connectivity_big = mesh.topology.create_big_connectivity()
+    mesh.recombine_full_mesh()
+    mesh.create_connectivity_big()
+    connectivity_big = mesh.connectivity_big
 
-    assert mesh.metadata["p_order"] == baseline["p_order"]
-    assert mesh.legacy.nelems_glob == baseline["nelems_glob"]
+    assert mesh.p_order == baseline["p_order"]
+    assert mesh.nelems_glob == baseline["nelems_glob"]
     assert connectivity_big.shape[0] == baseline["connectivity_big_shape"][0]

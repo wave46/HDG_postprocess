@@ -23,7 +23,7 @@ These scenarios are locked down by baseline regression tests under [tests/baseli
 The refactor is intentionally staged.
 
 - The legacy API remains supported for all workflows covered by the demo notebooks.
-- The modern API is additive and currently implemented as a thin facade over the legacy classes.
+- The modern API now returns the structured `HDGsolution` object directly.
 - Numerical behavior is protected by regression baselines for loading, mesh recombination, physical variables, interpolated samples, sampled profiles, power balance, and boundary summaries.
 
 The demo compatibility contract is recorded in [compatibility_contract.md](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/compatibility_contract.md).
@@ -38,7 +38,7 @@ from hdg_postprocess.formats import load_from_file
 solution = load_from_file.load_HDG_solution_from_file(...)
 ```
 
-An additive modern API is also available for new code:
+A modern convenience loader is also available for new code:
 
 ```python
 from hdg_postprocess.api import load_solution
@@ -59,7 +59,7 @@ gauss_grad = solution.views.gauss.gradient.conservative
 boundary_profile = solution.summary.boundary.profile
 ```
 
-This modern layer is still implemented as a thin facade over the legacy implementation, but the preferred user-facing shape is now the structured `views` / `summary` access pattern.
+The preferred user-facing shape is the structured `views` / `summary` access pattern together with the grouped facades on `HDGsolution`.
 
 ## Legacy API
 
@@ -102,6 +102,6 @@ The current branch has completed the safety-foundation phase:
 - automated regression tests for legacy and newer formats
 - internal I/O normalization layer
 - partial split of mesh and solution internals
-- additive modern API facade
+- structured public API on `HDGsolution`
 
 The deeper simplification phase is still ahead. In particular, `HDG_solution.py` still contains substantial legacy orchestration and will need further extraction before the library can be considered fully refactored.

@@ -9,6 +9,12 @@ from hdg_postprocess.view_containers import (
     SolutionSummaryState,
     SolutionViews,
 )
+from hdg_postprocess.solution_facades import (
+    SolutionAnalysis,
+    SolutionFields,
+    SolutionPlotting,
+    SolutionSampling,
+)
 from hdg_postprocess.solution_wrappers import attach_solution_wrappers
 
 
@@ -61,6 +67,10 @@ class HDGsolution:
         self._parameter_state = ParameterState()
         self._atomic_rates = AtomicRateState()
         self._interpolators_state = InterpolatorState()
+        self._fields = SolutionFields(self)
+        self._analysis = SolutionAnalysis(self)
+        self._sample = SolutionSampling(self)
+        self._plot = SolutionPlotting(self)
 
     def _init_flags(self):
         self._metadata.flags.combined_simple_solution = False
@@ -163,6 +173,26 @@ class HDGsolution:
     def interpolators(self):
         """Public structured access to cached interpolators."""
         return self._interpolators_state
+
+    @property
+    def fields(self):
+        """Facade for conservative and physical field access."""
+        return self._fields
+
+    @property
+    def analysis(self):
+        """Facade for power-balance and boundary summary workflows."""
+        return self._analysis
+
+    @property
+    def sample(self):
+        """Facade for point and line sampling workflows."""
+        return self._sample
+
+    @property
+    def plot(self):
+        """Facade for high-level plotting workflows."""
+        return self._plot
 
 
 attach_solution_wrappers(HDGsolution)
