@@ -187,19 +187,48 @@ def _pick_inside_points(sol, n_points=6):
 
 
 def _collect_interpolated_values(sol, variables):
-    sol.define_interpolators()
+    sol.sample.define_interpolators()
     points = _pick_inside_points(sol)
     result = {"points": points, "values": {"midplane": [], "off_midplane": []}}
+    pointwise_accessors = {
+        "n": sol.pointwise.plasma.n,
+        "ti": sol.pointwise.plasma.ti,
+        "te": sol.pointwise.plasma.te,
+        "u": sol.pointwise.plasma.u,
+        "cs": sol.pointwise.plasma.cs,
+        "M": sol.pointwise.plasma.mach,
+        "nn": sol.pointwise.plasma.nn,
+        "dnn": sol.pointwise.plasma.dnn,
+        "k": sol.pointwise.plasma.k,
+        "dk": sol.pointwise.plasma.dk,
+        "mfp_nn": sol.pointwise.plasma.mfp_nn,
+        "psi": sol.pointwise.fields.psi,
+        "ionization_source": sol.pointwise.sources.ionization_source,
+        "ionization_rate": sol.pointwise.sources.ionization_rate,
+        "cx_rate": sol.pointwise.sources.cx_rate,
+        "Q_e_loss_iz": sol.pointwise.sources.Q_e_loss_iz,
+        "Q_e_loss_rec": sol.pointwise.sources.Q_e_loss_rec,
+        "Q_e_gain_rec": sol.pointwise.sources.Q_e_gain_rec,
+        "Q_e_loss_total": sol.pointwise.sources.Q_e_loss_total,
+        "Q_i_gain_iz": sol.pointwise.sources.Q_i_gain_iz,
+        "Q_i_loss_rec": sol.pointwise.sources.Q_i_loss_rec,
+        "Q_i_loss_cx": sol.pointwise.sources.Q_i_loss_cx,
+        "Q_i_loss_total": sol.pointwise.sources.Q_i_loss_total,
+        "Q_loss_total": sol.pointwise.sources.Q_loss_total,
+    }
 
     for group_name, group_points in points.items():
         for r, z in group_points:
             point_data = {"r": r, "z": z}
             for variable in variables:
                 if variable == "grad_ti":
-                    point_data["grad_ti_x"] = _to_builtin(sol.grad_ti(r, z, "x"))
-                    point_data["grad_ti_y"] = _to_builtin(sol.grad_ti(r, z, "y"))
+                    point_data["grad_ti_x"] = _to_builtin(sol.pointwise.gradients.ti(r, z, "x"))
+                    point_data["grad_ti_y"] = _to_builtin(sol.pointwise.gradients.ti(r, z, "y"))
                     continue
-                accessor = getattr(sol, variable)
+                if variable == "grad_ti_par":
+                    point_data["grad_ti_par"] = _to_builtin(sol.pointwise.gradients.ti_parallel(r, z))
+                    continue
+                accessor = pointwise_accessors[variable]
                 value = accessor(r, z)
                 point_data[variable] = _to_builtin(value)
             result["values"][group_name].append(point_data)
@@ -207,11 +236,11 @@ def _collect_interpolated_values(sol, variables):
 
 
 def _collect_profile(sol, variables):
-    sol.define_interpolators()
+    sol.sample.define_interpolators()
     points = _pick_inside_points(sol, n_points=32)["midplane"]
     r_line = np.array([r for r, _ in points], dtype=float)
     z_line = np.array([z for _, z in points], dtype=float)
-    profile = sol.calculate_variables_along_line(r_line, z_line, variables)
+    profile = sol.sample.line(r_line, z_line, variables)
     return {
         "r": _to_builtin(r_line),
         "z": _to_builtin(z_line),
@@ -220,9 +249,9 @@ def _collect_profile(sol, variables):
 
 
 def _collect_phys_summary(sol):
-    sol.recombine_simple_full_solution()
-    sol.recombine_full_solution()
-    sol.init_phys_variables("both")
+    sol.assembly.simple()
+    sol.assembly.full()
+    sol.fields.initialize_physical("both")
 
     phys_names = _roundtrip_names(sol.parameters["physics"]["physical_variable_names"])
     simple_phys = sol.views.simple.solution.physical
@@ -239,7 +268,7 @@ def _collect_phys_summary(sol):
 
 
 def _collect_boundary_summary(sol):
-    summary = sol.calculate_boundary_summary() or sol.summary.boundary.profile
+    summary = sol.analysis.boundary_summary() or sol.summary.boundary.profile
     return {
         "keys": sorted(summary.keys()),
         "ds_total": float(np.sum(summary["ds"])),
@@ -286,7 +315,7 @@ def _collect_solution_baseline(config):
     }
 
     if config.get("power_balance"):
-        baseline["power_balance"] = _to_builtin(sol.calculate_power_balance())
+        baseline["power_balance"] = _to_builtin(sol.analysis.power_balance())
 
     if config.get("boundary_summary"):
         baseline["boundary_summary"] = _collect_boundary_summary(sol)
