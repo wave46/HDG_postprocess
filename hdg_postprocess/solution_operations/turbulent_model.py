@@ -21,9 +21,9 @@ def calculate_dk(solution, which="simple"):
         if solution.views.simple.equilibrium.qcyl is None:
             solution.define_qcyl(which="simple")
         solution.calculate_dk(which="full")
-        solution._dk_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
-        solution._dk_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution._dk_glob.reshape(
-            solution._dk_glob.shape[0] * solution._dk_glob.shape[1]
+        solution.views.simple.derived.dk = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution.views.simple.derived.dk[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.views.glob.derived.dk.reshape(
+            solution.views.glob.derived.dk.shape[0] * solution.views.glob.derived.dk.shape[1]
         )
 
     if which == "full":
@@ -40,7 +40,7 @@ def calculate_dk(solution, which="simple"):
         if solution.views.glob.equilibrium.qcyl is None:
             solution.define_qcyl(which="full")
 
-        solution._dk_glob = calculate_dk_cons(
+        solution.views.glob.derived.dk = calculate_dk_cons(
             solution.views.glob.solution.conservative,
             solution.dk_parameters,
             solution.views.glob.equilibrium.qcyl,

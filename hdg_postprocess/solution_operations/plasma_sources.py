@@ -16,14 +16,14 @@ def calculate_ohmic_source(solution, which="simple"):
     if which == "simple":
         solution.calculate_ohmic_source(which="full")
         glob_solution = solution.views.glob.solution.conservative
-        solution._ohmic_source_simple_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
-        solution._ohmic_source_simple_simple[
+        solution.views.simple.sources.ohmic_source = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution.views.simple.sources.ohmic_source[
             solution.mesh.connectivity_glob.reshape(-1, 1).ravel()
-        ] = solution._ohmic_source.reshape(glob_solution.shape[0] * glob_solution.shape[1])
+        ] = solution.views.glob.sources.ohmic_source.reshape(glob_solution.shape[0] * glob_solution.shape[1])
     elif which == "full":
         _ensure_full_solution(solution)
         glob_view = solution.views.glob
-        solution._ohmic_source = calculate_ohmic_source_cons(
+        solution.views.glob.sources.ohmic_source = calculate_ohmic_source_cons(
             glob_view.solution.conservative,
             glob_view.equilibrium.jtor,
             solution.parameters["physics"]["Mref"],
@@ -36,11 +36,11 @@ def calculate_ohmic_source(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_full_solution(solution)
-        if solution._jtor_gauss is None:
+        if solution.views.gauss.equilibrium.jtor is None:
             print("Calculating on gauss points first")
             solution.calculate_in_gauss_points()
         gauss_view = solution.views.gauss
-        solution._ohmic_source_gauss = calculate_ohmic_source_cons(
+        gauss_view.sources.ohmic_source = calculate_ohmic_source_cons(
             gauss_view.solution.conservative,
             gauss_view.equilibrium.jtor,
             solution.parameters["physics"]["Mref"],
@@ -108,10 +108,10 @@ def calculate_ionization_source(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_ionization_source(which="full")
-        _assign_simple_view(solution, "_ionization_source_simple", solution._ionization_source)
+        _assign_simple_view(solution, "ionization_source", solution.views.glob.sources.ionization_source)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._ionization_source = calculate_iz_source_cons(
+        solution.views.glob.sources.ionization_source = calculate_iz_source_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -121,7 +121,7 @@ def calculate_ionization_source(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._ionization_source_gauss = calculate_iz_source_cons(
+        solution.views.gauss.sources.ionization_source = calculate_iz_source_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -138,10 +138,10 @@ def calculate_ion_gain_due_to_iz(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_ion_gain_due_to_iz(which="full")
-        _assign_simple_view(solution, "_ion_gain_iz_simple", solution._ion_gain_iz)
+        _assign_simple_view(solution, "ion_gain_iz", solution.views.glob.sources.ion_gain_iz)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
+        solution.views.glob.sources.ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -153,7 +153,7 @@ def calculate_ion_gain_due_to_iz(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._ion_gain_iz_gauss = calculate_ion_gain_due_to_iz_cons(
+        solution.views.gauss.sources.ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["iz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -172,10 +172,10 @@ def calculate_ion_sink_due_to_rec(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_ion_sink_due_to_rec(which="full")
-        _assign_simple_view(solution, "_ion_sink_rec_simple", solution._ion_sink_rec)
+        _assign_simple_view(solution, "ion_sink_rec", solution.views.glob.sources.ion_sink_rec)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
+        solution.views.glob.sources.ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -186,7 +186,7 @@ def calculate_ion_sink_due_to_rec(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._ion_sink_rec_gauss = calculate_ion_sink_due_to_rec_cons(
+        solution.views.gauss.sources.ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -204,10 +204,10 @@ def calculate_ion_sink_due_to_cx(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_ion_sink_due_to_cx(which="full")
-        _assign_simple_view(solution, "_ion_sink_cx_simple", solution._ion_sink_cx)
+        _assign_simple_view(solution, "ion_sink_cx", solution.views.glob.sources.ion_sink_cx)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
+        solution.views.glob.sources.ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -219,7 +219,7 @@ def calculate_ion_sink_due_to_cx(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._ion_sink_cx_gauss = calculate_ion_sink_due_to_cx_cons(
+        solution.views.gauss.sources.ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -238,10 +238,10 @@ def calculate_electron_sink_due_to_iz(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_electron_sink_due_to_iz(which="full")
-        _assign_simple_view(solution, "_electron_sink_iz_simple", solution._electron_sink_iz)
+        _assign_simple_view(solution, "electron_sink_iz", solution.views.glob.sources.electron_sink_iz)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
+        solution.views.glob.sources.electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["Eiz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -252,7 +252,7 @@ def calculate_electron_sink_due_to_iz(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._electron_sink_iz_gauss = calculate_electron_sink_due_to_iz_cons(
+        solution.views.gauss.sources.electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["Eiz"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -270,10 +270,10 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_electron_sink_due_to_rec(which="full")
-        _assign_simple_view(solution, "_electron_sink_rec_simple", solution._electron_sink_rec)
+        _assign_simple_view(solution, "electron_sink_rec", solution.views.glob.sources.electron_sink_rec)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
+        solution.views.glob.sources.electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["Erec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -284,7 +284,7 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._electron_sink_rec_gauss = calculate_electron_sink_due_to_rec_cons(
+        solution.views.gauss.sources.electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["Erec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -300,10 +300,10 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_electron_gain_due_to_rec(which="full")
-        _assign_simple_view(solution, "_electron_gain_rec_simple", solution._electron_gain_rec)
+        _assign_simple_view(solution, "electron_gain_rec", solution.views.glob.sources.electron_gain_rec)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
+        solution.views.glob.sources.electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -314,7 +314,7 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._electron_gain_rec_gauss = calculate_electron_gain_due_to_rec_cons(
+        solution.views.gauss.sources.electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["rec"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -334,12 +334,10 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_electron_sink_due_to_cooling_factor(which="full")
-        _assign_simple_view(
-            solution, "_electron_sink_cooling_factor_simple", solution._electron_sink_cooling_factor
-        )
+        _assign_simple_view(solution, "electron_sink_cooling_factor", solution.views.glob.sources.electron_sink_cooling_factor)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
+        solution.views.glob.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["cooling_factor"],
             solution.parameters["physics"]["impurity_concentration"],
@@ -350,7 +348,7 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._electron_sink_cooling_factor_gauss = calculate_electron_sink_due_to_cooling_factor_cons(
+        solution.views.gauss.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["cooling_factor"],
             solution.parameters["physics"]["impurity_concentration"],
@@ -366,10 +364,10 @@ def calculate_cooling_factor(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_cooling_factor(which="full")
-        _assign_simple_view(solution, "_cooling_factor_simple", solution._cooling_factor)
+        _assign_simple_view(solution, "cooling_factor", solution.views.glob.sources.cooling_factor)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._cooling_factor = calculate_cooling_factor_cons(
+        solution.views.glob.sources.cooling_factor = calculate_cooling_factor_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["cooling_factor"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -378,7 +376,7 @@ def calculate_cooling_factor(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._cooling_factor_gauss = calculate_cooling_factor_cons(
+        solution.views.gauss.sources.cooling_factor = calculate_cooling_factor_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["cooling_factor"],
             solution.parameters["physics"]["impurity_concentration"],
@@ -393,10 +391,10 @@ def calculate_cx_source(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_cx_source(which="full")
-        _assign_simple_view(solution, "_cx_source_simple", solution._cx_source)
+        _assign_simple_view(solution, "cx_source", solution.views.glob.sources.cx_source)
     elif which == "full":
         _ensure_full_solution(solution)
-        solution._cx_source = calculate_cx_source_cons(
+        solution.views.glob.sources.cx_source = calculate_cx_source_cons(
             solution.views.glob.solution.conservative,
             solution.atomic_parameters["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -406,7 +404,7 @@ def calculate_cx_source(solution, which="simple"):
         )
     elif which == "gauss":
         _ensure_gauss_solution(solution)
-        solution._cx_source_gauss = calculate_cx_source_cons(
+        solution.views.gauss.sources.cx_source = calculate_cx_source_cons(
             solution.views.gauss.solution.conservative,
             solution.atomic_parameters["cx"],
             solution.parameters["adimensionalization"]["temperature_scale"],
@@ -440,9 +438,9 @@ def _ensure_gauss_solution(solution):
         solution.calculate_in_gauss_points()
 
 
-def _assign_simple_view(solution, attribute_name, full_values):
+def _assign_simple_view(solution, field_name, full_values):
     simple_values = np.zeros(solution.mesh.vertices_glob.shape[0])
     simple_values[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = full_values.reshape(
         solution.views.glob.solution.conservative.shape[0] * solution.views.glob.solution.conservative.shape[1]
     )
-    setattr(solution, attribute_name, simple_values)
+    setattr(solution.views.simple.sources, field_name, simple_values)

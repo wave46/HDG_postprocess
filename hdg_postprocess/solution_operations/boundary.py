@@ -8,7 +8,7 @@ def summary_along_the_wall(solution):
     """
     Calculate values in gauss points along the wall.
     """
-    if getattr(solution, "_solution_boundary_gauss", None) is None:
+    if solution.views.boundary_gauss.solution.conservative is None:
         print("Comibining first values on boundary gauss points")
         solution.calculate_in_boundary_gauss_points(np.unique(solution._raw_solution_boundary_infos[0]["boundary_flags"]))
     boundary_gauss = solution.views.boundary_gauss

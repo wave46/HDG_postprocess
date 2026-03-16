@@ -12,10 +12,10 @@ def calculate_dnn(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_dnn(which="full")
-        _assign_simple_view(solution, "_dnn_simple", solution._dnn)
+        solution.views.simple.derived.dnn = _simple_values(solution, solution.views.glob.derived.dnn)
     if which == "full":
         _ensure_full_solution(solution)
-        solution._dnn = calculate_dnn_cons(
+        solution.views.glob.derived.dnn = calculate_dnn_cons(
             solution.views.glob.solution.conservative,
             solution.dnn_parameters,
             solution.atomic_parameters,
@@ -34,13 +34,12 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_dnn_with_nn_collision(which="full")
-        _assign_simple_view(solution, "_dnn_with_nn_collision_simple", solution._dnn_with_nn_collision)
-        # Preserve legacy attribute spellings used by old properties.
-        solution._dnn_simple_with_nn_collision = solution._dnn_with_nn_collision
-        solution._dnn_simple_with_nn_collision_simple = solution._dnn_with_nn_collision_simple
+        solution.views.simple.derived.dnn_with_nn_collision = _simple_values(
+            solution, solution.views.glob.derived.dnn_with_nn_collision
+        )
     if which == "full":
         _ensure_full_solution(solution)
-        solution._dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(
+        solution.views.glob.derived.dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(
             solution.views.glob.solution.conservative,
             solution.dnn_parameters,
             solution.atomic_parameters,
@@ -52,9 +51,6 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
             solution.parameters["adimensionalization"]["length_scale"],
             solution.parameters["adimensionalization"]["time_scale"],
         )
-        solution._dnn_simple_with_nn_collision = solution._dnn_with_nn_collision
-
-
 def calculate_mfp(solution, which="simple"):
     _ensure_neutral_settings(solution)
     if not solution._simple_phys_initialized:
@@ -63,15 +59,15 @@ def calculate_mfp(solution, which="simple"):
     if which == "simple":
         _ensure_simple_phys(solution)
         solution.calculate_mfp(which="full")
-        _assign_simple_view(solution, "_mfp_simple", solution._mfp)
+        solution.views.simple.derived.mfp = _simple_values(solution, solution.views.glob.derived.mfp)
     if which == "full":
         _ensure_full_solution(solution)
         if not solution._simple_phys_initialized:
             print("Initializing physical solution first")
             solution.init_phys_variables("full")
-        if solution._dnn is None:
+        if solution.views.glob.derived.dnn is None:
             solution.calculate_dnn("full")
-        solution._mfp = calculate_mfp_cons(
+        solution.views.glob.derived.mfp = calculate_mfp_cons(
             solution.views.glob.solution.conservative,
             solution.dnn_parameters,
             solution.atomic_parameters,
@@ -107,9 +103,9 @@ def _ensure_full_solution(solution):
         solution.recombine_full_solution()
 
 
-def _assign_simple_view(solution, attribute_name, full_values):
+def _simple_values(solution, full_values):
     simple_values = np.zeros(solution.mesh.vertices_glob.shape[0])
     simple_values[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = full_values.reshape(
         solution.views.glob.solution.conservative.shape[0] * solution.views.glob.solution.conservative.shape[1]
     )
-    setattr(solution, attribute_name, simple_values)
+    return simple_values

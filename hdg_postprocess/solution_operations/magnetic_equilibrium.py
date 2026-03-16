@@ -21,9 +21,9 @@ def define_minor_radii(solution, which="simple"):
             print("Comibining to full mesh")
             solution.mesh.recombine_full_mesh()
         solution.define_minor_radii(which="full")
-        solution._a_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
-        solution._a_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution._a_glob.reshape(
-            solution._a_glob.shape[0] * solution._a_glob.shape[1]
+        solution.views.simple.equilibrium.a = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution.views.simple.equilibrium.a[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.views.glob.equilibrium.a.reshape(
+            solution.views.glob.equilibrium.a.shape[0] * solution.views.glob.equilibrium.a.shape[1]
         )
     if which == "full":
         if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
@@ -31,7 +31,7 @@ def define_minor_radii(solution, which="simple"):
         if not solution.mesh._combined_to_full:
             print("Comibining to full mesh")
             solution.mesh.recombine_full_mesh()
-        solution._a_glob = calculate_a(
+        solution.views.glob.equilibrium.a = calculate_a(
             solution.mesh.vertices_glob[solution.mesh.connectivity_glob],
             solution.summary.equilibrium.axis.r,
             solution.summary.equilibrium.axis.z,
@@ -49,9 +49,9 @@ def define_qcyl(solution, which="simple"):
         if solution.views.simple.equilibrium.a is None:
             solution.define_minor_radii()
         solution.define_qcyl(which="full")
-        solution._qcyl_simple = np.zeros(solution.mesh.vertices_glob.shape[0])
-        solution._qcyl_simple[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution._qcyl_glob.reshape(
-            solution._qcyl_glob.shape[0] * solution._qcyl_glob.shape[1]
+        solution.views.simple.equilibrium.qcyl = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution.views.simple.equilibrium.qcyl[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.views.glob.equilibrium.qcyl.reshape(
+            solution.views.glob.equilibrium.qcyl.shape[0] * solution.views.glob.equilibrium.qcyl.shape[1]
         )
     elif which == "full":
         if not solution.mesh._combined_to_full:
@@ -60,7 +60,7 @@ def define_qcyl(solution, which="simple"):
         if solution.views.glob.equilibrium.a is None:
             solution.define_minor_radii("full")
         glob_equilibrium = solution.views.glob.equilibrium
-        solution._qcyl_glob = calculate_q_cyl(
+        solution.views.glob.equilibrium.qcyl = calculate_q_cyl(
             solution.mesh.vertices_glob[solution.mesh.connectivity_glob][:, :, 0],
             glob_equilibrium.magnetic_field[:, :, 0],
             glob_equilibrium.magnetic_field[:, :, 1],

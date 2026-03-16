@@ -116,9 +116,9 @@ def cons2phys(solution, data):
                 raise KeyError("Unknown variable, go into the code and add this variable if you are sure")
 
         if len(data.shape) == 3:
-            solution._solution_glob_phys = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
+            solution.views.glob.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
         elif len(data.shape) == 2:
-            solution._solution_simple_phys = solution_phys
+            solution.views.simple.solution.physical = solution_phys
         else:
             raise ValueError("Something weird with the data shape of the solution")
 
@@ -187,6 +187,6 @@ def cons2phys(solution, data):
                 )
 
         if len(data.shape) == 4:
-            solution._gradient_glob_phys = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
+            solution.views.glob.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
         elif len(data.shape) == 3:
-            solution._gradient_simple_phys = grad_phys
+            solution.views.simple.gradient.physical = grad_phys

@@ -62,57 +62,54 @@ def calculate_power_balance(solution):
 def calculate_volumetric_sources(solution):
     if solution.mesh.volumes_gauss is None:
         solution.mesh.calculate_gauss_volumes()
-    if solution._ohmic_source_gauss is None:
+    gauss_sources = solution.views.gauss.sources
+    if gauss_sources.ohmic_source is None:
         print("Calculating ohmic source on gauss points first")
         solution.calculate_ohmic_source(which="gauss")
-    if solution._electron_sink_iz_gauss is None:
+    if gauss_sources.electron_sink_iz is None:
         print("Calculating electron ionization sink on gauss points first")
         solution.calculate_electron_sink_due_to_iz(which="gauss")
-    if solution._electron_sink_rec_gauss is None:
+    if gauss_sources.electron_sink_rec is None:
         print("Calculating electron recombination sink on gauss points first")
         solution.calculate_electron_sink_due_to_rec(which="gauss")
-    if solution._ion_gain_iz_gauss is None:
+    if gauss_sources.ion_gain_iz is None:
         print("Calculating ionization gain on gauss points first")
         solution.calculate_ion_gain_due_to_iz(which="gauss")
-    if solution._electron_gain_rec_gauss is None:
+    if gauss_sources.electron_gain_rec is None:
         print("Calculating electron recombination gain on gauss points first")
         solution.calculate_electron_gain_due_to_rec(which="gauss")
-    if solution._ion_sink_rec_gauss is None:
+    if gauss_sources.ion_sink_rec is None:
         print("Calculating ion recombination sink on gauss points first")
         solution.calculate_ion_sink_due_to_rec(which="gauss")
-    if solution._ion_sink_cx_gauss is None:
+    if gauss_sources.ion_sink_cx is None:
         print("Calculating ion charge exchange sink on gauss points first")
         solution.calculate_ion_sink_due_to_cx(which="gauss")
 
     if "impurity_concentration" in solution.parameters["physics"].keys():
         if solution.parameters["physics"]["impurity_concentration"] > 0:
-            if solution._electron_sink_cooling_factor_gauss is None:
+            if gauss_sources.electron_sink_cooling_factor is None:
                 print("Calculating impurity radiation on gauss points first")
                 solution.calculate_electron_sink_due_to_cooling_factor(which="gauss")
 
     source_summary = solution.summary.sources
-    source_summary.ohmic_source_total = np.sum(solution._ohmic_source_gauss * solution.mesh.volumes_gauss)
-    source_summary.electron_sink_iz_total = np.sum(solution._electron_sink_iz_gauss * solution.mesh.volumes_gauss)
-    source_summary.ion_gain_iz_total = np.sum(solution._ion_gain_iz_gauss * solution.mesh.volumes_gauss)
-    source_summary.electron_sink_rec_total = np.sum(solution._electron_sink_rec_gauss * solution.mesh.volumes_gauss)
-    source_summary.electron_gain_rec_total = np.sum(solution._electron_gain_rec_gauss * solution.mesh.volumes_gauss)
-    source_summary.ion_sink_rec_total = np.sum(solution._ion_sink_rec_gauss * solution.mesh.volumes_gauss)
-    source_summary.ion_sink_cx_total = np.sum(solution._ion_sink_cx_gauss * solution.mesh.volumes_gauss)
+    source_summary.ohmic_source_total = np.sum(gauss_sources.ohmic_source * solution.mesh.volumes_gauss)
+    source_summary.electron_sink_iz_total = np.sum(gauss_sources.electron_sink_iz * solution.mesh.volumes_gauss)
+    source_summary.ion_gain_iz_total = np.sum(gauss_sources.ion_gain_iz * solution.mesh.volumes_gauss)
+    source_summary.electron_sink_rec_total = np.sum(gauss_sources.electron_sink_rec * solution.mesh.volumes_gauss)
+    source_summary.electron_gain_rec_total = np.sum(gauss_sources.electron_gain_rec * solution.mesh.volumes_gauss)
+    source_summary.ion_sink_rec_total = np.sum(gauss_sources.ion_sink_rec * solution.mesh.volumes_gauss)
+    source_summary.ion_sink_cx_total = np.sum(gauss_sources.ion_sink_cx * solution.mesh.volumes_gauss)
 
     if "external_heating" in solution.parameters["physics"].keys():
-        source_summary.external_heating_total = np.sum(solution._external_heating_gauss * solution.mesh.volumes_gauss)
+        source_summary.external_heating_total = np.sum(gauss_sources.external_heating * solution.mesh.volumes_gauss)
     elif "external_heating_e" in solution.parameters["physics"].keys():
-        source_summary.external_heating_e_total = np.sum(
-            solution._external_heating_e_gauss * solution.mesh.volumes_gauss
-        )
-        source_summary.external_heating_i_total = np.sum(
-            solution._external_heating_i_gauss * solution.mesh.volumes_gauss
-        )
+        source_summary.external_heating_e_total = np.sum(gauss_sources.external_heating_e * solution.mesh.volumes_gauss)
+        source_summary.external_heating_i_total = np.sum(gauss_sources.external_heating_i * solution.mesh.volumes_gauss)
         source_summary.external_heating_total = source_summary.external_heating_e_total + source_summary.external_heating_i_total
     if "impurity_concentration" in solution.parameters["physics"].keys():
         if solution.parameters["physics"]["impurity_concentration"] > 0:
             source_summary.electron_sink_cooling_factor_total = np.sum(
-                solution._electron_sink_cooling_factor_gauss * solution.mesh.volumes_gauss
+                gauss_sources.electron_sink_cooling_factor * solution.mesh.volumes_gauss
             )
 
 

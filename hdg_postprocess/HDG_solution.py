@@ -86,94 +86,6 @@ def _make_generated_property(root_attr, path, doc, setter_attr=None):
 
 class HDGsolution:
     ""
-    _VIEW_CONTAINER_PATHS = {
-        "_solution_simple": ("simple", "solution", "conservative"),
-        "_gradient_simple": ("simple", "gradient", "conservative"),
-        "_solution_simple_phys": ("simple", "solution", "physical"),
-        "_gradient_simple_phys": ("simple", "gradient", "physical"),
-        "_solution_glob": ("glob", "solution", "conservative"),
-        "_gradient_glob": ("glob", "gradient", "conservative"),
-        "_solution_glob_phys": ("glob", "solution", "physical"),
-        "_gradient_glob_phys": ("glob", "gradient", "physical"),
-        "_solution_gauss": ("gauss", "solution", "conservative"),
-        "_gradient_gauss": ("gauss", "gradient", "conservative"),
-        "_solution_boundary": ("boundary", "solution", "conservative"),
-        "_solution_skeleton_boundary": ("boundary", "solution_skeleton", "conservative"),
-        "_gradient_boundary": ("boundary", "gradient", "conservative"),
-        "_magnetic_field_simple": ("simple", "equilibrium", "magnetic_field"),
-        "_jtor_simple": ("simple", "equilibrium", "jtor"),
-        "_poloidal_flux_simple": ("simple", "equilibrium", "poloidal_flux"),
-        "_a_simple": ("simple", "equilibrium", "a"),
-        "_magnetic_field_glob": ("glob", "equilibrium", "magnetic_field"),
-        "_magnetic_field_unit_glob": ("glob", "equilibrium", "magnetic_field_unit"),
-        "_jtor_glob": ("glob", "equilibrium", "jtor"),
-        "_poloidal_flux_glob": ("glob", "equilibrium", "poloidal_flux"),
-        "_a_glob": ("glob", "equilibrium", "a"),
-        "_qcyl_simple": ("simple", "equilibrium", "qcyl"),
-        "_qcyl_glob": ("glob", "equilibrium", "qcyl"),
-        "_magnetic_field_gauss": ("gauss", "equilibrium", "magnetic_field"),
-        "_magnetic_field_unit_gauss": ("gauss", "equilibrium", "magnetic_field_unit"),
-        "_jtor_gauss": ("gauss", "equilibrium", "jtor"),
-        "_poloidal_flux_gauss": ("gauss", "equilibrium", "poloidal_flux"),
-        "_magnetic_field_boundary": ("boundary", "equilibrium", "magnetic_field"),
-        "_magnetic_field_unit_boundary": ("boundary", "equilibrium", "magnetic_field_unit"),
-        "_poloidal_flux_boundary": ("boundary", "equilibrium", "poloidal_flux"),
-        "_solution_boundary_gauss": ("boundary_gauss", "solution", "conservative"),
-        "_solution_skeleton_boundary_gauss": ("boundary_gauss", "solution_skeleton", "conservative"),
-        "_gradient_boundary_gauss": ("boundary_gauss", "gradient", "conservative"),
-        "_magnetic_field_boundary_gauss": ("boundary_gauss", "equilibrium", "magnetic_field"),
-        "_magnetic_field_unit_boundary_gauss": ("boundary_gauss", "equilibrium", "magnetic_field_unit"),
-        "_poloidal_flux_boundary_gauss": ("boundary_gauss", "equilibrium", "poloidal_flux"),
-        "_dnn_simple": ("simple", "derived", "dnn"),
-        "_dnn_simple_with_nn_collision": ("glob", "derived", "dnn_with_nn_collision"),
-        "_dnn_simple_with_nn_collision_simple": ("simple", "derived", "dnn_with_nn_collision"),
-        "_dk_simple": ("simple", "derived", "dk"),
-        "_dk_glob": ("glob", "derived", "dk"),
-        "_mfp_simple": ("simple", "derived", "mfp"),
-        "_ionization_source": ("glob", "sources", "ionization_source"),
-        "_ionization_source_simple": ("simple", "sources", "ionization_source"),
-        "_ionization_source_gauss": ("gauss", "sources", "ionization_source"),
-        "_ion_gain_iz": ("glob", "sources", "ion_gain_iz"),
-        "_ion_gain_iz_simple": ("simple", "sources", "ion_gain_iz"),
-        "_ion_gain_iz_gauss": ("gauss", "sources", "ion_gain_iz"),
-        "_ion_sink_rec": ("glob", "sources", "ion_sink_rec"),
-        "_ion_sink_rec_simple": ("simple", "sources", "ion_sink_rec"),
-        "_ion_sink_rec_gauss": ("gauss", "sources", "ion_sink_rec"),
-        "_ion_sink_cx": ("glob", "sources", "ion_sink_cx"),
-        "_ion_sink_cx_simple": ("simple", "sources", "ion_sink_cx"),
-        "_ion_sink_cx_gauss": ("gauss", "sources", "ion_sink_cx"),
-        "_electron_sink_iz": ("glob", "sources", "electron_sink_iz"),
-        "_electron_sink_iz_simple": ("simple", "sources", "electron_sink_iz"),
-        "_electron_sink_iz_gauss": ("gauss", "sources", "electron_sink_iz"),
-        "_electron_sink_rec": ("glob", "sources", "electron_sink_rec"),
-        "_electron_sink_rec_simple": ("simple", "sources", "electron_sink_rec"),
-        "_electron_sink_rec_gauss": ("gauss", "sources", "electron_sink_rec"),
-        "_electron_gain_rec": ("glob", "sources", "electron_gain_rec"),
-        "_electron_gain_rec_simple": ("simple", "sources", "electron_gain_rec"),
-        "_electron_gain_rec_gauss": ("gauss", "sources", "electron_gain_rec"),
-        "_electron_sink_cooling_factor": ("glob", "sources", "electron_sink_cooling_factor"),
-        "_electron_sink_cooling_factor_simple": ("simple", "sources", "electron_sink_cooling_factor"),
-        "_electron_sink_cooling_factor_gauss": ("gauss", "sources", "electron_sink_cooling_factor"),
-        "_cooling_factor": ("glob", "sources", "cooling_factor"),
-        "_cooling_factor_simple": ("simple", "sources", "cooling_factor"),
-        "_cooling_factor_gauss": ("gauss", "sources", "cooling_factor"),
-        "_cx_source": ("glob", "sources", "cx_source"),
-        "_cx_source_simple": ("simple", "sources", "cx_source"),
-        "_cx_source_gauss": ("gauss", "sources", "cx_source"),
-        "_external_heating": ("glob", "sources", "external_heating"),
-        "_external_heating_simple": ("simple", "sources", "external_heating"),
-        "_external_heating_gauss": ("gauss", "sources", "external_heating"),
-        "_external_heating_e": ("glob", "sources", "external_heating_e"),
-        "_external_heating_e_simple": ("simple", "sources", "external_heating_e"),
-        "_external_heating_e_gauss": ("gauss", "sources", "external_heating_e"),
-        "_external_heating_i": ("glob", "sources", "external_heating_i"),
-        "_external_heating_i_simple": ("simple", "sources", "external_heating_i"),
-        "_external_heating_i_gauss": ("gauss", "sources", "external_heating_i"),
-        "_ohmic_source": ("glob", "sources", "ohmic_source"),
-        "_ohmic_source_simple": ("simple", "sources", "ohmic_source"),
-        "_ohmic_source_gauss": ("gauss", "sources", "ohmic_source"),
-    }
-
     def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters, 
                  n_partitions, mesh):
@@ -202,16 +114,6 @@ class HDGsolution:
 
         self._initial_setup()
 
-    def __setattr__(self, name, value):
-        object.__setattr__(self, name, value)
-        views = self.__dict__.get("_views")
-        view_path = self._VIEW_CONTAINER_PATHS.get(name)
-        if views is not None and view_path is not None:
-            view_state = getattr(views, view_path[0])
-            field_state = getattr(view_state, view_path[1])
-            setattr(field_state, view_path[2], value)
-        return
-
     def _initial_setup(self):
         # simple representation of a solution
         self._combined_simple_solution = False
@@ -223,9 +125,6 @@ class HDGsolution:
         #physical solution flags
         self._full_phys_initialized = False
         self._simple_phys_initialized = False
-        mapped_state_names = set(self._VIEW_CONTAINER_PATHS)
-        for name in sorted(mapped_state_names):
-            setattr(self, name, None)
         # defining the indexes of conservative variables
         self._cons_idx = {}
         for i,label in enumerate(self.parameters['physics']['conservative_variable_names']):
