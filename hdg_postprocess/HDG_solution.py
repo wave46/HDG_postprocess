@@ -68,9 +68,11 @@ def _resolve_nested_attr(obj, path):
 
 def _make_generated_property(root_attr, path, doc, setter_attr=None):
     def getter(self):
-        return _resolve_nested_attr(getattr(self, root_attr), path)
+        base = self if not root_attr else getattr(self, root_attr)
+        return _resolve_nested_attr(base, path)
 
-    getter.__name__ = f"get_{'_'.join((root_attr.strip('_'),) + tuple(path))}"
+    getter_parts = tuple(part for part in (root_attr.strip("_"),) + tuple(path) if part)
+    getter.__name__ = f"get_{'_'.join(getter_parts)}"
 
     if setter_attr is None:
         return property(getter, doc=doc)
@@ -78,7 +80,7 @@ def _make_generated_property(root_attr, path, doc, setter_attr=None):
     def setter(self, value):
         setattr(self, setter_attr, value)
 
-    setter.__name__ = f"set_{'_'.join((root_attr.strip('_'),) + tuple(path))}"
+    setter.__name__ = f"set_{'_'.join(getter_parts)}"
     return property(getter, setter, doc=doc)
 
 
@@ -396,257 +398,6 @@ class HDGsolution:
     def n_partitions(self):
         """number of partitions"""
         return self._n_partitions
-
-    @property
-    def solution_simple(self):
-        """solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq]"""
-        return self._views.simple.solution.conservative
-    
-    @property
-    def gradient_simple(self):
-        """gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq x ndim]"""
-        return self._views.simple.gradient.conservative
-    
-    @property
-    def solution_simple_phys(self):
-        """physical solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys]"""
-        return self._views.simple.solution.physical
-    
-    @property
-    def gradient_simple_phys(self):
-        """phisical gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys x ndim]"""
-        return self._views.simple.gradient.physical
-
-    @property
-    def magnetic_field_simple(self):
-        """magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
-        return self._views.simple.equilibrium.magnetic_field
-    
-    @property
-    def jtor_simple(self):
-        """plasma current recombined united on a single mesh (means not taking into account repeating points) [Nvertices]"""
-        return self._views.simple.equilibrium.jtor
-
-    @property
-    def poloidal_flux_simple(self):
-        """poloidal flux recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"""
-        return self._views.simple.equilibrium.poloidal_flux
-    
-    @property
-    def solution_boundary(self):
-        """conservative solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
-        return self._views.boundary.solution.conservative
-
-    @property
-    def solution_skeleton_boundary(self):
-        """conservative skeleton solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"""
-        return self._views.boundary.solution_skeleton.conservative
-    
-    @property
-    def gradient_boundary(self):
-        """ gradient  on a boundary [Nextfaces x n_nodes_per_face x neq x ndim]"""
-        return self._views.boundary.gradient.conservative
-    
-    @property
-    def magnetic_field_boundary(self):
-        """magnetic field recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._views.boundary.equilibrium.magnetic_field
-
-    @property
-    def magnetic_field_unit_boundary(self):
-        """magnetic field unit vector recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._views.boundary.equilibrium.magnetic_field_unit
-    
-    @property
-    def poloidal_flux_boundary(self):
-        """poloidal flux recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face]"""
-        return self._views.boundary.equilibrium.poloidal_flux
-
-    @property
-    def solution_boundary_gauss(self):
-        """conservative solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
-        return self._views.boundary_gauss.solution.conservative
-
-    @property
-    def solution_skeleton_boundary_gauss(self):
-        """conservative skeleton solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"""
-        return self._views.boundary_gauss.solution_skeleton.conservative
-    
-    @property
-    def gradient_boundary_gauss(self):
-        """gradient united on gauss points of faces of the boundary (means not taking into account repeating points) [Nextfaces x n_gauss_points_per_face x neq x ndim]"""
-        return self._views.boundary_gauss.gradient.conservative
-    
-    @property
-    def magnetic_field_boundary_gauss(self):
-        """magnetic field recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face x 3]"""
-        return self._views.boundary_gauss.equilibrium.magnetic_field
-
-    @property
-    def magnetic_field_unit_boundary_gauss(self):
-        """magnetic field unit vector recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"""
-        return self._views.boundary_gauss.equilibrium.magnetic_field_unit
-    
-    @property
-    def poloidal_flux_boundary_gauss(self):
-        """poloidal flux recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face]"""
-        return self._views.boundary_gauss.equilibrium.poloidal_flux
-
-    @property
-    def combined_to_full(self):
-        """Flag which tells if the solution has been combined to full"""
-        return self._combined_to_full
-    
-    @property
-    def combined_boundary(self):
-        """Flag which tells if the solution has been combined on a boundary of mesh"""
-        return self._combined_boundary
-
-    @property
-    def combined_simple_solution(self):
-        """Flag which tells if the solution has been combined to simple one on full mesh"""
-        return self._combined_simple_solution
-
-    @property
-    def full_phys_initialized(self):
-        """Flag which tells if physical values has been initialized (full)"""
-        return self._full_phys_initialized
-    
-    @property
-    def simple_phys_initialized(self):
-        """Flag which tells if physical values has been initialized (simple)"""
-        return self._simple_phys_initialized
-    @property
-    def solution_glob(self):
-        """Solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq]"""
-        return self._views.glob.solution.conservative
-
-    @property
-    def gradient_glob(self):
-        """Gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq x ndim]"""
-        return self._views.glob.gradient.conservative
-
-    @property
-    def magnetic_field_glob(self):
-        """magnetic field recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._views.glob.equilibrium.magnetic_field
-
-    @property
-    def poloidal_flux_glob(self):
-        """poloidal flux recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._views.glob.equilibrium.poloidal_flux
-    
-    @property
-    def poloidal_flux_gauss(self):
-        """poloidal flux recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
-        return self._views.gauss.equilibrium.poloidal_flux
-
-    @property
-    def magnetic_field_unit_glob(self):
-        """magnetic field unit vector recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"""
-        return self._views.glob.equilibrium.magnetic_field_unit
-
-    @property
-    def jtor_glob(self):
-        """plassma current recombined on a full mesh. This one has shape [Nelems x nodes_per_elem]"""
-        return self._views.glob.equilibrium.jtor
-
-    @property
-    def solution_gauss(self):
-        """Solution recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq]"""
-        return self._views.gauss.solution.conservative
-
-    @property
-    def gradient_gauss(self):
-        """Gradients recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq x ndim]"""
-        return self._views.gauss.gradient.conservative
-
-    @property
-    def magnetic_field_gauss(self):
-        """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
-        return self._views.gauss.equilibrium.magnetic_field
-
-    @property
-    def magnetic_field_unit_gauss(self):
-        """magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"""
-        return self._views.gauss.equilibrium.magnetic_field_unit
-
-    @property
-    def jtor_gauss(self):
-        """plassma current recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"""
-        return self._views.gauss.equilibrium.jtor
-
-    @property
-    def solution_glob_phys(self):
-        """Physical solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys]"""
-        return self._views.glob.solution.physical
-
-    @property
-    def gradient_glob_phys(self):
-        """Physical gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys x ndim]"""
-        return self._views.glob.gradient.physical
-    
-    @property
-    def e(self):
-        """elemental_charge"""
-        return self._e
-
-    @property
-    def cons_idx(self):
-        """dictionary with keys are the cons variables, values are the indexes o the corresponding equation"""
-        return self._cons_idx
-    
-    @property
-    def phys_idx(self):
-        """dictionary with keys are the phys variables, values are the indexes o the corresponding equation"""
-        return self._phys_idx
-
-    @property
-    def r_axis(self):
-        """R coordinate of magnetic axis"""
-        return self._summary.equilibrium.axis.r
-    
-    @property
-    def z_axis(self):
-        """Z coordinate of magnetic axis"""
-        return self._summary.equilibrium.axis.z
-
-    @property
-    def a_glob(self):
-        """minor radii on global mesh"""
-        return self._views.glob.equilibrium.a
-    
-    @property
-    def a_simple(self):
-        """minor radii on simple mesh"""
-        return self._views.simple.equilibrium.a
-
-    @property
-    def qcyl_glob(self):
-        """Cylindrical safety factor on global mesh"""
-        return self._views.glob.equilibrium.qcyl
-    
-    @property
-    def qcyl_simple(self):
-        """Cylindrical safety factor on simple mesh"""
-        return self._views.simple.equilibrium.qcyl
-
-    @property
-    def boundary_summary(self):
-        """A dictionary with boundary summary information"""
-        return self._summary.boundary.boundary_summary
-
-    @property
-    def ion_energy_sheath_loss_total(self):
-        """Total ion energy loss in sheath on a full solution mesh using conservative values as inputs"""
-        return self._summary.boundary.ion_energy_sheath_loss_total
-    @property
-    def electron_energy_sheath_loss_total(self):
-        """Total electron energy loss in sheath on a full solution mesh using conservative values as inputs"""
-        return self._summary.boundary.electron_energy_sheath_loss_total
-    
-
-
 
     def recombine_full_solution(self):
         """ 
@@ -1006,6 +757,59 @@ _SOURCE_VIEW_DOCS = {
     "ohmic_source": "Ohmic heating source",
 }
 
+_STATE_PROPERTY_DOCS = {
+    "solution_simple": ("_views", ("simple", "solution", "conservative"), "solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq]"),
+    "gradient_simple": ("_views", ("simple", "gradient", "conservative"), "gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq x ndim]"),
+    "solution_simple_phys": ("_views", ("simple", "solution", "physical"), "physical solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys]"),
+    "gradient_simple_phys": ("_views", ("simple", "gradient", "physical"), "phisical gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys x ndim]"),
+    "magnetic_field_simple": ("_views", ("simple", "equilibrium", "magnetic_field"), "magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"),
+    "jtor_simple": ("_views", ("simple", "equilibrium", "jtor"), "plasma current recombined united on a single mesh (means not taking into account repeating points) [Nvertices]"),
+    "poloidal_flux_simple": ("_views", ("simple", "equilibrium", "poloidal_flux"), "poloidal flux recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"),
+    "solution_boundary": ("_views", ("boundary", "solution", "conservative"), "conservative solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"),
+    "solution_skeleton_boundary": ("_views", ("boundary", "solution_skeleton", "conservative"), "conservative skeleton solution on faces of the boundary [Nextfaces x n_nodes_per_face x neq]"),
+    "gradient_boundary": ("_views", ("boundary", "gradient", "conservative"), "gradient on a boundary [Nextfaces x n_nodes_per_face x neq x ndim]"),
+    "magnetic_field_boundary": ("_views", ("boundary", "equilibrium", "magnetic_field"), "magnetic field recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"),
+    "magnetic_field_unit_boundary": ("_views", ("boundary", "equilibrium", "magnetic_field_unit"), "magnetic field unit vector recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"),
+    "poloidal_flux_boundary": ("_views", ("boundary", "equilibrium", "poloidal_flux"), "poloidal flux recombined on a boundary. This one has shape [Nextfaces x n_nodes_per_face]"),
+    "solution_boundary_gauss": ("_views", ("boundary_gauss", "solution", "conservative"), "conservative solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"),
+    "solution_skeleton_boundary_gauss": ("_views", ("boundary_gauss", "solution_skeleton", "conservative"), "conservative skeleton solution on gauss points of faces of the boundary [Nextfaces x n_gauss_points_per_face x neq]"),
+    "gradient_boundary_gauss": ("_views", ("boundary_gauss", "gradient", "conservative"), "gradient united on gauss points of faces of the boundary (means not taking into account repeating points) [Nextfaces x n_gauss_points_per_face x neq x ndim]"),
+    "magnetic_field_boundary_gauss": ("_views", ("boundary_gauss", "equilibrium", "magnetic_field"), "magnetic field recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face x 3]"),
+    "magnetic_field_unit_boundary_gauss": ("_views", ("boundary_gauss", "equilibrium", "magnetic_field_unit"), "magnetic field unit vector recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_nodes_per_face x 3]"),
+    "poloidal_flux_boundary_gauss": ("_views", ("boundary_gauss", "equilibrium", "poloidal_flux"), "poloidal flux recombined on gauss points of faces of the boundary. This one has shape [Nextfaces x n_gauss_points_per_face]"),
+    "combined_to_full": ("", ("_combined_to_full",), "Flag which tells if the solution has been combined to full"),
+    "combined_boundary": ("", ("_combined_boundary",), "Flag which tells if the solution has been combined on a boundary of mesh"),
+    "combined_simple_solution": ("", ("_combined_simple_solution",), "Flag which tells if the solution has been combined to simple one on full mesh"),
+    "full_phys_initialized": ("", ("_full_phys_initialized",), "Flag which tells if physical values has been initialized (full)"),
+    "simple_phys_initialized": ("", ("_simple_phys_initialized",), "Flag which tells if physical values has been initialized (simple)"),
+    "solution_glob": ("_views", ("glob", "solution", "conservative"), "Solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq]"),
+    "gradient_glob": ("_views", ("glob", "gradient", "conservative"), "Gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x neq x ndim]"),
+    "magnetic_field_glob": ("_views", ("glob", "equilibrium", "magnetic_field"), "magnetic field recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"),
+    "poloidal_flux_glob": ("_views", ("glob", "equilibrium", "poloidal_flux"), "poloidal flux recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"),
+    "poloidal_flux_gauss": ("_views", ("gauss", "equilibrium", "poloidal_flux"), "poloidal flux recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"),
+    "magnetic_field_unit_glob": ("_views", ("glob", "equilibrium", "magnetic_field_unit"), "magnetic field unit vector recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x 3]"),
+    "jtor_glob": ("_views", ("glob", "equilibrium", "jtor"), "plassma current recombined on a full mesh. This one has shape [Nelems x nodes_per_elem]"),
+    "solution_gauss": ("_views", ("gauss", "solution", "conservative"), "Solution recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq]"),
+    "gradient_gauss": ("_views", ("gauss", "gradient", "conservative"), "Gradients recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x neq x ndim]"),
+    "magnetic_field_gauss": ("_views", ("gauss", "equilibrium", "magnetic_field"), "magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"),
+    "magnetic_field_unit_gauss": ("_views", ("gauss", "equilibrium", "magnetic_field_unit"), "magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"),
+    "jtor_gauss": ("_views", ("gauss", "equilibrium", "jtor"), "plassma current recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"),
+    "solution_glob_phys": ("_views", ("glob", "solution", "physical"), "Physical solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys]"),
+    "gradient_glob_phys": ("_views", ("glob", "gradient", "physical"), "Physical gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys x ndim]"),
+    "e": ("", ("_e",), "elemental_charge"),
+    "cons_idx": ("", ("_cons_idx",), "dictionary with keys are the cons variables, values are the indexes o the corresponding equation"),
+    "phys_idx": ("", ("_phys_idx",), "dictionary with keys are the phys variables, values are the indexes o the corresponding equation"),
+    "r_axis": ("_summary", ("equilibrium", "axis", "r"), "R coordinate of magnetic axis"),
+    "z_axis": ("_summary", ("equilibrium", "axis", "z"), "Z coordinate of magnetic axis"),
+    "a_glob": ("_views", ("glob", "equilibrium", "a"), "minor radii on global mesh"),
+    "a_simple": ("_views", ("simple", "equilibrium", "a"), "minor radii on simple mesh"),
+    "qcyl_glob": ("_views", ("glob", "equilibrium", "qcyl"), "Cylindrical safety factor on global mesh"),
+    "qcyl_simple": ("_views", ("simple", "equilibrium", "qcyl"), "Cylindrical safety factor on simple mesh"),
+    "boundary_summary": ("_summary", ("boundary", "boundary_summary"), "A dictionary with boundary summary information"),
+    "ion_energy_sheath_loss_total": ("_summary", ("boundary", "ion_energy_sheath_loss_total"), "Total ion energy loss in sheath on a full solution mesh using conservative values as inputs"),
+    "electron_energy_sheath_loss_total": ("_summary", ("boundary", "electron_energy_sheath_loss_total"), "Total electron energy loss in sheath on a full solution mesh using conservative values as inputs"),
+}
+
 _SOURCE_VIEW_VARIANTS = {
     "": ("glob", "on a full solution mesh using conservative values as inputs"),
     "_simple": ("simple", "on a simple solution mesh"),
@@ -1048,6 +852,9 @@ _INTERPOLATOR_DOCS = {
     "qcyl_interpolator": ("_interpolators_state", ("qcyl",), "A list of interpolators of magnetic field", None),
 }
 
+
+for _name, (_root_attr, _path, _doc) in _STATE_PROPERTY_DOCS.items():
+    setattr(HDGsolution, _name, _make_generated_property(_root_attr, _path, _doc))
 
 for _base_name, _doc_prefix in _SOURCE_VIEW_DOCS.items():
     for _suffix, (_view_name, _doc_suffix) in _SOURCE_VIEW_VARIANTS.items():
