@@ -37,23 +37,23 @@ def recombine_full_solution(solution):
             solution.neq,
             solution.ndim,
         )
-        raw_field = solution.raw.equilibriums[i]["magnetic_field"][solution.mesh.raw_connectivity[i]]
+        raw_field = solution.raw.equilibriums[i]["magnetic_field"][solution.mesh.raw.connectivity[i]]
 
         if "poloidal_flux" in solution.raw.equilibriums[0].keys():
-            raw_poloidal_flux = solution.raw.equilibriums[i]["poloidal_flux"][solution.mesh.raw_connectivity[i]]
+            raw_poloidal_flux = solution.raw.equilibriums[i]["poloidal_flux"][solution.mesh.raw.connectivity[i]]
 
         if solution.parameters["switches"]["ohmicsrc"][0] == 1:
-            raw_jtor = solution.raw.equilibriums[i]["plasma_current"][solution.mesh.raw_connectivity[i]]
+            raw_jtor = solution.raw.equilibriums[i]["plasma_current"][solution.mesh.raw.connectivity[i]]
 
         if solution.n_partitions > 1:
-            mask = ~solution.mesh.raw_ghost_elements[i].astype(bool).flatten()
-            glob_view.solution.conservative[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_solution[mask, :]
-            glob_view.gradient.conservative[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_gradient[mask, :, :]
-            glob_view.equilibrium.magnetic_field[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_field[mask, :]
+            mask = ~solution.mesh.raw.ghost_elements[i].astype(bool).flatten()
+            glob_view.solution.conservative[solution.mesh.raw.rest_mesh_data[i]["loc2glob_el"][mask]] = raw_solution[mask, :]
+            glob_view.gradient.conservative[solution.mesh.raw.rest_mesh_data[i]["loc2glob_el"][mask]] = raw_gradient[mask, :, :]
+            glob_view.equilibrium.magnetic_field[solution.mesh.raw.rest_mesh_data[i]["loc2glob_el"][mask]] = raw_field[mask, :]
             if "poloidal_flux" in solution.raw.equilibriums[0].keys():
-                glob_view.equilibrium.poloidal_flux[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_poloidal_flux[mask]
+                glob_view.equilibrium.poloidal_flux[solution.mesh.raw.rest_mesh_data[i]["loc2glob_el"][mask]] = raw_poloidal_flux[mask]
             if solution.parameters["switches"]["ohmicsrc"][0] == 1:
-                glob_view.equilibrium.jtor[solution.mesh.raw_rest_mesh_data[i]["loc2glob_el"][mask]] = raw_jtor[mask, :]
+                glob_view.equilibrium.jtor[solution.mesh.raw.rest_mesh_data[i]["loc2glob_el"][mask]] = raw_jtor[mask, :]
         else:
             glob_view.solution.conservative = raw_solution
             glob_view.gradient.conservative = raw_gradient
@@ -157,13 +157,13 @@ def recombine_boundary_solution(solution):
     if solution.n_partitions > 1:
         solution_skeleton_boundary = np.ones((solution.mesh.global_state.n_faces, solution.mesh.mesh_parameters["nodes_per_face"], solution.neq))
         for i in range(solution.n_partitions):
-            non_ghost = ~solution.mesh.raw_ghost_faces[i].flatten()
+            non_ghost = ~solution.mesh.raw.ghost_faces[i].flatten()
             raw_solution = solution.raw.solutions_skeleton[i].reshape(
                 solution.raw.solutions_skeleton[i].shape[0] // solution.mesh.mesh_parameters["nodes_per_face"],
                 solution.mesh.mesh_parameters["nodes_per_face"],
                 solution.neq,
             )
-            solution_skeleton_boundary[solution.mesh.raw_rest_mesh_data[i]["loc2glob_fa"][:][non_ghost], :] = raw_solution[non_ghost]
+            solution_skeleton_boundary[solution.mesh.raw.rest_mesh_data[i]["loc2glob_fa"][:][non_ghost], :] = raw_solution[non_ghost]
         solution_skeleton_boundary = solution_skeleton_boundary[solution.mesh.boundary_state.filled, :, :]
     else:
         solution_skeleton_boundary = solution.raw.solutions_skeleton[0].reshape(
@@ -171,7 +171,7 @@ def recombine_boundary_solution(solution):
             solution.mesh.mesh_parameters["nodes_per_face"],
             solution.neq,
         )
-        solution_skeleton_boundary = solution_skeleton_boundary[-solution.mesh.raw_mesh_numbers[0]["Nextfaces"] :, :, :]
+        solution_skeleton_boundary = solution_skeleton_boundary[-solution.mesh.raw.mesh_numbers[0]["Nextfaces"] :, :, :]
     print(solution_skeleton_boundary.shape)
     for key, indices in solution.mesh.boundary_state.indices.items():
         boundary_view.solution_skeleton.conservative[key] = []

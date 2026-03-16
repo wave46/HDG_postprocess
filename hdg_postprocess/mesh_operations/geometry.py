@@ -20,17 +20,17 @@ def recombine_full_mesh(mesh):
     mesh.global_state.n_vertices = 0
 
     for i in range(mesh.n_partitions):
-        mesh.global_state.n_elements = max(mesh.global_state.n_elements, mesh.raw_rest_mesh_data[i]["loc2glob_el"].max())
-        mesh.global_state.n_vertices = max(mesh.global_state.n_vertices, mesh.raw_rest_mesh_data[i]["loc2glob_no"].max())
+        mesh.global_state.n_elements = max(mesh.global_state.n_elements, mesh.raw.rest_mesh_data[i]["loc2glob_el"].max())
+        mesh.global_state.n_vertices = max(mesh.global_state.n_vertices, mesh.raw.rest_mesh_data[i]["loc2glob_no"].max())
     mesh.global_state.n_elements += 1
     mesh.global_state.n_vertices += 1
     mesh.global_state.connectivity = np.zeros((mesh.global_state.n_elements, mesh.mesh_parameters["nodes_per_element"]), dtype=int)
     mesh.global_state.vertices = np.zeros((mesh.global_state.n_vertices, mesh.mesh_parameters["Ndim"]))
     for i in range(mesh.n_partitions):
-        mesh.global_state.connectivity[mesh.raw_rest_mesh_data[i]["loc2glob_el"][~mesh.raw_ghost_elements[i].astype(bool).flatten()]] = (
-            mesh.raw_rest_mesh_data[i]["loc2glob_no"][mesh.raw_connectivity[i][~mesh.raw_ghost_elements[i].astype(bool).flatten(), :]]
+        mesh.global_state.connectivity[mesh.raw.rest_mesh_data[i]["loc2glob_el"][~mesh.raw.ghost_elements[i].astype(bool).flatten()]] = (
+            mesh.raw.rest_mesh_data[i]["loc2glob_no"][mesh.raw.connectivity[i][~mesh.raw.ghost_elements[i].astype(bool).flatten(), :]]
         )
-        mesh.global_state.vertices[mesh.raw_rest_mesh_data[i]["loc2glob_no"], :] = mesh.raw_vertices[i][:, :]
+        mesh.global_state.vertices[mesh.raw.rest_mesh_data[i]["loc2glob_no"], :] = mesh.raw.vertices[i][:, :]
     mesh.metadata.flags.combined_to_full = True
 
 

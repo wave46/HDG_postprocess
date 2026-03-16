@@ -41,7 +41,7 @@ def plot_raw_meshes(mesh, data=None, ax=None):
     colors = cm.get_cmap("hsv", mesh.n_partitions)
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
-    for i, (vertices, connectivity) in enumerate(zip(mesh.raw_vertices, mesh.raw_connectivity)):
+    for i, (vertices, connectivity) in enumerate(zip(mesh.raw.vertices, mesh.raw.connectivity)):
         if mesh.metadata.reference_element is None:
             print("No reference element, the mesh is plotted assuming straight edges")
             if mesh.mesh_parameters["element_type"] == "triangle":

@@ -3,6 +3,7 @@ from hdg_postprocess.mesh_api.containers import (
     MeshDerivedGeometryState,
     MeshGlobalState,
     MeshMetadata,
+    MeshRawState,
 )
 from hdg_postprocess.mesh_api.facades import MeshBoundary, MeshGeometry, MeshPlot
 
@@ -14,4 +15,5 @@ __all__ = [
     "MeshDerivedGeometryState",
     "MeshGlobalState",
     "MeshMetadata",
+    "MeshRawState",
 ]

@@ -37,6 +37,18 @@ class MeshGlobalState:
 
 
 @dataclass
+class MeshRawState:
+    vertices: object = None
+    connectivity: object = None
+    connectivity_boundary: object = None
+    mesh_numbers: object = None
+    boundary_flags: object = None
+    ghost_elements: object = None
+    ghost_faces: object = None
+    rest_mesh_data: object = None
+
+
+@dataclass
 class MeshDerivedGeometryState:
     connectivity_big: object = None
     mask: object = None

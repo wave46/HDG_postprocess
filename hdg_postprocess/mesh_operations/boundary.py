@@ -13,7 +13,7 @@ def recombine_full_boundary(mesh, raw_boundary_info):
     if mesh.n_partitions > 1:
         mesh.global_state.n_faces = 0
         for i in range(mesh.n_partitions):
-            mesh.global_state.n_faces = max(mesh.global_state.n_faces, mesh.raw_rest_mesh_data[i]["loc2glob_fa"].max())
+            mesh.global_state.n_faces = max(mesh.global_state.n_faces, mesh.raw.rest_mesh_data[i]["loc2glob_fa"].max())
         mesh.global_state.n_faces += 1
 
         connectivity_b_glob = -1 * np.ones((mesh.global_state.n_faces, mesh.mesh_parameters["nodes_per_face"]), dtype=int)
@@ -22,18 +22,18 @@ def recombine_full_boundary(mesh, raw_boundary_info):
         face_local_number = np.zeros((mesh.global_state.n_faces), dtype=int)
 
         for i in range(mesh.n_partitions):
-            non_ghost = (~mesh.raw_ghost_faces[i].flatten())[-mesh.raw_mesh_numbers[i]["Nextfaces"]:]
+            non_ghost = (~mesh.raw.ghost_faces[i].flatten())[-mesh.raw.mesh_numbers[i]["Nextfaces"]:]
 
-            connectivity_b_glob[mesh.raw_rest_mesh_data[i]["loc2glob_fa"][-mesh.raw_mesh_numbers[i]["Nextfaces"]:][non_ghost], :] = (
-                mesh.raw_rest_mesh_data[i]["loc2glob_no"][mesh.raw_connectivity_boundary[i][:, :]][non_ghost]
+            connectivity_b_glob[mesh.raw.rest_mesh_data[i]["loc2glob_fa"][-mesh.raw.mesh_numbers[i]["Nextfaces"]:][non_ghost], :] = (
+                mesh.raw.rest_mesh_data[i]["loc2glob_no"][mesh.raw.connectivity_boundary[i][:, :]][non_ghost]
             )
-            boundary_flags[mesh.raw_rest_mesh_data[i]["loc2glob_fa"][-mesh.raw_mesh_numbers[i]["Nextfaces"]:][non_ghost]] = (
+            boundary_flags[mesh.raw.rest_mesh_data[i]["loc2glob_fa"][-mesh.raw.mesh_numbers[i]["Nextfaces"]:][non_ghost]] = (
                 raw_boundary_info[i]["boundary_flags"][non_ghost]
             )
-            face_element_number[mesh.raw_rest_mesh_data[i]["loc2glob_fa"][-mesh.raw_mesh_numbers[i]["Nextfaces"]:][non_ghost]] = (
-                mesh.raw_rest_mesh_data[i]["loc2glob_el"][raw_boundary_info[i]["exterior_faces"][:, 0][non_ghost]][None].T
+            face_element_number[mesh.raw.rest_mesh_data[i]["loc2glob_fa"][-mesh.raw.mesh_numbers[i]["Nextfaces"]:][non_ghost]] = (
+                mesh.raw.rest_mesh_data[i]["loc2glob_el"][raw_boundary_info[i]["exterior_faces"][:, 0][non_ghost]][None].T
             )
-            face_local_number[mesh.raw_rest_mesh_data[i]["loc2glob_fa"][-mesh.raw_mesh_numbers[i]["Nextfaces"]:][non_ghost]] = (
+            face_local_number[mesh.raw.rest_mesh_data[i]["loc2glob_fa"][-mesh.raw.mesh_numbers[i]["Nextfaces"]:][non_ghost]] = (
                 raw_boundary_info[i]["exterior_faces"][:, 1][non_ghost]
             )
 
@@ -44,8 +44,8 @@ def recombine_full_boundary(mesh, raw_boundary_info):
         face_local_number = face_local_number[filled]
         mesh.boundary_state.filled = filled
     else:
-        mesh.global_state.n_faces = mesh._raw_connectivity_boundary[0].shape[0]
-        connectivity_b_glob = mesh._raw_connectivity_boundary[0]
+        mesh.global_state.n_faces = mesh.raw.connectivity_boundary[0].shape[0]
+        connectivity_b_glob = mesh.raw.connectivity_boundary[0]
         boundary_flags = raw_boundary_info[0]["boundary_flags"]
         face_element_number = raw_boundary_info[0]["exterior_faces"][:, 0][None].T
         face_local_number = raw_boundary_info[0]["exterior_faces"][:, 1]
