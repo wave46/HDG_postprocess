@@ -225,19 +225,21 @@ def _collect_phys_summary(sol):
     sol.init_phys_variables("both")
 
     phys_names = _roundtrip_names(sol.parameters["physics"]["physical_variable_names"])
+    simple_phys = sol.views.simple.solution.physical
+    full_phys = sol.views.glob.solution.physical
     summary = {}
     for idx, name in enumerate(phys_names):
         summary[name] = {
-            "simple_min": float(np.nanmin(sol.solution_simple_phys[:, idx])),
-            "simple_max": float(np.nanmax(sol.solution_simple_phys[:, idx])),
-            "full_min": float(np.nanmin(sol.solution_glob_phys[..., idx])),
-            "full_max": float(np.nanmax(sol.solution_glob_phys[..., idx])),
+            "simple_min": float(np.nanmin(simple_phys[:, idx])),
+            "simple_max": float(np.nanmax(simple_phys[:, idx])),
+            "full_min": float(np.nanmin(full_phys[..., idx])),
+            "full_max": float(np.nanmax(full_phys[..., idx])),
         }
     return summary
 
 
 def _collect_boundary_summary(sol):
-    summary = sol.calculate_boundary_summary() or sol.boundary_summary
+    summary = sol.calculate_boundary_summary() or sol.summary.boundary.profile
     return {
         "keys": sorted(summary.keys()),
         "ds_total": float(np.sum(summary["ds"])),
@@ -259,8 +261,11 @@ def _collect_solution_baseline(config):
     sol.mesh.reference_element = _load_reference_element(ROOT / config["reference_element"])
 
     if config.get("with_atomic_setup"):
-        sol.atomic_parameters = _make_atomic_params(config["radiation_model"])
-        sol.dnn_parameters = _make_dnn_params()
+        sol.additional_parameters.set_atomic(_make_atomic_params(config["radiation_model"]))
+        sol.additional_parameters.set_neutral_diffusion(
+            _make_dnn_params(),
+            sol.parameters["adimensionalization"],
+        )
         sol.parameters["physics"]["R_E"] = config["r_e_override"]
 
     baseline = {

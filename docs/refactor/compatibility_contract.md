@@ -37,7 +37,6 @@ Properties and attributes:
 - `mesh`
 - `parameters`
 - `additional_parameters`
-- `phys_idx`
 
 Preferred replacement API for new code:
 

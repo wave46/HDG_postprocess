@@ -48,5 +48,5 @@ def calculate_dk(solution, which="simple"):
             / solution.parameters["adimensionalization"]["length_scale"],
             solution.parameters["adimensionalization"]["length_scale"] ** 2
             / solution.parameters["adimensionalization"]["time_scale"],
-            solution.cons_idx,
+            solution.metadata.indices.conservative,
         )

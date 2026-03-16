@@ -93,25 +93,25 @@ def summary_along_the_wall(solution):
             res = calculate_n_cons(
                 boundary_solution,
                 solution.parameters["adimensionalization"]["density_scale"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "n_skeleton":
             res = calculate_n_cons(
                 boundary_solution_skeleton,
                 solution.parameters["adimensionalization"]["density_scale"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "u":
             res = calculate_u_cons(
                 boundary_solution,
                 solution.parameters["adimensionalization"]["speed_scale"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "u_skeleton":
             res = calculate_u_cons(
                 boundary_solution_skeleton,
                 solution.parameters["adimensionalization"]["speed_scale"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "te":
             res = calculate_Te_cons(
@@ -142,9 +142,9 @@ def summary_along_the_wall(solution):
                 solution._cons_idx,
             )
         elif variable == "M":
-            res = calculate_M_cons(boundary_solution, solution.cons_idx)
+            res = calculate_M_cons(boundary_solution, solution.metadata.indices.conservative)
         elif variable == "M_skeleton":
-            res = calculate_M_cons(boundary_solution_skeleton, solution.cons_idx)
+            res = calculate_M_cons(boundary_solution_skeleton, solution.metadata.indices.conservative)
         elif variable == "p_dyn":
             res = calculate_pdyn_cons(
                 boundary_solution,
@@ -155,7 +155,7 @@ def summary_along_the_wall(solution):
                 solution.parameters["adimensionalization"]["speed_scale"] ** 2
                 * solution.parameters["adimensionalization"]["mass_scale"]
                 * solution.parameters["adimensionalization"]["density_scale"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "p_dyn_skeleton":
             res = calculate_pdyn_cons(
@@ -167,7 +167,7 @@ def summary_along_the_wall(solution):
                 solution.parameters["adimensionalization"]["speed_scale"] ** 2
                 * solution.parameters["adimensionalization"]["mass_scale"]
                 * solution.parameters["adimensionalization"]["density_scale"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "gamma":
             res = calculate_parallel_flux_cons(
@@ -463,7 +463,7 @@ def _calculate_q_e_tot_dep_bc(solution, boundary_solution):
         solution.parameters["adimensionalization"]["speed_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
-        solution.e,
+        solution.metadata.constants.elemental_charge,
         solution._cons_idx,
     )
 
@@ -481,7 +481,7 @@ def _calculate_q_i_tot_dep_bc(solution, boundary_solution):
         solution.parameters["adimensionalization"]["speed_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
-        solution.e,
+        solution.metadata.constants.elemental_charge,
         solution.parameters["adimensionalization"]["mass_scale"],
         solution._cons_idx,
     )

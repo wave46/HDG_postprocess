@@ -64,20 +64,20 @@ def cons2phys(solution, data):
         for i in range(solution.nphys):
             phys_variable = solution.parameters["physics"]["physical_variable_names"][i]
             if phys_variable == b"rho":
-                solution_phys[:, i] = calculate_n_cons(data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx)
+                solution_phys[:, i] = calculate_n_cons(data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"u":
-                solution_phys[:, i] = calculate_u_cons(data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.cons_idx)
+                solution_phys[:, i] = calculate_u_cons(data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"Ei":
                 solution_phys[:, i] = calculate_Ei_cons(
                     data_loc,
                     solution.parameters["adimensionalization"]["speed_scale"] ** 2 * solution.parameters["adimensionalization"]["mass_scale"],
-                    solution.cons_idx,
+                    solution.metadata.indices.conservative,
                 )
             elif phys_variable == b"Ee":
                 solution_phys[:, i] = calculate_Ee_cons(
                     data_loc,
                     solution.parameters["adimensionalization"]["speed_scale"] ** 2 * solution.parameters["adimensionalization"]["mass_scale"],
-                    solution.cons_idx,
+                    solution.metadata.indices.conservative,
                 )
             elif phys_variable == b"pi":
                 solution_phys[:, i] = calculate_pi_cons(
@@ -86,7 +86,7 @@ def cons2phys(solution, data):
                     * solution.parameters["adimensionalization"]["density_scale"]
                     * solution.parameters["adimensionalization"]["temperature_scale"]
                     * solution.parameters["adimensionalization"]["charge_scale"],
-                    solution.cons_idx,
+                    solution.metadata.indices.conservative,
                 )
             elif phys_variable == b"pe":
                 solution_phys[:, i] = calculate_pe_cons(
@@ -95,24 +95,24 @@ def cons2phys(solution, data):
                     * solution.parameters["adimensionalization"]["density_scale"]
                     * solution.parameters["adimensionalization"]["temperature_scale"]
                     * solution.parameters["adimensionalization"]["charge_scale"],
-                    solution.cons_idx,
+                    solution.metadata.indices.conservative,
                 )
             elif phys_variable == b"Ti":
                 solution_phys[:, i] = calculate_Ti_cons(
-                    data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.cons_idx
+                    data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"Te":
                 solution_phys[:, i] = calculate_Te_cons(
-                    data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.cons_idx
+                    data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"Csi":
-                solution_phys[:, i] = calculate_cs_cons(data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.cons_idx)
+                solution_phys[:, i] = calculate_cs_cons(data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"M":
-                solution_phys[:, i] = calculate_M_cons(data_loc, solution.cons_idx)
+                solution_phys[:, i] = calculate_M_cons(data_loc, solution.metadata.indices.conservative)
             elif phys_variable == b"rhon":
-                solution_phys[:, i] = calculate_nn_cons(data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx)
+                solution_phys[:, i] = calculate_nn_cons(data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"k":
-                solution_phys[:, i] = calculate_k_cons(data_loc, solution.parameters["adimensionalization"]["speed_scale"] ** 2, solution.cons_idx)
+                solution_phys[:, i] = calculate_k_cons(data_loc, solution.parameters["adimensionalization"]["speed_scale"] ** 2, solution.metadata.indices.conservative)
             else:
                 raise KeyError("Unknown variable, go into the code and add this variable if you are sure")
 
@@ -136,11 +136,11 @@ def cons2phys(solution, data):
             phys_variable = solution.parameters["physics"]["physical_variable_names"][i]
             if phys_variable == b"rho":
                 grad_phys[:, i, :] = calculate_grad_n_cons(
-                    data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx
+                    data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"u":
                 grad_phys[:, i, :] = calculate_grad_u_cons(
-                    sol_loc, data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx
+                    sol_loc, data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"Ei":
                 grad_phys[:, i, :] = calculate_grad_Ei_cons(
@@ -148,7 +148,7 @@ def cons2phys(solution, data):
                     data_loc,
                     solution.parameters["adimensionalization"]["speed_scale"] ** 2 * solution.parameters["adimensionalization"]["mass_scale"],
                     solution.parameters["adimensionalization"]["length_scale"],
-                    solution.cons_idx,
+                    solution.metadata.indices.conservative,
                 )
             elif phys_variable == b"Ee":
                 grad_phys[:, i, :] = calculate_grad_Ee_cons(
@@ -156,35 +156,35 @@ def cons2phys(solution, data):
                     data_loc,
                     solution.parameters["adimensionalization"]["speed_scale"] ** 2 * solution.parameters["adimensionalization"]["mass_scale"],
                     solution.parameters["adimensionalization"]["length_scale"],
-                    solution.cons_idx,
+                    solution.metadata.indices.conservative,
                 )
             elif phys_variable == b"pi":
                 p0 = (2 / 3 / solution.parameters["physics"]["Mref"]) * solution.parameters["adimensionalization"]["density_scale"] * solution.parameters["adimensionalization"]["temperature_scale"] * solution.parameters["adimensionalization"]["charge_scale"]
-                grad_phys[:, i, :] = calculate_grad_pi_cons(sol_loc, data_loc, p0, solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx)
+                grad_phys[:, i, :] = calculate_grad_pi_cons(sol_loc, data_loc, p0, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"pe":
                 p0 = (2 / 3 / solution.parameters["physics"]["Mref"]) * solution.parameters["adimensionalization"]["density_scale"] * solution.parameters["adimensionalization"]["temperature_scale"] * solution.parameters["adimensionalization"]["charge_scale"]
-                grad_phys[:, i, :] = calculate_grad_pe_cons(data_loc, p0, solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx)
+                grad_phys[:, i, :] = calculate_grad_pe_cons(data_loc, p0, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"Ti":
                 grad_phys[:, i, :] = calculate_grad_Ti_cons(
-                    sol_loc, data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx
+                    sol_loc, data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"Te":
                 grad_phys[:, i, :] = calculate_grad_Te_cons(
-                    sol_loc, data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx
+                    sol_loc, data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"Csi":
                 grad_phys[:, i, :] = calculate_grad_cs_cons(
-                    sol_loc, data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx
+                    sol_loc, data_loc, solution.parameters["adimensionalization"]["speed_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"M":
-                grad_phys[:, i, :] = calculate_grad_M_cons(sol_loc, data_loc, solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx)
+                grad_phys[:, i, :] = calculate_grad_M_cons(sol_loc, data_loc, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"rhon":
                 grad_phys[:, i, :] = calculate_grad_nn_cons(
-                    data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx
+                    data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
             elif phys_variable == b"k":
                 grad_phys[:, i, :] = calculate_grad_k_cons(
-                    data_loc, solution.parameters["adimensionalization"]["speed_scale"] ** 2, solution.parameters["adimensionalization"]["length_scale"], solution.cons_idx
+                    data_loc, solution.parameters["adimensionalization"]["speed_scale"] ** 2, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
 
         if len(data.shape) == 4:

@@ -309,28 +309,28 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
     ):
         if variable == "n":
             data = calculate_n_cons(
-                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx
+                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative
             )
         elif variable == "nn":
             data = calculate_nn_cons(
-                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.cons_idx
+                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative
             )
         elif variable == "te":
             data = calculate_Te_cons(
                 simple_solution,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "ti":
             data = calculate_Ti_cons(
                 simple_solution,
                 solution.parameters["adimensionalization"]["temperature_scale"],
                 solution.parameters["physics"]["Mref"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "M":
-            data = calculate_M_cons(simple_solution, solution.cons_idx)
+            data = calculate_M_cons(simple_solution, solution.metadata.indices.conservative)
         elif variable == "dnn":
             data = calculate_dnn_cons(
                 simple_solution,
@@ -348,7 +348,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
             data = calculate_k_cons(
                 simple_solution,
                 solution.parameters["adimensionalization"]["speed_scale"] ** 2,
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         elif variable == "dk":
             if solution.additional_parameters.turbulence is None:
@@ -366,7 +366,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 solution.mesh.vertices_glob[:, 0] / solution.parameters["adimensionalization"]["length_scale"],
                 solution.parameters["adimensionalization"]["length_scale"] ** 2
                 / solution.parameters["adimensionalization"]["time_scale"],
-                solution.cons_idx,
+                solution.metadata.indices.conservative,
             )
         data[np.isnan(data)] = limit[0]
         if log:

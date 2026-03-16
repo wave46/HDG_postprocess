@@ -238,7 +238,7 @@ def dk(solution, r, z):
         r / solution.parameters["adimensionalization"]["length_scale"],
         solution.parameters["adimensionalization"]["length_scale"] ** 2
         / solution.parameters["adimensionalization"]["time_scale"],
-        solution.cons_idx,
+        solution.metadata.indices.conservative,
     )
 
 
@@ -279,7 +279,7 @@ def p_dyn(solution, r, z):
         solution.parameters["adimensionalization"]["speed_scale"] ** 2
         * solution.parameters["adimensionalization"]["mass_scale"]
         * solution.parameters["adimensionalization"]["density_scale"],
-        solution.cons_idx,
+        solution.metadata.indices.conservative,
     )
 
 
@@ -293,7 +293,7 @@ def pi(solution, r, z):
         * solution.parameters["adimensionalization"]["temperature_scale"]
         * solution.parameters["adimensionalization"]["charge_scale"]
     )
-    return calculate_pi_cons(state, p0, solution.cons_idx)
+    return calculate_pi_cons(state, p0, solution.metadata.indices.conservative)
 
 
 def grad_ti(solution, r, z, coordinate):

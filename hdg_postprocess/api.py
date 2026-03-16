@@ -54,8 +54,8 @@ class PostprocessedSolution:
             "nphys": self.legacy.nphys,
             "n_partitions": self.legacy.n_partitions,
             "parameters": self.legacy.parameters,
-            "cons_idx": self.legacy.cons_idx,
-            "phys_idx": self.legacy.phys_idx,
+            "cons_idx": self.legacy.metadata.indices.conservative,
+            "phys_idx": self.legacy.metadata.indices.physical,
         }
 
 

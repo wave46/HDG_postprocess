@@ -174,18 +174,6 @@ class HDGsolution:
         """Public structured access to cached interpolators."""
         return self._interpolators_state
 
-    @property
-    def e(self):
-        return self._metadata.constants.elemental_charge
-
-    @property
-    def cons_idx(self):
-        return self._metadata.indices.conservative
-
-    @property
-    def phys_idx(self):
-        return self._metadata.indices.physical
-
     def recombine_full_solution(self):
         """ 
         Recombine raw solutions into one single mesh
