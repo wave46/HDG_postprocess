@@ -38,7 +38,6 @@ Properties and attributes:
 - `parameters`
 - `atomic_parameters`
 - `dnn_parameters`
-- `boundary_summary`
 - `solution_simple_phys`
 - `gradient_simple_phys`
 - `solution_glob_phys`

@@ -80,7 +80,6 @@ Examples of compatibility-only legacy access that new code should avoid:
 solution.solution_simple_phys
 solution.solution_glob_phys
 solution.gradient_boundary_gauss
-solution.boundary_summary
 ```
 
 These aliases are still kept for demo and notebook compatibility, but new code should use the structured container API instead.

@@ -830,7 +830,6 @@ _STATE_PROPERTY_DOCS = {
     "a_simple": ("_views", ("simple", "equilibrium", "a"), "minor radii on simple mesh"),
     "qcyl_glob": ("_views", ("glob", "equilibrium", "qcyl"), "Cylindrical safety factor on global mesh"),
     "qcyl_simple": ("_views", ("simple", "equilibrium", "qcyl"), "Cylindrical safety factor on simple mesh"),
-    "boundary_summary": ("_summary", ("boundary", "boundary_summary"), "A dictionary with boundary summary information"),
     "ion_energy_sheath_loss_total": ("_summary", ("boundary", "ion_energy_sheath_loss_total"), "Total ion energy loss in sheath on a full solution mesh using conservative values as inputs"),
     "electron_energy_sheath_loss_total": ("_summary", ("boundary", "electron_energy_sheath_loss_total"), "Total electron energy loss in sheath on a full solution mesh using conservative values as inputs"),
 }
