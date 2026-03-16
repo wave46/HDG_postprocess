@@ -27,8 +27,8 @@ def _ensure_simple_physical(solution):
 
 
 def _ensure_connectivity_big(solution):
-    if solution.mesh.connectivity_big is None:
-        _ = solution.mesh.geometry.connectivity_big
+    if not solution.mesh.metadata.flags.connectivity_big_initialized:
+        solution.mesh.geometry.ensure_connectivity_big()
 
 
 def plot_overview(solution, n_levels=100):
@@ -84,7 +84,7 @@ def plot_overview(solution, n_levels=100):
                 ax=axes[i // 2, i % 2],
                 log=True,
                 label=colorbar_labels[i],
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
                 cmap="bwr",
             )
@@ -94,7 +94,7 @@ def plot_overview(solution, n_levels=100):
                 ax=axes[i // 2, i % 2],
                 log=False,
                 label=colorbar_labels[i],
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
             )
 
@@ -155,7 +155,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
                 ax=axes[i // 2, i % 2],
                 log=False,
                 label=colorbar_labels[i],
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
             )
         else:
@@ -164,7 +164,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
                 ax=axes[i // 2, i % 2],
                 log=False,
                 label=colorbar_labels[i],
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
                 cmap="bwr",
             )
@@ -206,7 +206,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
                 ax=axes[i // 2, i % 2],
                 log=True,
                 label=colorbar_labels[i],
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
                 limits=limit,
                 ticks=tick,
@@ -220,7 +220,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
                     ax=axes[i // 2, i % 2],
                     log=False,
                     label=colorbar_labels[i],
-                    connectivity=solution.mesh.connectivity_big,
+                    connectivity=solution.mesh.derived_geometry.connectivity_big,
                     n_levels=n_levels,
                     limits=limit,
                     cmap="bwr",
@@ -231,7 +231,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
                     ax=axes[i // 2, i % 2],
                     log=False,
                     label=colorbar_labels[i],
-                    connectivity=solution.mesh.connectivity_big,
+                    connectivity=solution.mesh.derived_geometry.connectivity_big,
                     n_levels=n_levels,
                     limits=limit,
                 )
@@ -269,7 +269,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
                 ax=axes[i // 2, i % 2],
                 log=False,
                 label=colorbar_labels[i],
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
                 cmap="bwr",
             )
@@ -279,7 +279,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
                 ax=axes[i // 2, i % 2],
                 log=False,
                 label=colorbar_labels[i],
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
             )
     return fig, axes, solutions_plot
@@ -380,7 +380,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 ax=axes[i // 2, i % 2],
                 log=log,
                 label=label,
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
                 ticks=tick,
                 tick_labels=tick_label,
@@ -393,7 +393,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 ax=axes[i % 2],
                 log=log,
                 label=label,
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
                 ticks=tick,
                 tick_labels=tick_label,
@@ -406,7 +406,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 ax=axes,
                 log=log,
                 label=label,
-                connectivity=solution.mesh.connectivity_big,
+                connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
                 ticks=tick,
                 tick_labels=tick_label,

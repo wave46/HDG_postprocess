@@ -40,7 +40,7 @@ def test_modern_solution_api(manifest_path, baselines_dir):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    solution.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    solution.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
     if cfg.get("with_atomic_setup"):
         solution.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
         solution.additional_parameters.set_neutral_diffusion(
@@ -107,7 +107,7 @@ def test_modern_mesh_api(manifest_path, baselines_dir):
 
     mesh = load_mesh(cfg["mesh_path"], cfg["mesh_base"], cfg["n_partitions"])
     mesh.geometry.recombine_full()
-    connectivity_big = mesh.geometry.connectivity_big
+    connectivity_big = mesh.geometry.ensure_connectivity_big()
 
     assert mesh.p_order == baseline["p_order"]
     assert mesh.nelems_glob == baseline["nelems_glob"]

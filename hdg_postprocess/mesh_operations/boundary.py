@@ -3,15 +3,15 @@ import numpy as np
 
 def recombine_full_boundary(mesh, raw_boundary_info):
     if mesh.n_partitions > 1:
-        mesh._nfaces_glob = 0
+        mesh.global_state.n_faces = 0
         for i in range(mesh.n_partitions):
-            mesh._nfaces_glob = max(mesh._nfaces_glob, mesh.raw_rest_mesh_data[i]["loc2glob_fa"].max())
-        mesh._nfaces_glob += 1
+            mesh.global_state.n_faces = max(mesh.global_state.n_faces, mesh.raw_rest_mesh_data[i]["loc2glob_fa"].max())
+        mesh.global_state.n_faces += 1
 
-        connectivity_b_glob = -1 * np.ones((mesh._nfaces_glob, mesh.mesh_parameters["nodes_per_face"]), dtype=int)
-        boundary_flags = -1 * np.ones((mesh._nfaces_glob), dtype=int)
-        face_element_number = np.zeros((mesh._nfaces_glob, 1), dtype=int)
-        face_local_number = np.zeros((mesh._nfaces_glob), dtype=int)
+        connectivity_b_glob = -1 * np.ones((mesh.global_state.n_faces, mesh.mesh_parameters["nodes_per_face"]), dtype=int)
+        boundary_flags = -1 * np.ones((mesh.global_state.n_faces), dtype=int)
+        face_element_number = np.zeros((mesh.global_state.n_faces, 1), dtype=int)
+        face_local_number = np.zeros((mesh.global_state.n_faces), dtype=int)
 
         for i in range(mesh.n_partitions):
             non_ghost = (~mesh.raw_ghost_faces[i].flatten())[-mesh.raw_mesh_numbers[i]["Nextfaces"]:]
@@ -34,9 +34,9 @@ def recombine_full_boundary(mesh, raw_boundary_info):
         boundary_flags = boundary_flags[filled]
         face_element_number = face_element_number[filled]
         face_local_number = face_local_number[filled]
-        mesh._filled = filled
+        mesh.boundary_state.filled = filled
     else:
-        mesh._nfaces_glob = mesh._raw_connectivity_boundary[0].shape[0]
+        mesh.global_state.n_faces = mesh._raw_connectivity_boundary[0].shape[0]
         connectivity_b_glob = mesh._raw_connectivity_boundary[0]
         boundary_flags = raw_boundary_info[0]["boundary_flags"]
         face_element_number = raw_boundary_info[0]["exterior_faces"][:, 0][None].T
@@ -44,10 +44,10 @@ def recombine_full_boundary(mesh, raw_boundary_info):
 
     unique_boundaries = np.unique(boundary_flags)
     indices = {}
-    mesh._connectivity_b_glob = {}
-    mesh._boundary_flags = {}
-    mesh._face_element_number = {}
-    mesh._face_local_number = {}
+    mesh.boundary_state.connectivity = {}
+    mesh.boundary_state.flags = {}
+    mesh.boundary_state.face_element_number = {}
+    mesh.boundary_state.face_local_number = {}
 
     for boundary_type in unique_boundaries:
         boundary_idx = np.where(boundary_flags == boundary_type)[0]
@@ -80,32 +80,39 @@ def recombine_full_boundary(mesh, raw_boundary_info):
 
             all_ind.append(component)
 
-        mesh._connectivity_b_glob[boundary_type] = []
-        mesh._boundary_flags[boundary_type] = []
-        mesh._face_element_number[boundary_type] = []
-        mesh._face_local_number[boundary_type] = []
+        mesh.boundary_state.connectivity[boundary_type] = []
+        mesh.boundary_state.flags[boundary_type] = []
+        mesh.boundary_state.face_element_number[boundary_type] = []
+        mesh.boundary_state.face_local_number[boundary_type] = []
 
         for component in all_ind:
-            mesh._connectivity_b_glob[boundary_type].append(connectivity_b_glob[component, :])
-            mesh._boundary_flags[boundary_type].append(boundary_flags[component])
-            mesh._face_element_number[boundary_type].append(face_element_number[component])
-            mesh._face_local_number[boundary_type].append(face_local_number[component])
+            mesh.boundary_state.connectivity[boundary_type].append(connectivity_b_glob[component, :])
+            mesh.boundary_state.flags[boundary_type].append(boundary_flags[component])
+            mesh.boundary_state.face_element_number[boundary_type].append(face_element_number[component])
+            mesh.boundary_state.face_local_number[boundary_type].append(face_local_number[component])
 
         indices[boundary_type] = all_ind
 
-    mesh._indices = indices
-    mesh._boundary_combined = True
+    mesh.boundary_state.indices = indices
+    mesh.boundary_state.vertices_gauss = None
+    mesh.boundary_state.tangentials_gauss = None
+    mesh.boundary_state.normals_gauss = None
+    mesh.boundary_state.segment_length_gauss = None
+    mesh.boundary_state.segment_surface_gauss = None
+    mesh.metadata.flags.boundary_combined = True
+    mesh.metadata.flags.boundary_gauss_initialized = False
+    mesh.metadata.cache.boundary_gauss_boundaries = None
 
 
 def boundary_ordering(mesh, raw_boundary_info, boundaries):
-    if not mesh._boundary_combined:
+    if not mesh.metadata.flags.boundary_combined:
         recombine_full_boundary(mesh, raw_boundary_info)
 
     connected_boundaries = []
     segments = 0
     for boundary in boundaries:
         connected_boundary = []
-        for _sub_connectivity in mesh.connectivity_b_glob[boundary]:
+        for _sub_connectivity in mesh.boundary_state.connectivity[boundary]:
             connected_boundary.append(False)
             segments += 1
         connected_boundaries.append(connected_boundary)
@@ -113,18 +120,18 @@ def boundary_ordering(mesh, raw_boundary_info, boundaries):
     boundary_ordering_res = [[0, 0]]
     connected_boundaries[0][0] = True
     segments -= 1
-    node_idx = mesh.connectivity_b_glob[boundaries[0]][0][-1, -1]
+    node_idx = mesh.boundary_state.connectivity[boundaries[0]][0][-1, -1]
 
     looped_segments = []
     while segments > 0:
         found_segment = False
         for i, connected_boundary in enumerate(connected_boundaries):
             for j, segment in enumerate(connected_boundary):
-                if not segment and node_idx == mesh.connectivity_b_glob[boundaries[i]][j][0, 0]:
+                if not segment and node_idx == mesh.boundary_state.connectivity[boundaries[i]][j][0, 0]:
                     connected_boundaries[i][j] = True
                     segments -= 1
                     boundary_ordering_res.append([i, j])
-                    node_idx = mesh.connectivity_b_glob[boundaries[i]][j][-1, -1]
+                    node_idx = mesh.boundary_state.connectivity[boundaries[i]][j][-1, -1]
                     found_segment = True
                     break
             if found_segment:
@@ -137,51 +144,63 @@ def boundary_ordering(mesh, raw_boundary_info, boundaries):
                         connected_boundaries[i][j] = True
                         segments -= 1
                         looped_segments.append([i, j])
-                        node_idx = mesh.connectivity_b_glob[boundaries[i]][j][-1, -1]
+                        node_idx = mesh.boundary_state.connectivity[boundaries[i]][j][-1, -1]
                         break
                 if found_segment:
                     break
 
     boundary_ordering_res.extend(looped_segments)
 
-    connectivity_b_ordered = np.empty([0, mesh.connectivity_b_glob[boundaries[0]][0].shape[1]], dtype=int)
-    iel_face_ordered = np.empty([0, mesh._face_element_number[boundaries[0]][0].shape[1]], dtype=int)
+    connectivity_b_ordered = np.empty([0, mesh.boundary_state.connectivity[boundaries[0]][0].shape[1]], dtype=int)
+    iel_face_ordered = np.empty([0, mesh.boundary_state.face_element_number[boundaries[0]][0].shape[1]], dtype=int)
     for bound_order in boundary_ordering_res:
         connectivity_b_ordered = np.vstack(
-            [connectivity_b_ordered, mesh.connectivity_b_glob[boundaries[bound_order[0]]][bound_order[1]]]
+            [connectivity_b_ordered, mesh.boundary_state.connectivity[boundaries[bound_order[0]]][bound_order[1]]]
         )
         iel_face_ordered = np.vstack(
-            [iel_face_ordered, mesh._face_element_number[boundaries[bound_order[0]]][bound_order[1]]]
+            [iel_face_ordered, mesh.boundary_state.face_element_number[boundaries[bound_order[0]]][bound_order[1]]]
         )
 
     return boundary_ordering_res, connectivity_b_ordered, iel_face_ordered
 
 
 def calculate_gauss_boundary(mesh, boundaries, raw_boundary_info):
-    if mesh.reference_element is None:
+    requested_boundaries = tuple(boundaries)
+    if (
+        mesh.metadata.flags.boundary_gauss_initialized
+        and mesh.metadata.cache.boundary_gauss_boundaries == requested_boundaries
+    ):
+        boundary_ordering_res, connectivity_ordered, iel_face_number = boundary_ordering(mesh, raw_boundary_info, boundaries)
+        return boundary_ordering_res, connectivity_ordered, iel_face_number
+
+    if mesh.metadata.reference_element is None:
         raise ValueError("Please, provide reference element")
-    if not mesh._combined_to_full:
+    if not mesh.metadata.flags.combined_to_full:
         from hdg_postprocess.mesh_operations.geometry import recombine_full_mesh
 
         recombine_full_mesh(mesh)
-    if not mesh._boundary_combined:
+    if not mesh.metadata.flags.boundary_combined:
         if raw_boundary_info is None:
             raise ValueError("Please, provide raw boundary info as input to this method")
         recombine_full_boundary(mesh, raw_boundary_info)
     boundary_ordering_res, connectivity_ordered, iel_face_number = boundary_ordering(mesh, raw_boundary_info, boundaries)
 
-    mesh._vertices_boundary_gauss = np.einsum(
-        "ij,kjh->kih", mesh.reference_element["N1d"], mesh.vertices_glob[connectivity_ordered, :]
+    mesh.boundary_state.vertices_gauss = np.einsum(
+        "ij,kjh->kih", mesh.metadata.reference_element["N1d"], mesh.vertices_glob[connectivity_ordered, :]
     )
     derivative_gauss = np.einsum(
-        "ij,kjh->kih", mesh.reference_element["N1dxi"], mesh.vertices_glob[connectivity_ordered, :]
+        "ij,kjh->kih", mesh.metadata.reference_element["N1dxi"], mesh.vertices_glob[connectivity_ordered, :]
     )
     derivative_norm = np.sqrt(((derivative_gauss ** 2).sum(axis=2)))[:, :, None]
-    mesh._tangentials_gauss = derivative_gauss / derivative_norm
-    mesh._normals_gauss = np.zeros_like(mesh._tangentials_gauss)
-    mesh._normals_gauss[:, :, 0] = mesh._tangentials_gauss[:, :, 1]
-    mesh._normals_gauss[:, :, 1] = -1 * mesh._tangentials_gauss[:, :, 0]
-    mesh._segment_length_gauss = derivative_norm * mesh.reference_element["IPweights1d"][None, :, :]
-    mesh._segment_surface_gauss = mesh._segment_length_gauss * 2 * np.pi * mesh._vertices_boundary_gauss[:, :, 0][:, :, None]
+    mesh.boundary_state.tangentials_gauss = derivative_gauss / derivative_norm
+    mesh.boundary_state.normals_gauss = np.zeros_like(mesh.boundary_state.tangentials_gauss)
+    mesh.boundary_state.normals_gauss[:, :, 0] = mesh.boundary_state.tangentials_gauss[:, :, 1]
+    mesh.boundary_state.normals_gauss[:, :, 1] = -1 * mesh.boundary_state.tangentials_gauss[:, :, 0]
+    mesh.boundary_state.segment_length_gauss = derivative_norm * mesh.metadata.reference_element["IPweights1d"][None, :, :]
+    mesh.boundary_state.segment_surface_gauss = (
+        mesh.boundary_state.segment_length_gauss * 2 * np.pi * mesh.boundary_state.vertices_gauss[:, :, 0][:, :, None]
+    )
+    mesh.metadata.flags.boundary_gauss_initialized = True
+    mesh.metadata.cache.boundary_gauss_boundaries = requested_boundaries
 
     return boundary_ordering_res, connectivity_ordered, iel_face_number

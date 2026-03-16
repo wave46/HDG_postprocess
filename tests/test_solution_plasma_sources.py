@@ -40,7 +40,7 @@ def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
     sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
     sol.additional_parameters.set_neutral_diffusion(
         generate_baselines._make_dnn_params(),
@@ -48,7 +48,7 @@ def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
     )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
-    _ = sol.mesh.geometry.gauss_volumes
+    _ = sol.mesh.geometry.ensure_gauss_volumes()
     sol.sources.ohmic("gauss")
     sol.sources.electron_sink_iz("gauss")
     sol.sources.ion_gain_iz("gauss")
@@ -56,13 +56,13 @@ def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
     sol.sources.cx("full")
 
     assert np.isclose(
-        np.sum(sol.views.gauss.sources.ohmic_source * sol.mesh.volumes_gauss), baseline["power_balance"]["ohmic_heating"]
+        np.sum(sol.views.gauss.sources.ohmic_source * sol.mesh.derived_geometry.gauss_volumes), baseline["power_balance"]["ohmic_heating"]
     )
     assert np.isclose(
-        np.sum(sol.views.gauss.sources.electron_sink_iz * sol.mesh.volumes_gauss), baseline["power_balance"]["electron_sink_iz"]
+        np.sum(sol.views.gauss.sources.electron_sink_iz * sol.mesh.derived_geometry.gauss_volumes), baseline["power_balance"]["electron_sink_iz"]
     )
     assert np.isclose(
-        np.sum(sol.views.gauss.sources.ion_gain_iz * sol.mesh.volumes_gauss), baseline["power_balance"]["ion_gain_iz"]
+        np.sum(sol.views.gauss.sources.ion_gain_iz * sol.mesh.derived_geometry.gauss_volumes), baseline["power_balance"]["ion_gain_iz"]
     )
     assert sol.views.simple.sources.cooling_factor.shape[0] == baseline["mesh"]["nvertices_glob"]
     assert sol.views.glob.sources.cx_source.shape[0] == baseline["mesh"]["nelems_glob"]

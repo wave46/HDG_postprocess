@@ -125,14 +125,14 @@ def define_interpolators(solution):
     if not solution.metadata.flags.combined_simple_solution:
         print("Comibining first simple solution full")
         solution.assembly.simple()
-    if solution.mesh.connectivity_big is None:
+    if not solution.mesh.metadata.flags.connectivity_big_initialized:
         print("Comibining first big connectivity")
-        _ = solution.mesh.geometry.connectivity_big
-    if solution.mesh.reference_element is None:
+        solution.mesh.geometry.ensure_connectivity_big()
+    if solution.mesh.metadata.reference_element is None:
         raise ValueError("Please, provide reference element")
-    if solution.mesh.element_number is None:
+    if not solution.mesh.metadata.flags.element_locator_initialized:
         print("Defining an element number mask")
-        _ = solution.mesh.geometry.element_locator
+        solution.mesh.geometry.ensure_element_locator()
     glob_view = solution.views.glob
     if glob_view.equilibrium.qcyl is None:
         solution.equilibrium.define_qcyl(view="glob")
@@ -141,13 +141,13 @@ def define_interpolators(solution):
         if solution.mesh.mesh_parameters["element_type"] == "triangle":
             interpolators.sample = SoledgeHDG2DInterpolator(
                 solution.mesh.vertices_glob, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.connectivity_glob,
-                solution.mesh.element_number, solution.mesh.reference_element["NodesCoord"],
+                solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord"],
                 solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
             )
         elif solution.mesh.mesh_parameters["element_type"] == "quadrilateral":
             interpolators.sample = SoledgeHDG2DInterpolator(
                 solution.mesh.vertices_glob, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.connectivity_glob,
-                solution.mesh.element_number, solution.mesh.reference_element["NodesCoord1d"],
+                solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord1d"],
                 solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
             )
 

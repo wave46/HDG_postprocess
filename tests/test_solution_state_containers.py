@@ -39,7 +39,7 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
 
     sol.assembly.full()
     sol.assembly.simple()
@@ -80,7 +80,7 @@ def test_container_state_sync_neutral_derived_fields(manifest_path):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
     sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
     sol.additional_parameters.set_neutral_diffusion(
         generate_baselines._make_dnn_params(),
@@ -111,7 +111,7 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
 
     atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
     dnn_parameters = generate_baselines._make_dnn_params()
@@ -157,7 +157,7 @@ def test_container_state_sync_sources_and_totals(manifest_path):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
     sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
     sol.additional_parameters.set_neutral_diffusion(
         generate_baselines._make_dnn_params(),
@@ -199,7 +199,7 @@ def test_container_state_sync_representations(manifest_path):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
 
     sol.assembly.full()
     sol.assembly.simple()

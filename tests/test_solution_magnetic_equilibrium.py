@@ -39,7 +39,7 @@ def test_solution_magnetic_equilibrium_surface(manifest_path):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
 
     sol.equilibrium.define_axis()
     sol.equilibrium.define_minor_radii("glob")

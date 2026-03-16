@@ -1,5 +1,13 @@
 import numpy as np
-from hdg_postprocess.mesh_api import MeshBoundary, MeshGeometry, MeshPlot
+from hdg_postprocess.mesh_api import (
+    MeshBoundary,
+    MeshBoundaryState,
+    MeshDerivedGeometryState,
+    MeshGeometry,
+    MeshGlobalState,
+    MeshMetadata,
+    MeshPlot,
+)
 class HDGmesh:
     """
     SOLEDGE-HDG mesh object  
@@ -35,19 +43,23 @@ class HDGmesh:
         self._boundary = MeshBoundary(self)
         self._geometry = MeshGeometry(self)
         self._plot = MeshPlot(self)
+        self._metadata = MeshMetadata()
+        self._global_state = MeshGlobalState()
+        self._derived_geometry = MeshDerivedGeometryState()
+        self._boundary_state = MeshBoundaryState()
 
         if self.mesh_parameters['element_type'] == 'triangle':
             if self.mesh_parameters['nodes_per_element']==15:
-                self._p_order = 4
+                self._metadata.p_order = 4
             elif self.mesh_parameters['nodes_per_element']==28:
-                self._p_order = 6
+                self._metadata.p_order = 6
             elif self.mesh_parameters['nodes_per_element']==45:
-                self._p_order = 8
+                self._metadata.p_order = 8
         elif self.mesh_parameters['element_type'] == 'quadrilateral':
             if self.mesh_parameters['nodes_per_element']==49:
-                self._p_order = 6
+                self._metadata.p_order = 6
             elif self.mesh_parameters['nodes_per_element']==81:
-                self._p_order = 8
+                self._metadata.p_order = 8
 
         minr,maxr,minz,maxz = 1e5,-1e5,1e5,-1e5
         for vertices in self.raw_vertices:
@@ -56,47 +68,28 @@ class HDGmesh:
             minz = min(minz,vertices[:,1].min())
             maxr = max(maxr,vertices[:,0].max())
             maxz = max(maxz,vertices[:,1].max())
-        self._mesh_extent = {"minr": minr, "maxr":maxr, 
-                             "minz": minz, "maxz":maxz}
-        self._connectivity_big = None
-        self._element_number = None
-        self._reference_element = None
-        self._vertices_gauss = None
-        self._vertices_boundary_gauss = None
-        self._volumes_gauss = None
-        self._tangentials_gauss = None
-        self._normal_guass = None
-        self._segment_length_gauss = None
-        self._segment_surface_gauss = None
-        # not sure if this will be used for serial version
-        self._filled = None
-        self._indices = None
-        self._face_element_number = None
-        self._face_local_number = None
-        self._face_ghost = None
+        self._metadata.extent = {"minr": minr, "maxr":maxr, 
+                                 "minz": minz, "maxz":maxz}
         if self._n_partitions == 1:
             #no need to combine meshes
-            self._combined_to_full = True
-            self._connectivity_glob = self.raw_connectivity[0]
-            self._connectivity_b_glob = None
-            self._vertices_glob = self.raw_vertices[0]
-            self._nelems_glob = self._connectivity_glob.shape[0]
-            self._nvertices_glob = self._vertices_glob.shape[0]
-            self._nfaces_glob = None
-            self._boundary_combined = False
+            self._metadata.flags.combined_to_full = True
+            self._global_state.connectivity = self.raw_connectivity[0]
+            self._global_state.vertices = self.raw_vertices[0]
+            self._global_state.n_elements = self._global_state.connectivity.shape[0]
+            self._global_state.n_vertices = self._global_state.vertices.shape[0]
+            self._global_state.n_faces = None
+            self._metadata.flags.boundary_combined = False
             
 
         
         else:    
-            self._combined_to_full = False
-            self._connectivity_glob = None
-            self._connectivity_b_glob = None
-            self._boundary_flags = None
-            self._vertices_glob = None
-            self._nelems_glob = None
-            self._nvertices_glob = None
-            self._nfaces_glob = None
-            self._boundary_combined = False
+            self._metadata.flags.combined_to_full = False
+            self._global_state.connectivity = None
+            self._global_state.vertices = None
+            self._global_state.n_elements = None
+            self._global_state.n_vertices = None
+            self._global_state.n_faces = None
+            self._metadata.flags.boundary_combined = False
 
             
             
@@ -114,50 +107,22 @@ class HDGmesh:
     @property
     def vertices_glob(self):
         """vertices in global mesh"""
-        return self._vertices_glob
+        return self._global_state.vertices
 
     @property
     def vertices_gauss(self):
         """coordinates of gauss points in global mesh"""
-        return self._vertices_gauss
-    
-    @property
-    def vertices_boundary_gauss(self):
-        """coordinates of gauss points in global mesh"""
-        return self._vertices_boundary_gauss
-    
-    @property
-    def tangentials_gauss(self):
-        """tangentials to mesh boundary at gauss points in global mesh"""
-        return self._tangentials_gauss
-    @property
-    def normals_gauss(self):
-        """normals to mesh boundary at gauss points in global mesh"""
-        return self._normals_gauss
-
-    @property
-    def segment_length_gauss(self):
-        """segment length corresponding to each gauss point on the boundary"""
-        return self._segment_length_gauss
-    @property
-    def segment_surface_gauss(self):
-        """segment length corresponding to each gauss point on the boundary"""
-        return self._segment_surface_gauss
-
-    @property
-    def volumes_gauss(self):
-        """volumes in gauss points in global mesh"""
-        return self._volumes_gauss
+        return self._derived_geometry.vertices_gauss
 
     @property
     def connectivity_glob(self):
         """connectivity of a global mesh"""
-        return self._connectivity_glob
+        return self._global_state.connectivity
 
     @property
     def connectivity_b_glob(self):
         """connectivity of faces on global mesh. filled only with boundary faces"""
-        return self._connectivity_b_glob
+        return self._boundary_state.connectivity
     
     @property
     def boundary_flags(self):
@@ -167,55 +132,43 @@ class HDGmesh:
             0 boundary between two partitions
             to be done: fill other flags
         """
-        return self._boundary_flags
+        return self._boundary_state.flags
 
     @property
     def face_element_number(self):
         """
         for each face gives a number of the corresponding element
         """
-        return self._face_element_number
+        return self._boundary_state.face_element_number
 
     @property
     def face_local_number(self):
         """
         for each face gives a local number of the face in corresponding element
         """
-        return self._face_local_number
+        return self._boundary_state.face_local_number
 
     @property
     def face_ghost(self):
         """
         If face corresponds to ghost element
         """
-        return self._face_ghost
-
-    @property
-    def connectivity_big(self):
-        """big connectivity of a global mesh for plots
-        (each element is triangulated)
-        """
-        return self._connectivity_big
+        return None
 
     @property
     def nelems_glob(self):
         """number of elements in global mesh"""
-        return self._nelems_glob
+        return self._global_state.n_elements
 
     @property
     def nvertices_glob(self):
         """nubmer of vertices in global mesh"""
-        return self._nvertices_glob
+        return self._global_state.n_vertices
 
     @property
     def nfaces_glob(self):
         """number of faces in global mesh"""
-        return self._nfaces_glob
-
-    @property
-    def combined_to_full(self):
-        """Flag which tells if the mesh has been combined to full"""
-        return self._combined_to_full
+        return self._global_state.n_faces
 
     @property
     def raw_connectivity_boundary(self):
@@ -260,41 +213,12 @@ class HDGmesh:
     @property
     def p_order(self):
         """polynomial order of the mesh"""
-        return self._p_order
+        return self._metadata.p_order
 
     @property
     def mesh_extent(self):
         """Extent of the mesh. A dictionary with minr, maxr, minz and maxz keys."""
-        return self._mesh_extent
-    
-    @property
-    def mask(self):
-        """Mesh mask which gives 1 if"""
-        return self._mask
-
-    @property
-    def element_number(self):
-        """
-        For given pair (R,Z) gives a number of element to which this point relates
-        Outside of the mesh gives -1
-        """
-        return self._element_number
-    @element_number.setter
-    def element_number(self,value):
-        self._element_number = value
-
-    @property
-    def boundary_combined(self):
-        """Flag which tells if the mesh has been combined on the boundary"""
-        return self._boundary_combined
-
-    @property
-    def reference_element(self):
-        """Dictionary with atomic parameters"""
-        return self._reference_element
-    @reference_element.setter
-    def reference_element(self,value):
-        self._reference_element = value
+        return self._metadata.extent
 
     @property
     def geometry(self):
@@ -310,3 +234,23 @@ class HDGmesh:
     def plot(self):
         """Facade for mesh plotting workflows."""
         return self._plot
+
+    @property
+    def metadata(self):
+        """Structured metadata, flags, and cache state for the mesh."""
+        return self._metadata
+
+    @property
+    def global_state(self):
+        """Structured full-mesh state."""
+        return self._global_state
+
+    @property
+    def derived_geometry(self):
+        """Structured derived geometry state and caches."""
+        return self._derived_geometry
+
+    @property
+    def boundary_state(self):
+        """Structured boundary and boundary-gauss state."""
+        return self._boundary_state

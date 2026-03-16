@@ -78,14 +78,14 @@ def summary_along_the_wall(solution):
     result = {}
     for variable in variables:
         if variable == "dl":
-            res = solution.mesh.segment_length_gauss[:, :, 0]
+            res = solution.mesh.boundary_state.segment_length_gauss[:, :, 0]
         elif variable == "ds":
-            res = solution.mesh.segment_surface_gauss[:, :, 0]
+            res = solution.mesh.boundary_state.segment_surface_gauss[:, :, 0]
         elif variable == "normal_vector":
-            res = solution.mesh.normals_gauss
+            res = solution.mesh.boundary_state.normals_gauss
         elif variable == "b_n":
             res = np.sum(
-                boundary_equilibrium.magnetic_field_unit[:, :, :2] * solution.mesh.normals_gauss, axis=-1
+                boundary_equilibrium.magnetic_field_unit[:, :, :2] * solution.mesh.boundary_state.normals_gauss, axis=-1
             )
         elif variable == "solution":
             res = boundary_solution
@@ -252,8 +252,8 @@ def summary_along_the_wall(solution):
     for key, item in result.items():
         result[key] = item[:, ::-1]
     result["time"] = solution.parameters["time"]["Current_time"] * solution.parameters["adimensionalization"]["time_scale"]
-    result["r"] = solution.mesh.vertices_boundary_gauss[:, ::-1, 0]
-    result["z"] = solution.mesh.vertices_boundary_gauss[:, ::-1, 1]
+    result["r"] = solution.mesh.boundary_state.vertices_gauss[:, ::-1, 0]
+    result["z"] = solution.mesh.boundary_state.vertices_gauss[:, ::-1, 1]
     result["psi"] = boundary_equilibrium.poloidal_flux[:, ::-1]
     solution.summary.boundary.profile = result
     return result
@@ -303,7 +303,7 @@ def _calculate_gamma_perp_dep(solution, boundary_solution):
         boundary_gauss.equilibrium.magnetic_field[:, :, 0],
         boundary_gauss.equilibrium.magnetic_field[:, :, 1],
         boundary_gauss.equilibrium.magnetic_field[:, :, 2],
-        solution.mesh.normals_gauss,
+        solution.mesh.boundary_state.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["length_scale"],
         solution._cons_idx,
@@ -427,7 +427,7 @@ def _calculate_q_i_perp_dep(solution, boundary_solution):
         boundary_gauss.equilibrium.magnetic_field[:, :, 0],
         boundary_gauss.equilibrium.magnetic_field[:, :, 1],
         boundary_gauss.equilibrium.magnetic_field[:, :, 2],
-        solution.mesh.normals_gauss,
+        solution.mesh.boundary_state.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["mass_scale"]
         * solution.parameters["adimensionalization"]["speed_scale"] ** 2,
@@ -450,7 +450,7 @@ def _calculate_q_e_perp_dep(solution, boundary_solution):
         boundary_gauss.equilibrium.magnetic_field[:, :, 0],
         boundary_gauss.equilibrium.magnetic_field[:, :, 1],
         boundary_gauss.equilibrium.magnetic_field[:, :, 2],
-        solution.mesh.normals_gauss,
+        solution.mesh.boundary_state.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["mass_scale"]
         * solution.parameters["adimensionalization"]["speed_scale"] ** 2,
@@ -467,7 +467,7 @@ def _calculate_q_e_tot_dep_bc(solution, boundary_solution):
         boundary_gauss.equilibrium.magnetic_field[:, :, 0],
         boundary_gauss.equilibrium.magnetic_field[:, :, 1],
         boundary_gauss.equilibrium.magnetic_field[:, :, 2],
-        solution.mesh.normals_gauss,
+        solution.mesh.boundary_state.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["speed_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -485,7 +485,7 @@ def _calculate_q_i_tot_dep_bc(solution, boundary_solution):
         boundary_gauss.equilibrium.magnetic_field[:, :, 0],
         boundary_gauss.equilibrium.magnetic_field[:, :, 1],
         boundary_gauss.equilibrium.magnetic_field[:, :, 2],
-        solution.mesh.normals_gauss,
+        solution.mesh.boundary_state.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["speed_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -506,7 +506,7 @@ def _calculate_neutral_flux(solution, boundary_solution):
         boundary_gauss.equilibrium.magnetic_field[:, :, 0],
         boundary_gauss.equilibrium.magnetic_field[:, :, 1],
         boundary_gauss.equilibrium.magnetic_field[:, :, 2],
-        solution.mesh.normals_gauss,
+        solution.mesh.boundary_state.normals_gauss,
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["adimensionalization"]["length_scale"],
         solution.parameters["adimensionalization"]["charge_scale"],

@@ -38,7 +38,7 @@ def _load_solution(cfg):
         cfg.get("mesh_base"),
         cfg["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
     sol.assembly.full()
     sol.assembly.simple()
     sol.fields.initialize_physical("both")

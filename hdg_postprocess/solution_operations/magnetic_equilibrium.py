@@ -18,7 +18,7 @@ def define_minor_radii(solution, which="simple"):
     if which == "simple":
         if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
             define_magnetic_axis(solution)
-        if not solution.mesh._combined_to_full:
+        if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
             solution.mesh.geometry.recombine_full()
         define_minor_radii(solution, which="full")
@@ -29,7 +29,7 @@ def define_minor_radii(solution, which="simple"):
     if which == "full":
         if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
             define_magnetic_axis(solution)
-        if not solution.mesh._combined_to_full:
+        if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
             solution.mesh.geometry.recombine_full()
         solution.views.glob.equilibrium.a = calculate_a(
@@ -41,7 +41,7 @@ def define_minor_radii(solution, which="simple"):
 
 def define_qcyl(solution, which="simple"):
     if which == "simple":
-        if not solution.mesh._combined_to_full:
+        if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
             solution.mesh.geometry.recombine_full()
         if not solution.metadata.flags.combined_simple_solution:
@@ -55,7 +55,7 @@ def define_qcyl(solution, which="simple"):
             solution.views.glob.equilibrium.qcyl.shape[0] * solution.views.glob.equilibrium.qcyl.shape[1]
         )
     elif which == "full":
-        if not solution.mesh._combined_to_full:
+        if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
             solution.mesh.geometry.recombine_full()
         if solution.views.glob.equilibrium.a is None:

@@ -136,9 +136,9 @@ def _roundtrip_names(values):
 
 
 def _mesh_baseline(mesh, element_probe=None):
-    if not mesh.combined_to_full:
-        mesh.recombine_full_mesh()
-    mesh.create_connectivity_big()
+    if not mesh.metadata.flags.combined_to_full:
+        mesh.geometry.recombine_full()
+    mesh.geometry.ensure_connectivity_big()
 
     baseline = {
         "mesh_extent": _to_builtin(mesh.mesh_extent),
@@ -146,22 +146,22 @@ def _mesh_baseline(mesh, element_probe=None):
         "nelems_glob": int(mesh.nelems_glob),
         "nvertices_glob": int(mesh.nvertices_glob),
         "connectivity_shape": list(mesh.connectivity_glob.shape),
-        "connectivity_big_shape": list(mesh.connectivity_big.shape),
+        "connectivity_big_shape": list(mesh.derived_geometry.connectivity_big.shape),
     }
 
     if element_probe is not None:
-        mesh.make_element_number_funtion()
+        mesh.geometry.ensure_element_locator()
         baseline["element_probe"] = {
             "point": list(element_probe),
-            "element_number": int(mesh.element_number(*element_probe)),
+            "element_number": int(mesh.derived_geometry.element_locator(*element_probe)),
         }
 
-    if mesh.reference_element is not None:
-        mesh.calculate_gauss_volumes()
+    if mesh.metadata.reference_element is not None:
+        mesh.geometry.ensure_gauss_volumes()
         baseline["gauss_volumes"] = {
-            "shape": list(mesh.volumes_gauss.shape),
-            "total": float(mesh.volumes_gauss.sum()),
-            "first_element_sum": float(mesh.volumes_gauss[0].sum()),
+            "shape": list(mesh.derived_geometry.gauss_volumes.shape),
+            "total": float(mesh.derived_geometry.gauss_volumes.sum()),
+            "first_element_sum": float(mesh.derived_geometry.gauss_volumes[0].sum()),
         }
 
     return baseline
@@ -172,11 +172,11 @@ def _pick_inside_points(sol, n_points=6):
         sol.mesh.mesh_extent["minz"] + sol.mesh.mesh_extent["maxz"]
     ) / 2.0
     candidates_r = np.linspace(sol.mesh.mesh_extent["minr"], sol.mesh.mesh_extent["maxr"], 400)
-    inside_mid = [(float(r), float(z_mid)) for r in candidates_r if int(sol.mesh.element_number(r, z_mid)) != -1]
+    inside_mid = [(float(r), float(z_mid)) for r in candidates_r if int(sol.mesh.derived_geometry.element_locator(r, z_mid)) != -1]
 
     z_off = z_mid + 0.15 * (sol.mesh.mesh_extent["maxz"] - sol.mesh.mesh_extent["minz"])
     z_off = min(sol.mesh.mesh_extent["maxz"], max(sol.mesh.mesh_extent["minz"], z_off))
-    inside_off = [(float(r), float(z_off)) for r in candidates_r if int(sol.mesh.element_number(r, z_off)) != -1]
+    inside_off = [(float(r), float(z_off)) for r in candidates_r if int(sol.mesh.derived_geometry.element_locator(r, z_off)) != -1]
 
     mid = inside_mid[:n_points]
     off = inside_off[: max(0, n_points - len(mid))]
@@ -287,7 +287,8 @@ def _collect_solution_baseline(config):
         config.get("mesh_base"),
         config["n_partitions"],
     )
-    sol.mesh.reference_element = _load_reference_element(ROOT / config["reference_element"])
+    sol.mesh.metadata.reference_element = _load_reference_element(ROOT / config["reference_element"])
+    sol.mesh.geometry.ensure_element_locator()
 
     if config.get("with_atomic_setup"):
         sol.additional_parameters.set_atomic(_make_atomic_params(config["radiation_model"]))
@@ -329,7 +330,7 @@ def _collect_mesh_baseline(config):
         config["mesh_base"],
         config["n_partitions"],
     )
-    mesh.reference_element = _load_reference_element(ROOT / config["reference_element"])
+    mesh.metadata.reference_element = _load_reference_element(ROOT / config["reference_element"])
     return _mesh_baseline(mesh, config.get("element_probe"))
 
 

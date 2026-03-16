@@ -62,19 +62,19 @@ Methods:
 - `plot.raw()`
 - `plot.full()`
 - `geometry.recombine_full()`
-- `geometry.connectivity_big()`
-- `geometry.element_locator()`
-- `geometry.gauss_volumes()`
+- `geometry.ensure_connectivity_big()`
+- `geometry.ensure_element_locator()`
+- `geometry.ensure_gauss_volumes()`
 - `geometry.adjacent_elements()`
 
 Properties and attributes:
 
-- `element_number`
-- `reference_element`
+- `metadata.reference_element`
+- `metadata.flags.combined_to_full`
+- `boundary_state`
+- `derived_geometry`
 - `vertices_glob`
 - `connectivity_glob`
-- `connectivity_big`
-- `volumes_gauss`
 - `mesh_extent`
 
 Required workflows:
