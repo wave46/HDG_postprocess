@@ -10,7 +10,9 @@ from hdg_postprocess.view_containers import (
     SolutionViews,
 )
 from hdg_postprocess.solution_facades import (
+    SolutionAssembly,
     SolutionAnalysis,
+    SolutionEquilibrium,
     SolutionFields,
     SolutionPlotting,
     SolutionSampling,
@@ -67,8 +69,10 @@ class HDGsolution:
         self._parameter_state = ParameterState()
         self._atomic_rates = AtomicRateState()
         self._interpolators_state = InterpolatorState()
+        self._assembly = SolutionAssembly(self)
         self._fields = SolutionFields(self)
         self._analysis = SolutionAnalysis(self)
+        self._equilibrium = SolutionEquilibrium(self)
         self._sample = SolutionSampling(self)
         self._plot = SolutionPlotting(self)
 
@@ -183,9 +187,19 @@ class HDGsolution:
         return self._fields
 
     @property
+    def assembly(self):
+        """Facade for assembling and recombining view data."""
+        return self._assembly
+
+    @property
     def analysis(self):
         """Facade for power-balance and boundary summary workflows."""
         return self._analysis
+
+    @property
+    def equilibrium(self):
+        """Facade for magnetic-axis and q-profile setup workflows."""
+        return self._equilibrium
 
     @property
     def sample(self):

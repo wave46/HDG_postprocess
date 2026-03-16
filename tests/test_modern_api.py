@@ -53,6 +53,13 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     simple_phys = solution.fields.physical(view="simple")
     gauss_phys = solution.fields.physical(view="gauss")
     gauss_grad_phys = solution.fields.physical(view="gauss", gradients=True)
+    boundary_view = solution.assembly.boundary()
+    boundary_gauss_view = solution.assembly.boundary_gauss()
+    boundary_cons = solution.fields.conservative(view="boundary")
+    boundary_skeleton = solution.fields.conservative(view="boundary", skeleton=True)
+    boundary_gauss_cons = solution.fields.conservative(view="boundary_gauss")
+    boundary_gauss_skeleton = solution.fields.conservative(view="boundary_gauss", skeleton=True)
+    axis = solution.equilibrium.define_axis()
     profile = solution.sample.line(
         baseline["sampled_profile"]["r"],
         baseline["sampled_profile"]["z"],
@@ -71,7 +78,16 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     assert solution.views.simple.solution.physical is simple_phys
     assert solution.views.gauss.solution.physical is gauss_phys
     assert solution.views.gauss.gradient.physical is gauss_grad_phys
+    assert boundary_view is solution.views.boundary
+    assert boundary_gauss_view is solution.views.boundary_gauss
+    assert boundary_cons is solution.views.boundary.solution.conservative
+    assert boundary_skeleton is solution.views.boundary.solution_skeleton.conservative
+    assert np.allclose(boundary_gauss_cons, solution.views.boundary_gauss.solution.conservative)
+    assert np.allclose(boundary_gauss_skeleton, solution.views.boundary_gauss.solution_skeleton.conservative)
+    assert axis is solution.summary.equilibrium.axis
     assert solution.metadata.flags.combined_gauss
+    assert solution.metadata.flags.combined_boundary
+    assert solution.metadata.flags.combined_boundary_gauss
     assert solution.metadata.flags.gauss_phys_initialized
     assert solution.summary.boundary.profile is boundary_summary
     assert set(point.keys()) == {"n", "te", "ti"}

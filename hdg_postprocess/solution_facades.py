@@ -5,7 +5,7 @@ class SolutionFields:
     def __init__(self, solution):
         self._solution = solution
 
-    def conservative(self, view="full", gradients=False):
+    def conservative(self, view="full", gradients=False, skeleton=False, boundaries=None):
         if view == "simple":
             if not self._solution.metadata.flags.combined_simple_solution:
                 self._solution.recombine_simple_full_solution()
@@ -30,9 +30,31 @@ class SolutionFields:
                 if gradients
                 else self._solution.views.gauss.solution.conservative
             )
+        if view == "boundary":
+            if not self._solution.metadata.flags.combined_boundary:
+                self._solution.recombine_boundary_solution()
+            if gradients and skeleton:
+                raise ValueError("Boundary gradient and solution skeleton are distinct views.")
+            if gradients:
+                return self._solution.views.boundary.gradient.conservative
+            if skeleton:
+                return self._solution.views.boundary.solution_skeleton.conservative
+            return self._solution.views.boundary.solution.conservative
+        if view == "boundary_gauss":
+            if not self._solution.metadata.flags.combined_boundary_gauss:
+                if boundaries is None:
+                    boundaries = np.unique(self._solution.raw.boundary_infos[0]["boundary_flags"])
+                self._solution.calculate_in_boundary_gauss_points(boundaries)
+            if gradients and skeleton:
+                raise ValueError("Boundary gradient and solution skeleton are distinct views.")
+            if gradients:
+                return self._solution.views.boundary_gauss.gradient.conservative
+            if skeleton:
+                return self._solution.views.boundary_gauss.solution_skeleton.conservative
+            return self._solution.views.boundary_gauss.solution.conservative
         raise ValueError(f"Unsupported conservative view: {view}")
 
-    def physical(self, view="full", gradients=False):
+    def physical(self, view="full", gradients=False, skeleton=False):
         if view == "simple":
             if not self._solution.metadata.flags.simple_phys_initialized:
                 self._solution.init_phys_variables("simple")
@@ -57,7 +79,57 @@ class SolutionFields:
                 if gradients
                 else self._solution.views.gauss.solution.physical
             )
+        if view in {"boundary", "boundary_gauss"}:
+            raise ValueError("Physical boundary fields are not initialized yet; use conservative boundary data for now.")
         raise ValueError(f"Unsupported physical view: {view}")
+
+
+class SolutionAssembly:
+    def __init__(self, solution):
+        self._solution = solution
+
+    def full(self):
+        self._solution.recombine_full_solution()
+        return self._solution.views.glob
+
+    def simple(self):
+        self._solution.recombine_simple_full_solution()
+        return self._solution.views.simple
+
+    def boundary(self):
+        self._solution.recombine_boundary_solution()
+        return self._solution.views.boundary
+
+    def gauss(self):
+        self._solution.calculate_in_gauss_points()
+        return self._solution.views.gauss
+
+    def boundary_gauss(self, boundaries=None):
+        if boundaries is None:
+            boundaries = np.unique(self._solution.raw.boundary_infos[0]["boundary_flags"])
+        self._solution.calculate_in_boundary_gauss_points(boundaries)
+        return self._solution.views.boundary_gauss
+
+
+class SolutionEquilibrium:
+    def __init__(self, solution):
+        self._solution = solution
+
+    def define_axis(self):
+        self._solution.define_magnetic_axis()
+        return self._solution.summary.equilibrium.axis
+
+    def define_minor_radii(self, view="simple"):
+        which = "full" if view == "glob" else view
+        self._solution.define_minor_radii(which=which)
+        target_view = self._solution.views.glob if which == "full" else getattr(self._solution.views, which)
+        return target_view.equilibrium.a
+
+    def define_qcyl(self, view="simple"):
+        which = "full" if view == "glob" else view
+        self._solution.define_qcyl(which=which)
+        target_view = self._solution.views.glob if which == "full" else getattr(self._solution.views, which)
+        return target_view.equilibrium.qcyl
 
 
 class SolutionAnalysis:
