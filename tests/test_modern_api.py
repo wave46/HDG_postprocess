@@ -109,6 +109,6 @@ def test_modern_mesh_api(manifest_path, baselines_dir):
     mesh.geometry.recombine_full()
     connectivity_big = mesh.geometry.ensure_connectivity_big()
 
-    assert mesh.p_order == baseline["p_order"]
-    assert mesh.nelems_glob == baseline["nelems_glob"]
+    assert mesh.metadata.p_order == baseline["p_order"]
+    assert mesh.global_state.n_elements == baseline["nelems_glob"]
     assert connectivity_big.shape[0] == baseline["connectivity_big_shape"][0]

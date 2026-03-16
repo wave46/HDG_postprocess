@@ -17,9 +17,9 @@ def calculate_ohmic_source(solution, which="simple"):
     if which == "simple":
         calculate_ohmic_source(solution, which="full")
         glob_solution = solution.views.glob.solution.conservative
-        solution.views.simple.sources.ohmic_source = np.zeros(solution.mesh.vertices_glob.shape[0])
+        solution.views.simple.sources.ohmic_source = np.zeros(solution.mesh.global_state.vertices.shape[0])
         solution.views.simple.sources.ohmic_source[
-            solution.mesh.connectivity_glob.reshape(-1, 1).ravel()
+            solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()
         ] = solution.views.glob.sources.ohmic_source.reshape(glob_solution.shape[0] * glob_solution.shape[1])
     elif which == "full":
         _ensure_full_solution(solution)
@@ -440,8 +440,8 @@ def _ensure_gauss_solution(solution):
 
 
 def _assign_simple_view(solution, field_name, full_values):
-    simple_values = np.zeros(solution.mesh.vertices_glob.shape[0])
-    simple_values[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = full_values.reshape(
+    simple_values = np.zeros(solution.mesh.global_state.vertices.shape[0])
+    simple_values[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = full_values.reshape(
         solution.views.glob.solution.conservative.shape[0] * solution.views.glob.solution.conservative.shape[1]
     )
     setattr(solution.views.simple.sources, field_name, simple_values)

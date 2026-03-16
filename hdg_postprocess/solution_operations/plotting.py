@@ -364,7 +364,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 simple_solution,
                 solution.additional_parameters.turbulence,
                 solution.views.simple.equilibrium.qcyl,
-                solution.mesh.vertices_glob[:, 0] / solution.parameters["adimensionalization"]["length_scale"],
+                solution.mesh.global_state.vertices[:, 0] / solution.parameters["adimensionalization"]["length_scale"],
                 solution.parameters["adimensionalization"]["length_scale"] ** 2
                 / solution.parameters["adimensionalization"]["time_scale"],
                 solution.metadata.indices.conservative,

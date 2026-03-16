@@ -1,6 +1,14 @@
 import numpy as np
 
 
+def _ensure_boundary_combined(mesh, raw_boundary_info):
+    if mesh.metadata.flags.boundary_combined:
+        return
+    if raw_boundary_info is None:
+        raise ValueError("Please, provide raw boundary info as input to this method")
+    recombine_full_boundary(mesh, raw_boundary_info)
+
+
 def recombine_full_boundary(mesh, raw_boundary_info):
     if mesh.n_partitions > 1:
         mesh.global_state.n_faces = 0
@@ -105,8 +113,7 @@ def recombine_full_boundary(mesh, raw_boundary_info):
 
 
 def boundary_ordering(mesh, raw_boundary_info, boundaries):
-    if not mesh.metadata.flags.boundary_combined:
-        recombine_full_boundary(mesh, raw_boundary_info)
+    _ensure_boundary_combined(mesh, raw_boundary_info)
 
     connected_boundaries = []
     segments = 0
@@ -179,17 +186,14 @@ def calculate_gauss_boundary(mesh, boundaries, raw_boundary_info):
         from hdg_postprocess.mesh_operations.geometry import recombine_full_mesh
 
         recombine_full_mesh(mesh)
-    if not mesh.metadata.flags.boundary_combined:
-        if raw_boundary_info is None:
-            raise ValueError("Please, provide raw boundary info as input to this method")
-        recombine_full_boundary(mesh, raw_boundary_info)
+    _ensure_boundary_combined(mesh, raw_boundary_info)
     boundary_ordering_res, connectivity_ordered, iel_face_number = boundary_ordering(mesh, raw_boundary_info, boundaries)
 
     mesh.boundary_state.vertices_gauss = np.einsum(
-        "ij,kjh->kih", mesh.metadata.reference_element["N1d"], mesh.vertices_glob[connectivity_ordered, :]
+        "ij,kjh->kih", mesh.metadata.reference_element["N1d"], mesh.global_state.vertices[connectivity_ordered, :]
     )
     derivative_gauss = np.einsum(
-        "ij,kjh->kih", mesh.metadata.reference_element["N1dxi"], mesh.vertices_glob[connectivity_ordered, :]
+        "ij,kjh->kih", mesh.metadata.reference_element["N1dxi"], mesh.global_state.vertices[connectivity_ordered, :]
     )
     derivative_norm = np.sqrt(((derivative_gauss ** 2).sum(axis=2)))[:, :, None]
     mesh.boundary_state.tangentials_gauss = derivative_gauss / derivative_norm

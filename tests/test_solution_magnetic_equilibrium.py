@@ -46,9 +46,9 @@ def test_solution_magnetic_equilibrium_surface(manifest_path):
     sol.equilibrium.define_qcyl("simple")
 
     axis_flux = sol.views.simple.equilibrium.poloidal_flux.min()
-    axis_candidates = sol.mesh.vertices_glob[np.where(sol.views.simple.equilibrium.poloidal_flux == axis_flux)][0]
+    axis_candidates = sol.mesh.global_state.vertices[np.where(sol.views.simple.equilibrium.poloidal_flux == axis_flux)][0]
 
     assert np.isclose(sol.summary.equilibrium.axis.r, axis_candidates[0])
     assert np.isclose(sol.summary.equilibrium.axis.z, axis_candidates[1])
     assert sol.views.glob.equilibrium.a.shape[:2] == sol.views.glob.solution.conservative.shape[:2]
-    assert sol.views.simple.equilibrium.qcyl.shape[0] == sol.mesh.vertices_glob.shape[0]
+    assert sol.views.simple.equilibrium.qcyl.shape[0] == sol.mesh.global_state.vertices.shape[0]

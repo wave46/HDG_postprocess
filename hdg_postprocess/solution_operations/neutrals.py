@@ -105,8 +105,8 @@ def _ensure_full_solution(solution):
 
 
 def _simple_values(solution, full_values):
-    simple_values = np.zeros(solution.mesh.vertices_glob.shape[0])
-    simple_values[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = full_values.reshape(
+    simple_values = np.zeros(solution.mesh.global_state.vertices.shape[0])
+    simple_values[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = full_values.reshape(
         solution.views.glob.solution.conservative.shape[0] * solution.views.glob.solution.conservative.shape[1]
     )
     return simple_values

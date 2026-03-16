@@ -140,15 +140,15 @@ def define_interpolators(solution):
     if interpolators.sample is None:
         if solution.mesh.mesh_parameters["element_type"] == "triangle":
             interpolators.sample = SoledgeHDG2DInterpolator(
-                solution.mesh.vertices_glob, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.connectivity_glob,
+                solution.mesh.global_state.vertices, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.global_state.connectivity,
                 solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord"],
-                solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
+                solution.mesh.mesh_parameters["element_type"], solution.mesh.metadata.p_order, limit=False,
             )
         elif solution.mesh.mesh_parameters["element_type"] == "quadrilateral":
             interpolators.sample = SoledgeHDG2DInterpolator(
-                solution.mesh.vertices_glob, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.connectivity_glob,
+                solution.mesh.global_state.vertices, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.global_state.connectivity,
                 solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord1d"],
-                solution.mesh.mesh_parameters["element_type"], solution.mesh.p_order, limit=False,
+                solution.mesh.mesh_parameters["element_type"], solution.mesh.metadata.p_order, limit=False,
             )
 
     interpolators.solution = []

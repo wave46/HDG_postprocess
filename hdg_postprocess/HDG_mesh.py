@@ -9,6 +9,8 @@ from hdg_postprocess.mesh_api import (
     MeshMetadata,
     MeshPlot,
 )
+
+
 class HDGmesh:
     """
     SOLEDGE-HDG mesh object  
@@ -49,6 +51,12 @@ class HDGmesh:
             self._raw_rest_mesh_data = raw_rest_mesh_data
 
         self._initial_setup()
+
+    def _initial_setup(self):
+        self._init_api_helpers()
+        self._init_state_containers()
+        self._init_metadata()
+        self._init_partition_state()
 
     def _store_raw_inputs(
         self,
@@ -125,12 +133,6 @@ class HDGmesh:
             self._global_state.n_faces = None
         self._metadata.flags.boundary_combined = False
 
-    def _initial_setup(self):
-        self._init_api_helpers()
-        self._init_state_containers()
-        self._init_metadata()
-        self._init_partition_state()
-
     @property
     def raw_vertices(self):
         """raw vertices"""
@@ -140,31 +142,6 @@ class HDGmesh:
     def raw_connectivity(self):
         """raw connectivity"""
         return self._raw_connectivity
-
-    @property
-    def vertices_glob(self):
-        """vertices in global mesh"""
-        return self._global_state.vertices
-
-    @property
-    def connectivity_glob(self):
-        """connectivity of a global mesh"""
-        return self._global_state.connectivity
-
-    @property
-    def nelems_glob(self):
-        """number of elements in global mesh"""
-        return self._global_state.n_elements
-
-    @property
-    def nvertices_glob(self):
-        """nubmer of vertices in global mesh"""
-        return self._global_state.n_vertices
-
-    @property
-    def nfaces_glob(self):
-        """number of faces in global mesh"""
-        return self._global_state.n_faces
 
     @property
     def raw_connectivity_boundary(self):
@@ -205,16 +182,6 @@ class HDGmesh:
     def n_partitions(self):
         """number of partitions"""
         return self._n_partitions
-
-    @property
-    def p_order(self):
-        """polynomial order of the mesh"""
-        return self._metadata.p_order
-
-    @property
-    def mesh_extent(self):
-        """Extent of the mesh. A dictionary with minr, maxr, minz and maxz keys."""
-        return self._metadata.extent
 
     @property
     def geometry(self):

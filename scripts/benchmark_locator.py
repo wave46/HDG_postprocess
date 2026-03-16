@@ -38,7 +38,7 @@ def load_mesh_for_scenario(config):
 
 
 def build_query_points(mesh, n_r=600, n_z=32):
-    triangles = mesh.vertices_glob[mesh.derived_geometry.connectivity_big]
+    triangles = mesh.global_state.vertices[mesh.derived_geometry.connectivity_big]
     centroids = triangles.mean(axis=1)
     sample_step = max(1, len(centroids) // n_r)
     return [tuple(map(float, point)) for point in centroids[::sample_step]]
@@ -73,11 +73,11 @@ def main():
 
     mesh = load_mesh_for_scenario(config)
     mesh.geometry.ensure_connectivity_big()
-    repeats = mesh.derived_geometry.connectivity_big.shape[0] // mesh.connectivity_glob.shape[0]
-    element_numbers = np.repeat(np.arange(len(mesh.connectivity_glob)), repeats)
+    repeats = mesh.derived_geometry.connectivity_big.shape[0] // mesh.global_state.connectivity.shape[0]
+    element_numbers = np.repeat(np.arange(len(mesh.global_state.connectivity)), repeats)
 
     raysect_locator = Discrete2DMesh(
-        mesh.vertices_glob,
+        mesh.global_state.vertices,
         mesh.derived_geometry.connectivity_big,
         element_numbers,
         limit=False,
@@ -98,7 +98,7 @@ def main():
         return
 
     native_locator = native_locator_cls(
-        mesh.vertices_glob,
+        mesh.global_state.vertices,
         mesh.derived_geometry.connectivity_big,
         element_numbers,
         limit=False,

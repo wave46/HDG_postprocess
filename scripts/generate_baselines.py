@@ -141,11 +141,11 @@ def _mesh_baseline(mesh, element_probe=None):
     mesh.geometry.ensure_connectivity_big()
 
     baseline = {
-        "mesh_extent": _to_builtin(mesh.mesh_extent),
-        "p_order": int(mesh.p_order),
-        "nelems_glob": int(mesh.nelems_glob),
-        "nvertices_glob": int(mesh.nvertices_glob),
-        "connectivity_shape": list(mesh.connectivity_glob.shape),
+        "mesh_extent": _to_builtin(mesh.metadata.extent),
+        "p_order": int(mesh.metadata.p_order),
+        "nelems_glob": int(mesh.global_state.n_elements),
+        "nvertices_glob": int(mesh.global_state.n_vertices),
+        "connectivity_shape": list(mesh.global_state.connectivity.shape),
         "connectivity_big_shape": list(mesh.derived_geometry.connectivity_big.shape),
     }
 
@@ -168,14 +168,14 @@ def _mesh_baseline(mesh, element_probe=None):
 
 
 def _pick_inside_points(sol, n_points=6):
-    z_mid = 0.0 if sol.mesh.mesh_extent["minz"] <= 0.0 <= sol.mesh.mesh_extent["maxz"] else (
-        sol.mesh.mesh_extent["minz"] + sol.mesh.mesh_extent["maxz"]
+    z_mid = 0.0 if sol.mesh.metadata.extent["minz"] <= 0.0 <= sol.mesh.metadata.extent["maxz"] else (
+        sol.mesh.metadata.extent["minz"] + sol.mesh.metadata.extent["maxz"]
     ) / 2.0
-    candidates_r = np.linspace(sol.mesh.mesh_extent["minr"], sol.mesh.mesh_extent["maxr"], 400)
+    candidates_r = np.linspace(sol.mesh.metadata.extent["minr"], sol.mesh.metadata.extent["maxr"], 400)
     inside_mid = [(float(r), float(z_mid)) for r in candidates_r if int(sol.mesh.derived_geometry.element_locator(r, z_mid)) != -1]
 
-    z_off = z_mid + 0.15 * (sol.mesh.mesh_extent["maxz"] - sol.mesh.mesh_extent["minz"])
-    z_off = min(sol.mesh.mesh_extent["maxz"], max(sol.mesh.mesh_extent["minz"], z_off))
+    z_off = z_mid + 0.15 * (sol.mesh.metadata.extent["maxz"] - sol.mesh.metadata.extent["minz"])
+    z_off = min(sol.mesh.metadata.extent["maxz"], max(sol.mesh.metadata.extent["minz"], z_off))
     inside_off = [(float(r), float(z_off)) for r in candidates_r if int(sol.mesh.derived_geometry.element_locator(r, z_off)) != -1]
 
     mid = inside_mid[:n_points]

@@ -21,8 +21,8 @@ def calculate_dk(solution, which="simple"):
         if solution.views.simple.equilibrium.qcyl is None:
             solution.equilibrium.define_qcyl(view="simple")
         calculate_dk(solution, which="full")
-        solution.views.simple.derived.dk = np.zeros(solution.mesh.vertices_glob.shape[0])
-        solution.views.simple.derived.dk[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.views.glob.derived.dk.reshape(
+        solution.views.simple.derived.dk = np.zeros(solution.mesh.global_state.vertices.shape[0])
+        solution.views.simple.derived.dk[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = solution.views.glob.derived.dk.reshape(
             solution.views.glob.derived.dk.shape[0] * solution.views.glob.derived.dk.shape[1]
         )
 
@@ -44,7 +44,7 @@ def calculate_dk(solution, which="simple"):
             solution.views.glob.solution.conservative,
             solution.additional_parameters.turbulence,
             solution.views.glob.equilibrium.qcyl,
-            solution.mesh.vertices_glob[solution.mesh.connectivity_glob][:, :, 0]
+            solution.mesh.global_state.vertices[solution.mesh.global_state.connectivity][:, :, 0]
             / solution.parameters["adimensionalization"]["length_scale"],
             solution.parameters["adimensionalization"]["length_scale"] ** 2
             / solution.parameters["adimensionalization"]["time_scale"],

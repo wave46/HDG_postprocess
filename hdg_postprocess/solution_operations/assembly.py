@@ -8,21 +8,21 @@ def recombine_full_solution(solution):
 
     glob_view = solution.views.glob
     glob_view.solution.conservative = np.zeros(
-        (solution.mesh.nelems_glob, solution.mesh.mesh_parameters["nodes_per_element"], solution.neq)
+        (solution.mesh.global_state.n_elements, solution.mesh.mesh_parameters["nodes_per_element"], solution.neq)
     )
     glob_view.gradient.conservative = np.zeros(
-        (solution.mesh.nelems_glob, solution.mesh.mesh_parameters["nodes_per_element"], solution.neq, solution.ndim)
+        (solution.mesh.global_state.n_elements, solution.mesh.mesh_parameters["nodes_per_element"], solution.neq, solution.ndim)
     )
     glob_view.equilibrium.magnetic_field = np.zeros(
-        (solution.mesh.nelems_glob, solution.mesh.mesh_parameters["nodes_per_element"], 3)
+        (solution.mesh.global_state.n_elements, solution.mesh.mesh_parameters["nodes_per_element"], 3)
     )
     if "poloidal_flux" in solution.raw.equilibriums[0].keys():
         glob_view.equilibrium.poloidal_flux = np.zeros(
-            (solution.mesh.nelems_glob, solution.mesh.mesh_parameters["nodes_per_element"])
+            (solution.mesh.global_state.n_elements, solution.mesh.mesh_parameters["nodes_per_element"])
         )
     if solution.parameters["switches"]["ohmicsrc"][0] == 1:
         glob_view.equilibrium.jtor = np.zeros(
-            (solution.mesh.nelems_glob, solution.mesh.mesh_parameters["nodes_per_element"])
+            (solution.mesh.global_state.n_elements, solution.mesh.mesh_parameters["nodes_per_element"])
         )
 
     for i in range(solution.n_partitions):
@@ -64,11 +64,11 @@ def recombine_full_solution(solution):
                 glob_view.equilibrium.jtor = raw_jtor
 
     if "external_heating" in solution.parameters["physics"]:
-        glob_view.sources.external_heating = solution.parameters["physics"]["external_heating"][solution.mesh.connectivity_glob]
+        glob_view.sources.external_heating = solution.parameters["physics"]["external_heating"][solution.mesh.global_state.connectivity]
     if "external_heating_e" in solution.parameters["physics"]:
-        glob_view.sources.external_heating_e = solution.parameters["physics"]["external_heating_e"][solution.mesh.connectivity_glob]
+        glob_view.sources.external_heating_e = solution.parameters["physics"]["external_heating_e"][solution.mesh.global_state.connectivity]
     if "external_heating_i" in solution.parameters["physics"]:
-        glob_view.sources.external_heating_i = solution.parameters["physics"]["external_heating_i"][solution.mesh.connectivity_glob]
+        glob_view.sources.external_heating_i = solution.parameters["physics"]["external_heating_i"][solution.mesh.global_state.connectivity]
 
     glob_view.equilibrium.magnetic_field_unit = glob_view.equilibrium.magnetic_field / np.sqrt(
         (glob_view.equilibrium.magnetic_field ** 2).sum(axis=-1)
@@ -84,28 +84,28 @@ def recombine_simple_full_solution(solution):
         recombine_full_solution(solution)
     glob_view = solution.views.glob
     simple_view = solution.views.simple
-    simple_view.solution.conservative = np.zeros([solution.mesh.vertices_glob.shape[0], solution.neq])
-    simple_view.solution.conservative[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :] = glob_view.solution.conservative.reshape(
+    simple_view.solution.conservative = np.zeros([solution.mesh.global_state.vertices.shape[0], solution.neq])
+    simple_view.solution.conservative[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :] = glob_view.solution.conservative.reshape(
         glob_view.solution.conservative.shape[0] * glob_view.solution.conservative.shape[1], solution.neq
     )
 
-    simple_view.gradient.conservative = np.zeros([solution.mesh.vertices_glob.shape[0], solution.neq, solution.ndim])
-    simple_view.gradient.conservative[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :, :] = glob_view.gradient.conservative.reshape(
+    simple_view.gradient.conservative = np.zeros([solution.mesh.global_state.vertices.shape[0], solution.neq, solution.ndim])
+    simple_view.gradient.conservative[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :, :] = glob_view.gradient.conservative.reshape(
         glob_view.gradient.conservative.shape[0] * glob_view.gradient.conservative.shape[1], solution.neq, solution.ndim
     )
 
-    simple_view.equilibrium.magnetic_field = np.zeros([solution.mesh.vertices_glob.shape[0], 3])
-    simple_view.equilibrium.magnetic_field[solution.mesh.connectivity_glob.reshape(-1, 1).ravel(), :] = glob_view.equilibrium.magnetic_field.reshape(
+    simple_view.equilibrium.magnetic_field = np.zeros([solution.mesh.global_state.vertices.shape[0], 3])
+    simple_view.equilibrium.magnetic_field[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :] = glob_view.equilibrium.magnetic_field.reshape(
         glob_view.equilibrium.magnetic_field.shape[0] * glob_view.equilibrium.magnetic_field.shape[1], 3
     )
     if solution.parameters["switches"]["ohmicsrc"][0] == 1:
-        simple_view.equilibrium.jtor = np.zeros(solution.mesh.vertices_glob.shape[0])
-        simple_view.equilibrium.jtor[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.jtor.reshape(
+        simple_view.equilibrium.jtor = np.zeros(solution.mesh.global_state.vertices.shape[0])
+        simple_view.equilibrium.jtor[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = glob_view.equilibrium.jtor.reshape(
             glob_view.equilibrium.jtor.shape[0] * glob_view.equilibrium.jtor.shape[1]
         )
     if "poloidal_flux" in solution.raw.equilibriums[0].keys():
-        simple_view.equilibrium.poloidal_flux = np.zeros([solution.mesh.vertices_glob.shape[0]])
-        simple_view.equilibrium.poloidal_flux[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = glob_view.equilibrium.poloidal_flux.reshape(
+        simple_view.equilibrium.poloidal_flux = np.zeros([solution.mesh.global_state.vertices.shape[0]])
+        simple_view.equilibrium.poloidal_flux[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = glob_view.equilibrium.poloidal_flux.reshape(
             glob_view.equilibrium.poloidal_flux.shape[0] * glob_view.equilibrium.poloidal_flux.shape[1]
         )
     solution.metadata.flags.combined_simple_solution = True
@@ -155,7 +155,7 @@ def recombine_boundary_solution(solution):
             boundary_view.equilibrium.poloidal_flux[key].append(glob_view.equilibrium.poloidal_flux[face_element_number, face_nodes])
 
     if solution.n_partitions > 1:
-        solution_skeleton_boundary = np.ones((solution.mesh.nfaces_glob, solution.mesh.mesh_parameters["nodes_per_face"], solution.neq))
+        solution_skeleton_boundary = np.ones((solution.mesh.global_state.n_faces, solution.mesh.mesh_parameters["nodes_per_face"], solution.neq))
         for i in range(solution.n_partitions):
             non_ghost = ~solution.mesh.raw_ghost_faces[i].flatten()
             raw_solution = solution.raw.solutions_skeleton[i].reshape(

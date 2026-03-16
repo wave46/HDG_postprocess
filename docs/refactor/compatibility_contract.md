@@ -71,11 +71,11 @@ Properties and attributes:
 
 - `metadata.reference_element`
 - `metadata.flags.combined_to_full`
+- `metadata.extent`
+- `global_state.vertices`
+- `global_state.connectivity`
 - `boundary_state`
 - `derived_geometry`
-- `vertices_glob`
-- `connectivity_glob`
-- `mesh_extent`
 
 Required workflows:
 
