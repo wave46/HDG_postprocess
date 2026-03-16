@@ -399,6 +399,31 @@ class HDGsolution:
         """number of partitions"""
         return self._n_partitions
 
+    @property
+    def views(self):
+        """Public structured access to view-based solution state."""
+        return self._views
+
+    @property
+    def summary(self):
+        """Public structured access to summary and conservation state."""
+        return self._summary
+
+    @property
+    def parameter_state(self):
+        """Public structured access to setup parameter state."""
+        return self._parameter_state
+
+    @property
+    def atomic_rates(self):
+        """Public structured access to cached atomic rate coefficients."""
+        return self._atomic_rates
+
+    @property
+    def interpolators(self):
+        """Public structured access to cached interpolators."""
+        return self._interpolators_state
+
     def recombine_full_solution(self):
         """ 
         Recombine raw solutions into one single mesh

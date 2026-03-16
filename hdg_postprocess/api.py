@@ -28,6 +28,26 @@ class PostprocessedSolution:
         return PostprocessedMesh(self.legacy.mesh)
 
     @property
+    def views(self):
+        return self.legacy.views
+
+    @property
+    def summary(self):
+        return self.legacy.summary
+
+    @property
+    def parameters_state(self):
+        return self.legacy.parameter_state
+
+    @property
+    def atomic_rates(self):
+        return self.legacy.atomic_rates
+
+    @property
+    def interpolators(self):
+        return self.legacy.interpolators
+
+    @property
     def metadata(self):
         return {
             "neq": self.legacy.neq,
@@ -63,22 +83,25 @@ class _SolutionFields:
         if view == "simple":
             if not self._solution.combined_simple_solution:
                 self._solution.recombine_simple_full_solution()
-            return self._solution.gradient_simple if gradients else self._solution.solution_simple
+            return self._solution.views.simple.gradient.conservative if gradients else self._solution.views.simple.solution.conservative
         if view == "full":
             if not self._solution.combined_to_full:
                 self._solution.recombine_full_solution()
-            return self._solution.gradient_glob if gradients else self._solution.solution_glob
+            return self._solution.views.glob.gradient.conservative if gradients else self._solution.views.glob.solution.conservative
+        if view == "gauss":
+            self._solution.calculate_in_gauss_points()
+            return self._solution.views.gauss.gradient.conservative if gradients else self._solution.views.gauss.solution.conservative
         raise ValueError(f"Unsupported conservative view: {view}")
 
     def physical(self, view="full", gradients=False):
         if view == "simple":
             if not self._solution.simple_phys_initialized:
                 self._solution.init_phys_variables("simple")
-            return self._solution.gradient_simple_phys if gradients else self._solution.solution_simple_phys
+            return self._solution.views.simple.gradient.physical if gradients else self._solution.views.simple.solution.physical
         if view == "full":
             if not self._solution.full_phys_initialized:
                 self._solution.init_phys_variables("full")
-            return self._solution.gradient_glob_phys if gradients else self._solution.solution_glob_phys
+            return self._solution.views.glob.gradient.physical if gradients else self._solution.views.glob.solution.physical
         raise ValueError(f"Unsupported physical view: {view}")
 
 
@@ -91,7 +114,7 @@ class _SolutionAnalysis:
 
     def boundary_summary(self):
         self._solution.calculate_boundary_summary()
-        return self._solution.boundary_summary
+        return self._solution.summary.boundary.boundary_summary
 
 
 class _SolutionSampling:

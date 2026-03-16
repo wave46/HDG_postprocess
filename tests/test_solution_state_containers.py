@@ -53,17 +53,17 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
     sol.calculate_dk("full")
     sol.calculate_dk("simple")
 
-    assert sol._summary.equilibrium.axis.r == sol.r_axis
-    assert sol._summary.equilibrium.axis.z == sol.z_axis
-    assert sol._views.glob.equilibrium.a is sol.a_glob
-    assert sol._views.simple.equilibrium.a is sol.a_simple
-    assert sol._views.glob.equilibrium.qcyl is sol.qcyl_glob
-    assert sol._views.simple.equilibrium.qcyl is sol.qcyl_simple
-    assert sol._views.simple.solution.physical is sol.solution_simple_phys
-    assert sol._views.glob.solution.conservative is sol.solution_glob
-    assert sol._views.glob.gradient.physical is sol.gradient_glob_phys
-    assert sol._views.simple.derived.dk is sol.dk_simple
-    assert sol._views.glob.derived.dk is sol.dk_glob
+    assert sol.summary.equilibrium.axis.r == sol.r_axis
+    assert sol.summary.equilibrium.axis.z == sol.z_axis
+    assert sol.views.glob.equilibrium.a is sol.a_glob
+    assert sol.views.simple.equilibrium.a is sol.a_simple
+    assert sol.views.glob.equilibrium.qcyl is sol.qcyl_glob
+    assert sol.views.simple.equilibrium.qcyl is sol.qcyl_simple
+    assert sol.views.simple.solution.physical is sol.solution_simple_phys
+    assert sol.views.glob.solution.conservative is sol.solution_glob
+    assert sol.views.glob.gradient.physical is sol.gradient_glob_phys
+    assert sol.views.simple.derived.dk is sol.dk_simple
+    assert sol.views.glob.derived.dk is sol.dk_glob
 
 
 def test_container_state_sync_neutral_derived_fields(manifest_path):
@@ -88,10 +88,10 @@ def test_container_state_sync_neutral_derived_fields(manifest_path):
     sol.calculate_dnn_with_nn_collision("simple")
     sol.calculate_mfp("simple")
 
-    assert sol._views.simple.derived.dnn is sol.dnn_simple
-    assert sol._views.simple.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision_simple
-    assert sol._views.simple.derived.mfp is sol.mfp_simple
-    assert sol._views.glob.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision
+    assert sol.views.simple.derived.dnn is sol.dnn_simple
+    assert sol.views.simple.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision_simple
+    assert sol.views.simple.derived.mfp is sol.mfp_simple
+    assert sol.views.glob.derived.dnn_with_nn_collision is sol.dnn_simple_with_nn_collision
 
 
 def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
@@ -125,19 +125,19 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
     sol.define_qcyl(which="full")
     sol.define_interpolators()
 
-    assert sol._parameter_state.atomic is sol.atomic_parameters
-    assert sol._parameter_state.neutral_diffusion is sol.dnn_parameters
-    assert sol._parameter_state.turbulence is sol.dk_parameters
-    assert sol._parameter_state.neutral_diffusion["dnn_max_adim"] == sol.dnn_parameters["dnn_max_adim"]
-    assert sol._parameter_state.turbulence["dk_max_adim"] == sol.dk_parameters["dk_max_adim"]
-    assert sol._atomic_rates.ionization_simple is sol.ionization_rate_simple
-    assert sol._atomic_rates.recombination_simple is sol.recombination_rate_simple
-    assert sol._atomic_rates.cx_simple is sol.cx_rate_simple
-    assert sol._interpolators_state.sample is sol.sample_interpolator
-    assert sol._interpolators_state.solution is sol.solution_interpolators
-    assert sol._interpolators_state.gradient is sol.gradient_interpolators
-    assert sol._interpolators_state.field is sol.field_interpolators
-    assert sol._interpolators_state.qcyl is sol.qcyl_interpolator
+    assert sol.parameter_state.atomic is sol.atomic_parameters
+    assert sol.parameter_state.neutral_diffusion is sol.dnn_parameters
+    assert sol.parameter_state.turbulence is sol.dk_parameters
+    assert sol.parameter_state.neutral_diffusion["dnn_max_adim"] == sol.dnn_parameters["dnn_max_adim"]
+    assert sol.parameter_state.turbulence["dk_max_adim"] == sol.dk_parameters["dk_max_adim"]
+    assert sol.atomic_rates.ionization_simple is sol.ionization_rate_simple
+    assert sol.atomic_rates.recombination_simple is sol.recombination_rate_simple
+    assert sol.atomic_rates.cx_simple is sol.cx_rate_simple
+    assert sol.interpolators.sample is sol.sample_interpolator
+    assert sol.interpolators.solution is sol.solution_interpolators
+    assert sol.interpolators.gradient is sol.gradient_interpolators
+    assert sol.interpolators.field is sol.field_interpolators
+    assert sol.interpolators.qcyl is sol.qcyl_interpolator
 
 
 def test_container_state_sync_sources_and_totals(manifest_path):
@@ -163,24 +163,24 @@ def test_container_state_sync_sources_and_totals(manifest_path):
     sol.calculate_cx_source("simple")
     sol.calculate_power_balance()
 
-    assert sol._summary.sources.ion_gain_iz_total == sol.ion_gain_iz_total
-    assert sol._summary.sources.electron_sink_iz_total == sol.electron_sink_iz_total
-    assert sol._summary.sources.ohmic_source_total == sol.ohmic_source_total
-    assert sol._views.glob.sources.ionization_source is sol.ionization_source
-    assert sol._views.simple.sources.ionization_source is sol.ionization_source_simple
-    assert sol._views.gauss.sources.ionization_source is sol.ionization_source_gauss
-    assert sol._views.glob.sources.electron_sink_rec is sol.electron_sink_rec
-    assert sol._views.simple.sources.electron_sink_rec is sol.electron_sink_rec_simple
-    assert sol._views.gauss.sources.electron_sink_rec is sol.electron_sink_rec_gauss
-    assert sol._views.glob.sources.cx_source is sol.cx_source
-    assert sol._views.simple.sources.cx_source is sol.cx_source_simple
-    assert sol._views.gauss.sources.cx_source is sol.cx_source_gauss
-    assert sol._views.glob.sources.ohmic_source is sol.ohmic_source
-    assert sol._views.simple.sources.ohmic_source is sol.ohmic_source_simple
-    assert sol._views.gauss.sources.ohmic_source is sol.ohmic_source_gauss
-    assert sol._summary.boundary.boundary_summary is sol.boundary_summary
-    assert sol._summary.boundary.ion_energy_sheath_loss_total == sol.ion_energy_sheath_loss_total
-    assert sol._summary.boundary.electron_energy_sheath_loss_total == sol.electron_energy_sheath_loss_total
+    assert sol.summary.sources.ion_gain_iz_total == sol.ion_gain_iz_total
+    assert sol.summary.sources.electron_sink_iz_total == sol.electron_sink_iz_total
+    assert sol.summary.sources.ohmic_source_total == sol.ohmic_source_total
+    assert sol.views.glob.sources.ionization_source is sol.ionization_source
+    assert sol.views.simple.sources.ionization_source is sol.ionization_source_simple
+    assert sol.views.gauss.sources.ionization_source is sol.ionization_source_gauss
+    assert sol.views.glob.sources.electron_sink_rec is sol.electron_sink_rec
+    assert sol.views.simple.sources.electron_sink_rec is sol.electron_sink_rec_simple
+    assert sol.views.gauss.sources.electron_sink_rec is sol.electron_sink_rec_gauss
+    assert sol.views.glob.sources.cx_source is sol.cx_source
+    assert sol.views.simple.sources.cx_source is sol.cx_source_simple
+    assert sol.views.gauss.sources.cx_source is sol.cx_source_gauss
+    assert sol.views.glob.sources.ohmic_source is sol.ohmic_source
+    assert sol.views.simple.sources.ohmic_source is sol.ohmic_source_simple
+    assert sol.views.gauss.sources.ohmic_source is sol.ohmic_source_gauss
+    assert sol.summary.boundary.boundary_summary is sol.boundary_summary
+    assert sol.summary.boundary.ion_energy_sheath_loss_total == sol.ion_energy_sheath_loss_total
+    assert sol.summary.boundary.electron_energy_sheath_loss_total == sol.electron_energy_sheath_loss_total
 
 
 def test_container_state_sync_representations(manifest_path):
@@ -202,28 +202,28 @@ def test_container_state_sync_representations(manifest_path):
     sol.calculate_in_gauss_points()
     sol.calculate_in_boundary_gauss_points(np.unique(sol.raw_solution_boundary_infos[0]["boundary_flags"]))
 
-    assert sol._views.simple.solution.conservative is sol.solution_simple
-    assert sol._views.simple.gradient.conservative is sol.gradient_simple
-    assert sol._views.simple.equilibrium.magnetic_field is sol.magnetic_field_simple
-    assert sol._views.simple.equilibrium.jtor is sol.jtor_simple
-    assert sol._views.simple.equilibrium.poloidal_flux is sol.poloidal_flux_simple
-    assert sol._views.glob.equilibrium.magnetic_field is sol.magnetic_field_glob
-    assert sol._views.glob.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_glob
-    assert sol._views.glob.equilibrium.jtor is sol.jtor_glob
-    assert sol._views.glob.equilibrium.poloidal_flux is sol.poloidal_flux_glob
-    assert sol._views.gauss.solution.conservative is sol.solution_gauss
-    assert sol._views.gauss.gradient.conservative is sol.gradient_gauss
-    assert sol._views.gauss.equilibrium.magnetic_field is sol.magnetic_field_gauss
-    assert sol._views.gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_gauss
-    assert sol._views.gauss.equilibrium.jtor is sol.jtor_gauss
-    assert sol._views.gauss.equilibrium.poloidal_flux is sol.poloidal_flux_gauss
-    assert sol._views.boundary.solution.conservative is sol.solution_boundary
-    assert sol._views.boundary.solution_skeleton.conservative is sol.solution_skeleton_boundary
-    assert sol._views.boundary.equilibrium.magnetic_field is sol.magnetic_field_boundary
-    assert sol._views.boundary.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary
-    assert sol._views.boundary.equilibrium.poloidal_flux is sol.poloidal_flux_boundary
-    assert sol._views.boundary_gauss.solution.conservative is sol.solution_boundary_gauss
-    assert sol._views.boundary_gauss.solution_skeleton.conservative is sol.solution_skeleton_boundary_gauss
-    assert sol._views.boundary_gauss.equilibrium.magnetic_field is sol.magnetic_field_boundary_gauss
-    assert sol._views.boundary_gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary_gauss
-    assert sol._views.boundary_gauss.equilibrium.poloidal_flux is sol.poloidal_flux_boundary_gauss
+    assert sol.views.simple.solution.conservative is sol.solution_simple
+    assert sol.views.simple.gradient.conservative is sol.gradient_simple
+    assert sol.views.simple.equilibrium.magnetic_field is sol.magnetic_field_simple
+    assert sol.views.simple.equilibrium.jtor is sol.jtor_simple
+    assert sol.views.simple.equilibrium.poloidal_flux is sol.poloidal_flux_simple
+    assert sol.views.glob.equilibrium.magnetic_field is sol.magnetic_field_glob
+    assert sol.views.glob.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_glob
+    assert sol.views.glob.equilibrium.jtor is sol.jtor_glob
+    assert sol.views.glob.equilibrium.poloidal_flux is sol.poloidal_flux_glob
+    assert sol.views.gauss.solution.conservative is sol.solution_gauss
+    assert sol.views.gauss.gradient.conservative is sol.gradient_gauss
+    assert sol.views.gauss.equilibrium.magnetic_field is sol.magnetic_field_gauss
+    assert sol.views.gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_gauss
+    assert sol.views.gauss.equilibrium.jtor is sol.jtor_gauss
+    assert sol.views.gauss.equilibrium.poloidal_flux is sol.poloidal_flux_gauss
+    assert sol.views.boundary.solution.conservative is sol.solution_boundary
+    assert sol.views.boundary.solution_skeleton.conservative is sol.solution_skeleton_boundary
+    assert sol.views.boundary.equilibrium.magnetic_field is sol.magnetic_field_boundary
+    assert sol.views.boundary.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary
+    assert sol.views.boundary.equilibrium.poloidal_flux is sol.poloidal_flux_boundary
+    assert sol.views.boundary_gauss.solution.conservative is sol.solution_boundary_gauss
+    assert sol.views.boundary_gauss.solution_skeleton.conservative is sol.solution_skeleton_boundary_gauss
+    assert sol.views.boundary_gauss.equilibrium.magnetic_field is sol.magnetic_field_boundary_gauss
+    assert sol.views.boundary_gauss.equilibrium.magnetic_field_unit is sol.magnetic_field_unit_boundary_gauss
+    assert sol.views.boundary_gauss.equilibrium.poloidal_flux is sol.poloidal_flux_boundary_gauss
