@@ -16,6 +16,7 @@ from hdg_postprocess.view_containers import (
     InterpolatorState,
     SolutionMetadataState,
     ParameterState,
+    RawPartitionState,
     SolutionSummaryState,
     SolutionViews,
 )
@@ -36,24 +37,25 @@ class HDGsolution:
         self._nphys = len(parameters["physics"]["physical_variable_names"])
         self._ndim = parameters["Ndim"][0]
         self._n_partitions = n_partitions
-        self._raw_equilibriums = raw_equilibriums
-        self._raw_solution_boundary_infos = raw_solution_boundary_infos
         self._mesh = mesh
+        self._raw = RawPartitionState(
+            solutions=[],
+            solutions_skeleton=[],
+            gradients=[],
+            equilibriums=raw_equilibriums,
+            boundary_infos=raw_solution_boundary_infos,
+        )
 
     def _store_raw_partitions(self, raw_solutions, raw_solutions_skeleton, raw_gradients):
-        self._raw_solutions = []
-        self._raw_solutions_skeleton = []
-        self._raw_gradients = []
-
         for raw_solution, raw_solution_skeleton, raw_gradient in zip(
             raw_solutions, raw_solutions_skeleton, raw_gradients
         ):
-            self._raw_solutions.append(raw_solution.reshape(raw_solution.shape[0] // self.neq, self.neq))
-            self._raw_solutions_skeleton.append(
+            self._raw.solutions.append(raw_solution.reshape(raw_solution.shape[0] // self.neq, self.neq))
+            self._raw.solutions_skeleton.append(
                 raw_solution_skeleton.reshape(raw_solution_skeleton.shape[0] // self.neq, self.neq)
             )
             raw_gradient = raw_gradient.reshape(raw_gradient.shape[0] // (self.neq * self.ndim), self.neq * self.ndim)
-            self._raw_gradients.append(raw_gradient.reshape(raw_gradient.shape[0], self.neq, self.ndim))
+            self._raw.gradients.append(raw_gradient.reshape(raw_gradient.shape[0], self.neq, self.ndim))
 
     def _initial_setup(self):
         self._init_state_containers()
@@ -118,7 +120,7 @@ class HDGsolution:
         return self._parameter_state.atomic
     @atomic_parameters.setter
     def atomic_parameters(self,value):
-        self._parameter_state.atomic = value
+        self._parameter_state.set_atomic(value)
 
     @property
     def dnn_parameters(self):
@@ -126,28 +128,14 @@ class HDGsolution:
         return self._parameter_state.neutral_diffusion
     @dnn_parameters.setter
     def dnn_parameters(self,value):
-        self._parameter_state.neutral_diffusion = value
-        self._parameter_state.neutral_diffusion['dnn_max_adim']=(self._parameter_state.neutral_diffusion['dnn_max']/
-                                              self.parameters['adimensionalization']['length_scale']**2*
-                                              self.parameters['adimensionalization']['time_scale'])
-        if not value['const']:
-            self._parameter_state.neutral_diffusion['dnn_min_adim']=(self._parameter_state.neutral_diffusion['dnn_min']/
-                                              self.parameters['adimensionalization']['length_scale']**2*
-                                              self.parameters['adimensionalization']['time_scale'])
+        self._parameter_state.set_neutral_diffusion(value, self.parameters["adimensionalization"])
     @property
     def dk_parameters(self):
         """Dictionary with atomic parameters"""
         return self._parameter_state.turbulence
     @dk_parameters.setter
     def dk_parameters(self,value):
-        self._parameter_state.turbulence = value
-        self._parameter_state.turbulence['dk_max_adim']=(self._parameter_state.turbulence['dk_max']/
-                                              self.parameters['adimensionalization']['length_scale']**2*
-                                              self.parameters['adimensionalization']['time_scale'])
-        
-        self._parameter_state.turbulence['dk_min_adim']=(self._parameter_state.turbulence['dk_min']/
-                                              self.parameters['adimensionalization']['length_scale']**2*
-                                              self.parameters['adimensionalization']['time_scale'])
+        self._parameter_state.set_turbulence(value, self.parameters["adimensionalization"])
     @property
     def neq(self):
         """number of equations"""
@@ -164,34 +152,29 @@ class HDGsolution:
         return self._nphys
 
     @property
-    def ndim(self):
-        """number of partitions"""
-        return self._ndim
-
-    @property
     def raw_solutions(self):
         """raw soutions on nodes partitions"""
-        return self._raw_solutions
+        return self._raw.solutions
 
     @property
     def raw_solutions_skeleton(self):
         """raw soutions on skeleton on partitions"""
-        return self._raw_solutions_skeleton
+        return self._raw.solutions_skeleton
 
     @property
     def raw_gradients(self):
         """raw gradients on nodes on partitions"""
-        return self._raw_gradients
+        return self._raw.gradients
     
     @property
     def raw_equilibriums(self):
         """raw equilibrium dictionaries on nodes on partitions"""
-        return self._raw_equilibriums
+        return self._raw.equilibriums
 
     @property
     def raw_solution_boundary_infos(self):
         """raw bounday info dictionaries on nodes on partitions"""
-        return self._raw_solution_boundary_infos
+        return self._raw.boundary_infos
 
     @property
     def mesh(self):
@@ -222,6 +205,11 @@ class HDGsolution:
     def parameter_state(self):
         """Public structured access to setup parameter state."""
         return self._parameter_state
+
+    @property
+    def raw(self):
+        """Public structured access to the raw partition payload."""
+        return self._raw
 
     @property
     def atomic_rates(self):

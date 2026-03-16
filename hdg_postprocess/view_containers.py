@@ -116,12 +116,55 @@ class ParameterState:
     neutral_diffusion: object = None
     turbulence: object = None
 
+    def set_atomic(self, value):
+        self.atomic = value
+
+    def set_neutral_diffusion(self, value, adimensionalization):
+        self.neutral_diffusion = value
+        if value is None:
+            return
+        self.neutral_diffusion["dnn_max_adim"] = (
+            self.neutral_diffusion["dnn_max"]
+            / adimensionalization["length_scale"] ** 2
+            * adimensionalization["time_scale"]
+        )
+        if not value["const"]:
+            self.neutral_diffusion["dnn_min_adim"] = (
+                self.neutral_diffusion["dnn_min"]
+                / adimensionalization["length_scale"] ** 2
+                * adimensionalization["time_scale"]
+            )
+
+    def set_turbulence(self, value, adimensionalization):
+        self.turbulence = value
+        if value is None:
+            return
+        self.turbulence["dk_max_adim"] = (
+            self.turbulence["dk_max"]
+            / adimensionalization["length_scale"] ** 2
+            * adimensionalization["time_scale"]
+        )
+        self.turbulence["dk_min_adim"] = (
+            self.turbulence["dk_min"]
+            / adimensionalization["length_scale"] ** 2
+            * adimensionalization["time_scale"]
+        )
+
 
 @dataclass
 class AtomicRateState:
     ionization_simple: object = None
     recombination_simple: object = None
     cx_simple: object = None
+
+
+@dataclass
+class RawPartitionState:
+    solutions: object = None
+    solutions_skeleton: object = None
+    gradients: object = None
+    equilibriums: object = None
+    boundary_infos: object = None
 
 
 @dataclass

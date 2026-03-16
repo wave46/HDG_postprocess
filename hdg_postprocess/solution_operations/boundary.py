@@ -10,7 +10,7 @@ def summary_along_the_wall(solution):
     """
     if solution.views.boundary_gauss.solution.conservative is None:
         print("Comibining first values on boundary gauss points")
-        solution.calculate_in_boundary_gauss_points(np.unique(solution._raw_solution_boundary_infos[0]["boundary_flags"]))
+        solution.calculate_in_boundary_gauss_points(np.unique(solution.raw.boundary_infos[0]["boundary_flags"]))
     boundary_gauss = solution.views.boundary_gauss
     boundary_solution = boundary_gauss.solution.conservative
     boundary_solution_skeleton = boundary_gauss.solution_skeleton.conservative
@@ -256,7 +256,7 @@ def summary_along_the_wall(solution):
 
 
 def calculate_boundary_summary(solution):
-    solution.calculate_in_boundary_gauss_points(np.unique(solution._raw_solution_boundary_infos[0]["boundary_flags"]))
+    solution.calculate_in_boundary_gauss_points(np.unique(solution.raw.boundary_infos[0]["boundary_flags"]))
     solution.summary.boundary.profile = solution.summary_along_the_wall()
     return solution.summary.boundary.profile
 
