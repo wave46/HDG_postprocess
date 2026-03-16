@@ -38,10 +38,6 @@ Properties and attributes:
 - `parameters`
 - `atomic_parameters`
 - `dnn_parameters`
-- `solution_simple_phys`
-- `gradient_simple_phys`
-- `solution_glob_phys`
-- `gradient_glob_phys`
 - `phys_idx`
 
 Preferred replacement API for new code:
@@ -50,7 +46,7 @@ Preferred replacement API for new code:
 - `views.simple.gradient.physical`
 - `views.glob.solution.physical`
 - `views.glob.gradient.physical`
-- `summary.boundary.boundary_summary`
+- `summary.boundary.profile`
 
 Required workflows:
 

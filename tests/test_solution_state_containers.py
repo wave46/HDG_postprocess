@@ -59,9 +59,9 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
     assert sol.views.simple.equilibrium.a is sol.a_simple
     assert sol.views.glob.equilibrium.qcyl is sol.qcyl_glob
     assert sol.views.simple.equilibrium.qcyl is sol.qcyl_simple
-    assert sol.views.simple.solution.physical is sol.solution_simple_phys
+    assert sol.views.simple.solution.physical is not None
     assert sol.views.glob.solution.conservative is sol.solution_glob
-    assert sol.views.glob.gradient.physical is sol.gradient_glob_phys
+    assert sol.views.glob.gradient.physical is not None
     assert sol.views.simple.derived.dk is sol.dk_simple
     assert sol.views.glob.derived.dk is sol.dk_glob
 
@@ -178,7 +178,7 @@ def test_container_state_sync_sources_and_totals(manifest_path):
     assert sol.views.glob.sources.ohmic_source is sol.ohmic_source
     assert sol.views.simple.sources.ohmic_source is sol.ohmic_source_simple
     assert sol.views.gauss.sources.ohmic_source is sol.ohmic_source_gauss
-    assert sol.summary.boundary.boundary_summary is not None
+    assert sol.summary.boundary.profile is not None
     assert sol.summary.boundary.ion_energy_sheath_loss_total == sol.ion_energy_sheath_loss_total
     assert sol.summary.boundary.electron_energy_sheath_loss_total == sol.electron_energy_sheath_loss_total
 

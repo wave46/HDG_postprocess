@@ -171,17 +171,18 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
     _ensure_simple_physical(solution)
 
     colorbar_labels = [r"n [m$^{-3}$]", r"$n_n$ [m$^{-3}$]", r"$T_i [eV]$", r"$T_e [eV] $", r"M", r"$k$ [m$^2$/s$^2$]"]
+    simple_phys = solution.views.simple.solution.physical
     solutions_plot = np.zeros_like(solution.solution_simple)
-    solutions_plot[:, 0] = solution.solution_simple_phys[:, 0]
-    solutions_plot[:, 1] = solution.solution_simple_phys[:, -1]
+    solutions_plot[:, 0] = simple_phys[:, 0]
+    solutions_plot[:, 1] = simple_phys[:, -1]
     if solution.neq > 2:
-        solutions_plot[:, 2] = solution.solution_simple_phys[:, 6]
-        solutions_plot[:, 3] = solution.solution_simple_phys[:, 7]
+        solutions_plot[:, 2] = simple_phys[:, 6]
+        solutions_plot[:, 3] = simple_phys[:, 7]
     if solution.neq > 4:
-        solutions_plot[:, 1] = solution.solution_simple_phys[:, 10]
+        solutions_plot[:, 1] = simple_phys[:, 10]
     if solution.neq > 5:
-        solutions_plot[:, 5] = solution.solution_simple_phys[:, 11]
-    solutions_plot[:, 4] = solution.solution_simple_phys[:, 9]
+        solutions_plot[:, 5] = simple_phys[:, 11]
+    solutions_plot[:, 4] = simple_phys[:, 9]
 
     _ensure_connectivity_big(solution)
     n_lines = int(np.floor(solution.neq / 2 + 0.5))
@@ -240,16 +241,18 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
         second_solution.init_phys_variables("simple")
 
     colorbar_labels = [r"n, m$^{-3}$", r"$n_n$, m$^{-3}$", r"$T_i$", r"$T_e$", r"M", r"k"]
+    left_simple_phys = solution.views.simple.solution.physical
+    right_simple_phys = second_solution.views.simple.solution.physical
     solutions_plot = np.zeros_like(solution.solution_simple)
-    solutions_plot[:, 0] = solution.solution_simple_phys[:, 0] - second_solution.solution_simple_phys[:, 0]
-    solutions_plot[:, 4] = solution.solution_simple_phys[:, 9] - second_solution.solution_simple_phys[:, 9]
+    solutions_plot[:, 0] = left_simple_phys[:, 0] - right_simple_phys[:, 0]
+    solutions_plot[:, 4] = left_simple_phys[:, 9] - right_simple_phys[:, 9]
     if solution.neq > 2:
-        solutions_plot[:, 2] = solution.solution_simple_phys[:, 6] - second_solution.solution_simple_phys[:, 6]
-        solutions_plot[:, 3] = solution.solution_simple_phys[:, 7] - second_solution.solution_simple_phys[:, 7]
+        solutions_plot[:, 2] = left_simple_phys[:, 6] - right_simple_phys[:, 6]
+        solutions_plot[:, 3] = left_simple_phys[:, 7] - right_simple_phys[:, 7]
     if solution.neq > 4:
-        solutions_plot[:, 1] = solution.solution_simple_phys[:, 10] - second_solution.solution_simple_phys[:, 10]
+        solutions_plot[:, 1] = left_simple_phys[:, 10] - right_simple_phys[:, 10]
     if solution.neq > 5:
-        solutions_plot[:, 5] = solution.solution_simple_phys[:, 11] - second_solution.solution_simple_phys[:, 11]
+        solutions_plot[:, 5] = left_simple_phys[:, 11] - right_simple_phys[:, 11]
 
     _ensure_connectivity_big(solution)
     n_lines = int(np.floor(solution.neq / 2 + 0.5))

@@ -26,7 +26,7 @@ For new code:
 - prefer `hdg_postprocess.api.load_solution()`
 - prefer grouped access through `fields`, `analysis`, `sample`, and `plot`
 - prefer direct structured access such as `solution.views.simple.solution.physical`
-- avoid introducing new code that depends on legacy split-property aliases like `solution_simple_phys`
+- avoid introducing new code that depends on legacy split-property aliases like `gradient_boundary_gauss`
 
 For existing notebooks and scripts that still use the old split-property names:
 

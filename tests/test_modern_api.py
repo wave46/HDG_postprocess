@@ -62,7 +62,7 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     assert simple_phys.shape[1] == baseline["metadata"]["nphys"]
     assert solution.views.glob.solution.conservative is full_cons
     assert solution.views.simple.solution.physical is simple_phys
-    assert solution.summary.boundary.boundary_summary is boundary_summary
+    assert solution.summary.boundary.profile is boundary_summary
     assert set(point.keys()) == {"n", "te", "ti"}
     assert "k" not in profile or len(profile["k"]) == len(baseline["sampled_profile"]["r"])
     assert np.isclose(power_balance["total_loss"], baseline["power_balance"]["total_loss"])

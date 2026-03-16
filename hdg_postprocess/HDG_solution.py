@@ -200,7 +200,7 @@ class HDGsolution:
         "_external_heating_e_total": ("sources", "external_heating_e_total"),
         "_external_heating_i_total": ("sources", "external_heating_i_total"),
         "_ohmic_source_total": ("sources", "ohmic_source_total"),
-        "_boundary_summary": ("boundary", "boundary_summary"),
+        "_boundary_summary": ("boundary", "profile"),
         "_ion_energy_sheath_loss_total": ("boundary", "ion_energy_sheath_loss_total"),
         "_electron_energy_sheath_loss_total": ("boundary", "electron_energy_sheath_loss_total"),
     }
@@ -785,8 +785,6 @@ _SOURCE_VIEW_DOCS = {
 _STATE_PROPERTY_DOCS = {
     "solution_simple": ("_views", ("simple", "solution", "conservative"), "solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq]"),
     "gradient_simple": ("_views", ("simple", "gradient", "conservative"), "gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x neq x ndim]"),
-    "solution_simple_phys": ("_views", ("simple", "solution", "physical"), "physical solution simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys]"),
-    "gradient_simple_phys": ("_views", ("simple", "gradient", "physical"), "phisical gradient simply united on a single mesh (means not taking into account repeating points) [Nvertices x nphys x ndim]"),
     "magnetic_field_simple": ("_views", ("simple", "equilibrium", "magnetic_field"), "magnetic field recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"),
     "jtor_simple": ("_views", ("simple", "equilibrium", "jtor"), "plasma current recombined united on a single mesh (means not taking into account repeating points) [Nvertices]"),
     "poloidal_flux_simple": ("_views", ("simple", "equilibrium", "poloidal_flux"), "poloidal flux recombined united on a single mesh (means not taking into account repeating points) [Nvertices x 3]"),
@@ -819,8 +817,6 @@ _STATE_PROPERTY_DOCS = {
     "magnetic_field_gauss": ("_views", ("gauss", "equilibrium", "magnetic_field"), "magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"),
     "magnetic_field_unit_gauss": ("_views", ("gauss", "equilibrium", "magnetic_field_unit"), "magnetic field recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem x 3]"),
     "jtor_gauss": ("_views", ("gauss", "equilibrium", "jtor"), "plassma current recombined on a full mesh and calculated in gauss points. This one has shape [Nelems x gauss_points_per_elem]"),
-    "solution_glob_phys": ("_views", ("glob", "solution", "physical"), "Physical solution recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys]"),
-    "gradient_glob_phys": ("_views", ("glob", "gradient", "physical"), "Physical gradients recombined on a full mesh. This one has shape [Nelems x nodes_per_elem x nphys x ndim]"),
     "e": ("", ("_e",), "elemental_charge"),
     "cons_idx": ("", ("_cons_idx",), "dictionary with keys are the cons variables, values are the indexes o the corresponding equation"),
     "phys_idx": ("", ("_phys_idx",), "dictionary with keys are the phys variables, values are the indexes o the corresponding equation"),

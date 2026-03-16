@@ -60,7 +60,7 @@ class SourceSummaryState:
 
 @dataclass
 class BoundarySummaryState:
-    boundary_summary: object = None
+    profile: object = None
     ion_energy_sheath_loss_total: object = None
     electron_energy_sheath_loss_total: object = None
 

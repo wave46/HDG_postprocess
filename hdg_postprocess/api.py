@@ -114,7 +114,7 @@ class _SolutionAnalysis:
 
     def boundary_summary(self):
         self._solution.calculate_boundary_summary()
-        return self._solution.summary.boundary.boundary_summary
+        return self._solution.summary.boundary.profile
 
 
 class _SolutionSampling:

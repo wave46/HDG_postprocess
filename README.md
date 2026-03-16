@@ -56,7 +56,7 @@ For direct data access, prefer the structured container API instead of the long 
 simple_phys = solution.views.simple.solution.physical
 glob_cons = solution.views.glob.solution.conservative
 gauss_grad = solution.views.gauss.gradient.conservative
-boundary_summary = solution.summary.boundary.boundary_summary
+boundary_profile = solution.summary.boundary.profile
 ```
 
 This modern layer is still implemented as a thin facade over the legacy implementation, but the preferred user-facing shape is now the structured `views` / `summary` access pattern.
@@ -77,8 +77,6 @@ This remains the compatibility baseline during the refactor.
 Examples of compatibility-only legacy access that new code should avoid:
 
 ```python
-solution.solution_simple_phys
-solution.solution_glob_phys
 solution.gradient_boundary_gauss
 ```
 
