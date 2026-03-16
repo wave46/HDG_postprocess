@@ -20,7 +20,7 @@ def calculate_dk(solution, which="simple"):
             solution.define_minor_radii(which="simple")
         if solution.views.simple.equilibrium.qcyl is None:
             solution.define_qcyl(which="simple")
-        solution.calculate_dk(which="full")
+        calculate_dk(solution, which="full")
         solution.views.simple.derived.dk = np.zeros(solution.mesh.vertices_glob.shape[0])
         solution.views.simple.derived.dk[solution.mesh.connectivity_glob.reshape(-1, 1).ravel()] = solution.views.glob.derived.dk.reshape(
             solution.views.glob.derived.dk.shape[0] * solution.views.glob.derived.dk.shape[1]

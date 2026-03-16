@@ -11,7 +11,7 @@ def calculate_dnn(solution, which="simple"):
     _ensure_neutral_settings(solution)
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_dnn(which="full")
+        calculate_dnn(solution, which="full")
         solution.views.simple.derived.dnn = _simple_values(solution, solution.views.glob.derived.dnn)
     if which == "full":
         _ensure_full_solution(solution)
@@ -33,7 +33,7 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
     _ensure_neutral_settings(solution)
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_dnn_with_nn_collision(which="full")
+        calculate_dnn_with_nn_collision(solution, which="full")
         solution.views.simple.derived.dnn_with_nn_collision = _simple_values(
             solution, solution.views.glob.derived.dnn_with_nn_collision
         )
@@ -58,7 +58,7 @@ def calculate_mfp(solution, which="simple"):
         solution.init_phys_variables("both")
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_mfp(which="full")
+        calculate_mfp(solution, which="full")
         solution.views.simple.derived.mfp = _simple_values(solution, solution.views.glob.derived.mfp)
     if which == "full":
         _ensure_full_solution(solution)
@@ -66,7 +66,7 @@ def calculate_mfp(solution, which="simple"):
             print("Initializing physical solution first")
             solution.init_phys_variables("full")
         if solution.views.glob.derived.dnn is None:
-            solution.calculate_dnn("full")
+            calculate_dnn(solution, "full")
         solution.views.glob.derived.mfp = calculate_mfp_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.neutral_diffusion,

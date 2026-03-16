@@ -14,7 +14,7 @@ def calculate_ohmic_source(solution, which="simple"):
         raise KeyError('Please, effective charge to self.parameters["physics"]')
 
     if which == "simple":
-        solution.calculate_ohmic_source(which="full")
+        calculate_ohmic_source(solution, which="full")
         glob_solution = solution.views.glob.solution.conservative
         solution.views.simple.sources.ohmic_source = np.zeros(solution.mesh.vertices_glob.shape[0])
         solution.views.simple.sources.ohmic_source[
@@ -57,7 +57,7 @@ def calculate_ionization_rate(solution, which="simple"):
     if which == "simple":
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
         _ensure_simple_phys(solution)
-        solution.calculate_ionization_rate(which="full")
+        calculate_ionization_rate(solution, which="full")
         solution._atomic_rates.ionization_simple = solution._ionization_rate
     elif which == "full":
         _ensure_full_solution(solution)
@@ -74,7 +74,7 @@ def calculate_recombination_rate(solution, which="simple"):
     if which == "simple":
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
         _ensure_simple_phys(solution)
-        solution.calculate_recombination_rate(which="full")
+        calculate_recombination_rate(solution, which="full")
         solution._atomic_rates.recombination_simple = solution._recombination_rate
     elif which == "full":
         _ensure_full_solution(solution)
@@ -91,7 +91,7 @@ def calculate_cx_rate(solution, which="simple"):
     if which == "simple":
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
         _ensure_simple_phys(solution)
-        solution.calculate_cx_rate(which="full")
+        calculate_cx_rate(solution, which="full")
         solution._atomic_rates.cx_simple = solution._cx_rate
     elif which == "full":
         _ensure_full_solution(solution)
@@ -107,7 +107,7 @@ def calculate_ionization_source(solution, which="simple"):
     _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_ionization_source(which="full")
+        calculate_ionization_source(solution, which="full")
         _assign_simple_view(solution, "ionization_source", solution.views.glob.sources.ionization_source)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -137,7 +137,7 @@ def calculate_ion_gain_due_to_iz(solution, which="simple"):
         raise ValueError("Please, provide effective energy transfer from neutrals to ions R_E to self.parameters['physics']")
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_ion_gain_due_to_iz(which="full")
+        calculate_ion_gain_due_to_iz(solution, which="full")
         _assign_simple_view(solution, "ion_gain_iz", solution.views.glob.sources.ion_gain_iz)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -171,7 +171,7 @@ def calculate_ion_sink_due_to_rec(solution, which="simple"):
     )
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_ion_sink_due_to_rec(which="full")
+        calculate_ion_sink_due_to_rec(solution, which="full")
         _assign_simple_view(solution, "ion_sink_rec", solution.views.glob.sources.ion_sink_rec)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -203,7 +203,7 @@ def calculate_ion_sink_due_to_cx(solution, which="simple"):
     )
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_ion_sink_due_to_cx(which="full")
+        calculate_ion_sink_due_to_cx(solution, which="full")
         _assign_simple_view(solution, "ion_sink_cx", solution.views.glob.sources.ion_sink_cx)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -237,7 +237,7 @@ def calculate_electron_sink_due_to_iz(solution, which="simple"):
     )
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_electron_sink_due_to_iz(which="full")
+        calculate_electron_sink_due_to_iz(solution, which="full")
         _assign_simple_view(solution, "electron_sink_iz", solution.views.glob.sources.electron_sink_iz)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -269,7 +269,7 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
     )
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_electron_sink_due_to_rec(which="full")
+        calculate_electron_sink_due_to_rec(solution, which="full")
         _assign_simple_view(solution, "electron_sink_rec", solution.views.glob.sources.electron_sink_rec)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -299,7 +299,7 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
     _require_atomic_key(solution, "rec", "Please, provide recombination atomic settings for the simulation")
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_electron_gain_due_to_rec(which="full")
+        calculate_electron_gain_due_to_rec(solution, which="full")
         _assign_simple_view(solution, "electron_gain_rec", solution.views.glob.sources.electron_gain_rec)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -333,7 +333,7 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
     )
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_electron_sink_due_to_cooling_factor(which="full")
+        calculate_electron_sink_due_to_cooling_factor(solution, which="full")
         _assign_simple_view(solution, "electron_sink_cooling_factor", solution.views.glob.sources.electron_sink_cooling_factor)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -363,7 +363,7 @@ def calculate_cooling_factor(solution, which="simple"):
     _require_atomic_key(solution, "cooling_factor", "Please, provide atomic settings for the cooling factor for the simulation")
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_cooling_factor(which="full")
+        calculate_cooling_factor(solution, which="full")
         _assign_simple_view(solution, "cooling_factor", solution.views.glob.sources.cooling_factor)
     elif which == "full":
         _ensure_full_solution(solution)
@@ -390,7 +390,7 @@ def calculate_cx_source(solution, which="simple"):
     _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
     if which == "simple":
         _ensure_simple_phys(solution)
-        solution.calculate_cx_source(which="full")
+        calculate_cx_source(solution, which="full")
         _assign_simple_view(solution, "cx_source", solution.views.glob.sources.cx_source)
     elif which == "full":
         _ensure_full_solution(solution)

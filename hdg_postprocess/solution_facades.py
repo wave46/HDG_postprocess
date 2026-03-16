@@ -1,5 +1,9 @@
 import numpy as np
 
+from hdg_postprocess.solution_operations import neutrals as neutrals_ops
+from hdg_postprocess.solution_operations import plasma_sources as plasma_source_ops
+from hdg_postprocess.solution_operations import turbulent_model as turbulent_model_ops
+
 
 class SolutionFields:
     def __init__(self, solution):
@@ -137,49 +141,69 @@ class SolutionSources:
         self._solution = solution
 
     def ohmic(self, view="simple"):
-        self._solution.calculate_ohmic_source(view)
+        plasma_source_ops.calculate_ohmic_source(self._solution, view)
         target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
         return target_view.sources.ohmic_source
 
     def ionization_rate(self, view="simple"):
-        self._solution.calculate_ionization_rate(view)
+        plasma_source_ops.calculate_ionization_rate(self._solution, view)
         return self._solution.atomic_rates.ionization_simple
 
     def recombination_rate(self, view="simple"):
-        self._solution.calculate_recombination_rate(view)
+        plasma_source_ops.calculate_recombination_rate(self._solution, view)
         return self._solution.atomic_rates.recombination_simple
 
     def cx_rate(self, view="simple"):
-        self._solution.calculate_cx_rate(view)
+        plasma_source_ops.calculate_cx_rate(self._solution, view)
         return self._solution.atomic_rates.cx_simple
 
     def ionization(self, view="simple"):
-        self._solution.calculate_ionization_source(view)
+        plasma_source_ops.calculate_ionization_source(self._solution, view)
         target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
         return target_view.sources.ionization_source
 
     def ion_gain_iz(self, view="simple"):
-        self._solution.calculate_ion_gain_due_to_iz(view)
+        plasma_source_ops.calculate_ion_gain_due_to_iz(self._solution, view)
         target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
         return target_view.sources.ion_gain_iz
 
     def electron_sink_iz(self, view="simple"):
-        self._solution.calculate_electron_sink_due_to_iz(view)
+        plasma_source_ops.calculate_electron_sink_due_to_iz(self._solution, view)
         target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
         return target_view.sources.electron_sink_iz
 
     def electron_sink_rec(self, view="simple"):
-        self._solution.calculate_electron_sink_due_to_rec(view)
+        plasma_source_ops.calculate_electron_sink_due_to_rec(self._solution, view)
         target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
         return target_view.sources.electron_sink_rec
 
+    def electron_gain_rec(self, view="simple"):
+        plasma_source_ops.calculate_electron_gain_due_to_rec(self._solution, view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.electron_gain_rec
+
+    def ion_sink_rec(self, view="simple"):
+        plasma_source_ops.calculate_ion_sink_due_to_rec(self._solution, view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.ion_sink_rec
+
+    def ion_sink_cx(self, view="simple"):
+        plasma_source_ops.calculate_ion_sink_due_to_cx(self._solution, view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.ion_sink_cx
+
+    def electron_sink_cooling_factor(self, view="simple"):
+        plasma_source_ops.calculate_electron_sink_due_to_cooling_factor(self._solution, view)
+        target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
+        return target_view.sources.electron_sink_cooling_factor
+
     def cooling_factor(self, view="simple"):
-        self._solution.calculate_cooling_factor(view)
+        plasma_source_ops.calculate_cooling_factor(self._solution, view)
         target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
         return target_view.sources.cooling_factor
 
     def cx(self, view="simple"):
-        self._solution.calculate_cx_source(view)
+        plasma_source_ops.calculate_cx_source(self._solution, view)
         target_view = self._solution.views.glob if view == "full" else getattr(self._solution.views, view)
         return target_view.sources.cx_source
 
@@ -190,17 +214,17 @@ class SolutionNeutrals:
 
     def dnn(self, view="simple", with_nn_collision=False):
         if with_nn_collision:
-            self._solution.calculate_dnn_with_nn_collision(view)
+            neutrals_ops.calculate_dnn_with_nn_collision(self._solution, view)
             if view == "full":
                 return self._solution.views.glob.derived.dnn_with_nn_collision
             return self._solution.views.simple.derived.dnn_with_nn_collision
-        self._solution.calculate_dnn(view)
+        neutrals_ops.calculate_dnn(self._solution, view)
         if view == "full":
             return self._solution.views.glob.derived.dnn
         return self._solution.views.simple.derived.dnn
 
     def mfp(self, view="simple"):
-        self._solution.calculate_mfp(view)
+        neutrals_ops.calculate_mfp(self._solution, view)
         if view == "full":
             return self._solution.views.glob.derived.mfp
         return self._solution.views.simple.derived.mfp
@@ -211,7 +235,7 @@ class SolutionTurbulence:
         self._solution = solution
 
     def dk(self, view="simple"):
-        self._solution.calculate_dk(view)
+        turbulent_model_ops.calculate_dk(self._solution, view)
         if view == "full":
             return self._solution.views.glob.derived.dk
         return self._solution.views.simple.derived.dk

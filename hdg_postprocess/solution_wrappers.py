@@ -2,13 +2,10 @@ from hdg_postprocess.solution_operations import analysis as analysis_ops
 from hdg_postprocess.solution_operations import assembly as assembly_ops
 from hdg_postprocess.solution_operations import boundary as boundary_ops
 from hdg_postprocess.solution_operations import magnetic_equilibrium as equilibrium_ops
-from hdg_postprocess.solution_operations import neutrals as neutrals_ops
 from hdg_postprocess.solution_operations import physical as physical_ops
-from hdg_postprocess.solution_operations import plasma_sources as plasma_source_ops
 from hdg_postprocess.solution_operations import plotting as plotting_ops
 from hdg_postprocess.solution_operations import pointwise_fields as pointwise_fields_ops
 from hdg_postprocess.solution_operations import sampling as sampling_ops
-from hdg_postprocess.solution_operations import turbulent_model as turbulent_model_ops
 
 
 def _make_delegate(name, func, doc=None):
@@ -52,52 +49,10 @@ _WRAPPER_SPECS = [
     ("define_qcyl", equilibrium_ops.define_qcyl, "Define cylindrical safety factor on the requested view."),
     ("calculate_variables_along_line", sampling_ops.calculate_variables_along_line, "Sample variables along a line."),
     ("save_summary_line", sampling_ops.save_summary_line, "Save a sampled line summary to disk."),
-    ("calculate_ohmic_source", plasma_source_ops.calculate_ohmic_source, "Compute ohmic source on the requested view."),
     ("calculate_power_balance", analysis_ops.calculate_power_balance, "Compute the power-balance summary."),
     ("calculate_volumetric_sources", analysis_ops.calculate_volumetric_sources, "Compute volumetric source totals."),
     ("calculate_power_losses_to_wall", analysis_ops.calculate_power_losses_to_wall, "Compute wall-loss summaries."),
     ("calculate_boundary_summary", boundary_ops.calculate_boundary_summary, "Compute structured boundary summaries."),
-    ("calculate_ionization_rate", plasma_source_ops.calculate_ionization_rate, "Compute ionization rate coefficients."),
-    (
-        "calculate_recombination_rate",
-        plasma_source_ops.calculate_recombination_rate,
-        "Compute recombination rate coefficients.",
-    ),
-    ("calculate_cx_rate", plasma_source_ops.calculate_cx_rate, "Compute charge-exchange rate coefficients."),
-    ("calculate_dnn", neutrals_ops.calculate_dnn, "Compute neutral diffusion."),
-    (
-        "calculate_dnn_with_nn_collision",
-        neutrals_ops.calculate_dnn_with_nn_collision,
-        "Compute neutral diffusion including neutral-neutral collisions.",
-    ),
-    ("calculate_dk", turbulent_model_ops.calculate_dk, "Compute plasma diffusion from the turbulent model."),
-    ("calculate_mfp", neutrals_ops.calculate_mfp, "Compute neutral mean-free path."),
-    ("calculate_ionization_source", plasma_source_ops.calculate_ionization_source, "Compute ionization source."),
-    ("calculate_ion_gain_due_to_iz", plasma_source_ops.calculate_ion_gain_due_to_iz, "Compute ion ionization gain."),
-    ("calculate_ion_sink_due_to_rec", plasma_source_ops.calculate_ion_sink_due_to_rec, "Compute ion recombination loss."),
-    ("calculate_ion_sink_due_to_cx", plasma_source_ops.calculate_ion_sink_due_to_cx, "Compute ion charge-exchange loss."),
-    (
-        "calculate_electron_sink_due_to_iz",
-        plasma_source_ops.calculate_electron_sink_due_to_iz,
-        "Compute electron ionization loss.",
-    ),
-    (
-        "calculate_electron_sink_due_to_rec",
-        plasma_source_ops.calculate_electron_sink_due_to_rec,
-        "Compute electron recombination loss.",
-    ),
-    (
-        "calculate_electron_gain_due_to_rec",
-        plasma_source_ops.calculate_electron_gain_due_to_rec,
-        "Compute electron recombination gain.",
-    ),
-    (
-        "calculate_electron_sink_due_to_cooling_factor",
-        plasma_source_ops.calculate_electron_sink_due_to_cooling_factor,
-        "Compute electron cooling-factor loss.",
-    ),
-    ("calculate_cooling_factor", plasma_source_ops.calculate_cooling_factor, "Compute cooling-factor field."),
-    ("calculate_cx_source", plasma_source_ops.calculate_cx_source, "Compute charge-exchange source."),
     ("define_interpolators", sampling_ops.define_interpolators, "Define solution interpolators."),
     ("n", pointwise_fields_ops.n, "Sample density at a point."),
     ("ti", pointwise_fields_ops.ti, "Sample ion temperature at a point."),
@@ -161,4 +116,3 @@ _WRAPPER_SPECS = [
 def attach_solution_wrappers(cls):
     for name, func, doc in _WRAPPER_SPECS:
         setattr(cls, name, _make_delegate(name, func, doc=doc))
-

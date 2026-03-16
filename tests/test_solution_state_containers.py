@@ -53,8 +53,8 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
         {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0},
         sol.parameters["adimensionalization"],
     )
-    sol.calculate_dk("full")
-    sol.calculate_dk("simple")
+    sol.turbulence.dk("full")
+    sol.turbulence.dk("simple")
 
     assert sol.summary.equilibrium.axis.r is not None
     assert sol.summary.equilibrium.axis.z is not None
@@ -90,9 +90,9 @@ def test_container_state_sync_neutral_derived_fields(manifest_path):
 
     sol.recombine_full_solution()
     sol.recombine_simple_full_solution()
-    sol.calculate_dnn("simple")
-    sol.calculate_dnn_with_nn_collision("simple")
-    sol.calculate_mfp("simple")
+    sol.neutrals.dnn("simple")
+    sol.neutrals.dnn("simple", with_nn_collision=True)
+    sol.neutrals.mfp("simple")
 
     assert sol.views.simple.derived.dnn is not None
     assert sol.views.simple.derived.dnn_with_nn_collision is not None
@@ -123,9 +123,9 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
 
     sol.recombine_full_solution()
     sol.recombine_simple_full_solution()
-    sol.calculate_ionization_rate("simple")
-    sol.calculate_recombination_rate("simple")
-    sol.calculate_cx_rate("simple")
+    sol.sources.ionization_rate("simple")
+    sol.sources.recombination_rate("simple")
+    sol.sources.cx_rate("simple")
     sol.define_magnetic_axis()
     sol.define_minor_radii(which="full")
     sol.define_qcyl(which="full")
@@ -167,9 +167,9 @@ def test_container_state_sync_sources_and_totals(manifest_path):
 
     sol.recombine_full_solution()
     sol.recombine_simple_full_solution()
-    sol.calculate_ionization_source("simple")
-    sol.calculate_electron_sink_due_to_rec("simple")
-    sol.calculate_cx_source("simple")
+    sol.sources.ionization("simple")
+    sol.sources.electron_sink_rec("simple")
+    sol.sources.cx("simple")
     sol.calculate_power_balance()
 
     assert sol.summary.sources.ion_gain_iz_total is not None

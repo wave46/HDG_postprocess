@@ -65,31 +65,31 @@ def calculate_volumetric_sources(solution):
     gauss_sources = solution.views.gauss.sources
     if gauss_sources.ohmic_source is None:
         print("Calculating ohmic source on gauss points first")
-        solution.calculate_ohmic_source(which="gauss")
+        solution.sources.ohmic("gauss")
     if gauss_sources.electron_sink_iz is None:
         print("Calculating electron ionization sink on gauss points first")
-        solution.calculate_electron_sink_due_to_iz(which="gauss")
+        solution.sources.electron_sink_iz("gauss")
     if gauss_sources.electron_sink_rec is None:
         print("Calculating electron recombination sink on gauss points first")
-        solution.calculate_electron_sink_due_to_rec(which="gauss")
+        solution.sources.electron_sink_rec("gauss")
     if gauss_sources.ion_gain_iz is None:
         print("Calculating ionization gain on gauss points first")
-        solution.calculate_ion_gain_due_to_iz(which="gauss")
+        solution.sources.ion_gain_iz("gauss")
     if gauss_sources.electron_gain_rec is None:
         print("Calculating electron recombination gain on gauss points first")
-        solution.calculate_electron_gain_due_to_rec(which="gauss")
+        solution.sources.electron_gain_rec("gauss")
     if gauss_sources.ion_sink_rec is None:
         print("Calculating ion recombination sink on gauss points first")
-        solution.calculate_ion_sink_due_to_rec(which="gauss")
+        solution.sources.ion_sink_rec("gauss")
     if gauss_sources.ion_sink_cx is None:
         print("Calculating ion charge exchange sink on gauss points first")
-        solution.calculate_ion_sink_due_to_cx(which="gauss")
+        solution.sources.ion_sink_cx("gauss")
 
     if "impurity_concentration" in solution.parameters["physics"].keys():
         if solution.parameters["physics"]["impurity_concentration"] > 0:
             if gauss_sources.electron_sink_cooling_factor is None:
                 print("Calculating impurity radiation on gauss points first")
-                solution.calculate_electron_sink_due_to_cooling_factor(which="gauss")
+                solution.sources.electron_sink_cooling_factor("gauss")
 
     source_summary = solution.summary.sources
     source_summary.ohmic_source_total = np.sum(gauss_sources.ohmic_source * solution.mesh.volumes_gauss)
