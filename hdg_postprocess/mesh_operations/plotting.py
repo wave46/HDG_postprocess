@@ -6,35 +6,45 @@ from matplotlib.colors import LogNorm
 
 
 def _ensure_full_mesh(mesh):
-    if mesh.metadata.flags.combined_to_full:
-        return
-    print("Comibining to full mesh")
-    from hdg_postprocess.mesh_operations.geometry import recombine_full_mesh
-
-    recombine_full_mesh(mesh)
+    mesh.assembly.full()
 
 
 def _ensure_boundary(mesh, raw_boundary_info):
-    if mesh.metadata.flags.boundary_combined:
-        return
     if raw_boundary_info is None:
         raise ValueError("Please, provide raw boundary info as input to this method")
-    print("Comibining boundary")
-    from hdg_postprocess.mesh_operations.boundary import recombine_full_boundary
-
-    recombine_full_boundary(mesh, raw_boundary_info)
+    mesh.assembly.boundary(raw_boundary_info)
 
 
 def _ensure_boundary_gauss(mesh, raw_boundary_info):
-    if mesh.metadata.flags.boundary_gauss_initialized:
-        return
     if raw_boundary_info is None:
         raise ValueError("Please, provide raw boundary info as input to this method")
-    print("Calculating at gauss points")
-    from hdg_postprocess.mesh_operations.boundary import calculate_gauss_boundary
-
     unique_boundaries = tuple(np.unique(raw_boundary_info[0]["boundary_flags"]).tolist())
-    calculate_gauss_boundary(mesh, unique_boundaries, raw_boundary_info)
+    mesh.assembly.boundary_gauss(unique_boundaries, raw_boundary_info)
+
+
+def _default_plot_connectivity(mesh):
+    if mesh.metadata.reference_element is None:
+        print("No reference element, the mesh is plotted assuming straight edges")
+        if mesh.mesh_parameters["element_type"] == "triangle":
+            return mesh.global_state.connectivity[:, :3]
+        return mesh.global_state.connectivity[:, :4]
+    print("Full mesh is plotted includin curved edges")
+    return mesh.global_state.connectivity[:, mesh.metadata.reference_element["faceNodes"].flatten()]
+
+
+def _plot_with_connectivity(ax, vertices, connectivity, data, linewidth):
+    if data is None:
+        verts = vertices[connectivity]
+        collection = PolyCollection(verts, facecolor="none", edgecolor="k", linewidth=linewidth)
+        ax.add_collection(collection)
+        return None
+    if data.shape[0] == connectivity.shape[0]:
+        verts = vertices[connectivity]
+        collection = PolyCollection(verts)
+        collection.set_array(data)
+        ax.add_collection(collection)
+        return None
+    return "tricontourf"
 
 
 def plot_raw_meshes(mesh, data=None, ax=None):
@@ -70,66 +80,47 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                    n_levels=100, limits=None, ticks=None, tick_labels=None, cmap="jet", linewidth=1.0):
     _ensure_full_mesh(mesh)
 
-    colors = "k"
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
     if connectivity is None:
-        connectivity = mesh.global_state.connectivity[:, :3]
-        if mesh.metadata.reference_element is None:
-            print("No reference element, the mesh is plotted assuming straight edges")
-            if mesh.mesh_parameters["element_type"] == "triangle":
-                connectivity = mesh.global_state.connectivity[:, :3]
-            else:
-                connectivity = mesh.global_state.connectivity[:, :4]
-        else:
-            print("Full mesh is plotted includin curved edges")
-            connectivity = mesh.global_state.connectivity[:, mesh.metadata.reference_element["faceNodes"].flatten()]
+        connectivity = _default_plot_connectivity(mesh)
 
-    if data is None:
-        verts = mesh.global_state.vertices[connectivity]
-        collection = PolyCollection(verts, facecolor="none", edgecolor=colors, linewidth=linewidth)
-        ax.add_collection(collection)
-    else:
-        if data.shape[0] == connectivity.shape[0]:
-            verts = mesh.global_state.vertices[connectivity]
-            collection = PolyCollection(verts)
-            collection.set_array(data)
-            ax.add_collection(collection)
-        else:
-            if log:
-                if limits is None:
-                    im = ax.tricontourf(
-                        mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], np.log10(data),
-                        levels=n_levels, extend="both", triangles=connectivity, cmap=cmap, extendrect=True,
-                    )
-                    ax.set_title(f"log10({label})")
-                else:
-                    im = ax.tricontourf(
-                        mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
-                        levels=np.logspace(limits[0], limits[1], n_levels), triangles=connectivity,
-                        cmap=cmap, vmin=10.0 ** limits[0], vmax=10.0 ** limits[1],
-                        norm=LogNorm(vmin=10.0 ** limits[0], vmax=10.0 ** limits[1]),
-                        extend="both", extendrect=True,
-                    )
-                    ax.set_title(f"{label}")
+    plot_mode = _plot_with_connectivity(ax, mesh.global_state.vertices, connectivity, data, linewidth)
+    if plot_mode == "tricontourf":
+        if log:
+            if limits is None:
+                im = ax.tricontourf(
+                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], np.log10(data),
+                    levels=n_levels, extend="both", triangles=connectivity, cmap=cmap, extendrect=True,
+                )
+                ax.set_title(f"log10({label})")
             else:
-                if limits is None:
-                    im = ax.tricontourf(
-                        mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
-                        levels=n_levels, extend="both", triangles=connectivity, cmap=cmap, extendrect=True,
-                    )
-                else:
-                    im = ax.tricontourf(
-                        mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
-                        levels=np.linspace(limits[0], limits[1], n_levels), extend="both",
-                        triangles=connectivity, cmap=cmap, vmin=limits[0], vmax=limits[1], extendrect=True,
-                    )
+                im = ax.tricontourf(
+                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
+                    levels=np.logspace(limits[0], limits[1], n_levels), triangles=connectivity,
+                    cmap=cmap, vmin=10.0 ** limits[0], vmax=10.0 ** limits[1],
+                    norm=LogNorm(vmin=10.0 ** limits[0], vmax=10.0 ** limits[1]),
+                    extend="both", extendrect=True,
+                )
                 ax.set_title(f"{label}")
-            cbar = plt.colorbar(im, ax=ax, extendrect=True)
-            if ticks is not None:
-                cbar.set_ticks(ticks)
-            if tick_labels is not None:
-                cbar.set_ticklabels(tick_labels)
+        else:
+            if limits is None:
+                im = ax.tricontourf(
+                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
+                    levels=n_levels, extend="both", triangles=connectivity, cmap=cmap, extendrect=True,
+                )
+            else:
+                im = ax.tricontourf(
+                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
+                    levels=np.linspace(limits[0], limits[1], n_levels), extend="both",
+                    triangles=connectivity, cmap=cmap, vmin=limits[0], vmax=limits[1], extendrect=True,
+                )
+            ax.set_title(f"{label}")
+        cbar = plt.colorbar(im, ax=ax, extendrect=True)
+        if ticks is not None:
+            cbar.set_ticks(ticks)
+        if tick_labels is not None:
+            cbar.set_ticklabels(tick_labels)
 
     ax.set_aspect(1)
     ax.set_xlim(mesh.metadata.extent["minr"], mesh.metadata.extent["maxr"])
