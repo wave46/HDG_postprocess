@@ -115,15 +115,19 @@ mixed_repeated_mixed_queries_per_second=24116.61
 
 ## Evolution summary
 
-- Original pure-Python baseline on the older large workload:
-  - mixed unique throughput was roughly `7.7k` to `9.2k q/s`, depending on workload
-- Structural cleanup:
-  - improved readability
-  - introduced a small regression that later Python cleanup recovered
+- Original pure-Python baseline on the older large workload (`repeat=4`, `unique_points=2000`, `repeated_points=64`):
+  - `value_unique_mixed`: `9165.75 q/s`
+  - `gradient_unique_mixed`: `8994.12 q/s`
+  - `mixed_unique_mixed`: `7713.96 q/s`
+- Structural cleanup only:
+  - code became cleaner
+  - `value_unique_mixed` dropped to `8770.52 q/s`
+  - `gradient_unique_mixed` dropped to `8572.92 q/s`
+  - `mixed_unique_mixed` rose slightly to `8661.14 q/s`
 - Current compact baseline after Python cleanup plus the first Cython pass:
-  - `value_unique_mixed`: `23.7k q/s`
-  - `gradient_unique_mixed`: `23.2k q/s`
-  - `mixed_unique_mixed`: `23.0k q/s`
+  - `value_unique_mixed`: `23655.88 q/s`
+  - `gradient_unique_mixed`: `23175.63 q/s`
+  - `mixed_unique_mixed`: `23030.97 q/s`
   - cold miss-path throughput is now roughly `4x` higher than the compact pure-Python baseline
 
 ## Likely remaining bottlenecks
