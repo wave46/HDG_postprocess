@@ -1,6 +1,7 @@
 import numpy as np
 
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
+from hdg_postprocess.solution_operations import preparation as prep_ops
 
 
 def calculate_variables_along_line(solution, r_line, z_line, variable_list):
@@ -122,12 +123,8 @@ def save_summary_line(solution, save_folder, r_line, z_line, variable_list):
 
 
 def define_interpolators(solution):
-    if not solution.metadata.flags.combined_simple_solution:
-        print("Comibining first simple solution full")
-        solution.assembly.simple()
-    if not solution.mesh.metadata.flags.connectivity_big_initialized:
-        print("Comibining first big connectivity")
-        solution.mesh.geometry.connectivity_big
+    prep_ops.ensure_simple_solution(solution)
+    prep_ops.ensure_connectivity_big(solution)
     if solution.mesh.metadata.reference_element is None:
         raise ValueError("Please, provide reference element")
     if not solution.mesh.metadata.flags.element_locator_initialized:

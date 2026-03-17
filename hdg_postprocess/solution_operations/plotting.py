@@ -11,28 +11,11 @@ from hdg_postprocess.routines.plasma import (
     calculate_n_cons,
     calculate_nn_cons,
 )
-from hdg_postprocess.solution_operations import physical as physical_ops
-
-
-def _ensure_simple_solution(solution):
-    if not solution.metadata.flags.combined_simple_solution:
-        print("Comibining first simple solution full")
-        solution.assembly.simple()
-
-
-def _ensure_simple_physical(solution):
-    if not solution.metadata.flags.simple_phys_initialized:
-        print("Initializing physical solution first")
-        physical_ops.init_phys_variables(solution, "simple")
-
-
-def _ensure_connectivity_big(solution):
-    if not solution.mesh.metadata.flags.connectivity_big_initialized:
-        solution.mesh.geometry.connectivity_big
+from hdg_postprocess.solution_operations import preparation as prep_ops
 
 
 def plot_overview(solution, n_levels=100):
-    _ensure_simple_solution(solution)
+    prep_ops.ensure_simple_solution(solution)
     simple_solution = solution.views.simple.solution.conservative
 
     solutions_dimensional = simple_solution.copy()
@@ -72,7 +55,7 @@ def plot_overview(solution, n_levels=100):
         else:
             raise NameError("Unknown conservative varibale")
 
-    _ensure_connectivity_big(solution)
+    prep_ops.ensure_connectivity_big(solution)
     n_lines = int(np.floor(solution.neq / 2 + 0.5))
     fig, axes = plt.subplots(n_lines, 2, figsize=(15, 7.5 * n_lines))
 
@@ -102,9 +85,9 @@ def plot_overview(solution, n_levels=100):
 
 
 def plot_overview_difference(solution, second_solution, n_levels=100):
-    _ensure_simple_solution(solution)
+    prep_ops.ensure_simple_solution(solution)
     if not second_solution.metadata.flags.combined_simple_solution:
-        print("Comibining first simple solution of the second one full")
+        print("Combining simple solution of the second case first")
         second_solution.assembly.simple()
     left_simple_solution = solution.views.simple.solution.conservative
     right_simple_solution = second_solution.views.simple.solution.conservative
@@ -143,7 +126,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
         else:
             raise NameError("Unknown conservative varibale")
 
-    _ensure_connectivity_big(solution)
+    prep_ops.ensure_connectivity_big(solution)
     n_lines = int(np.floor(solution.neq / 2 + 0.5))
     fig, axes = plt.subplots(n_lines, 2, figsize=(15, 7.5 * n_lines))
 
@@ -172,7 +155,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
 
 
 def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
-    _ensure_simple_physical(solution)
+    prep_ops.ensure_simple_physical(solution)
 
     colorbar_labels = [r"n [m$^{-3}$]", r"$n_n$ [m$^{-3}$]", r"$T_i [eV]$", r"$T_e [eV] $", r"M", r"$k$ [m$^2$/s$^2$]"]
     simple_phys = solution.views.simple.solution.physical
@@ -188,7 +171,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
         solutions_plot[:, 5] = simple_phys[:, 11]
     solutions_plot[:, 4] = simple_phys[:, 9]
 
-    _ensure_connectivity_big(solution)
+    prep_ops.ensure_connectivity_big(solution)
     n_lines = int(np.floor(solution.neq / 2 + 0.5))
     fig, axes = plt.subplots(n_lines, 2, figsize=(15, 7.5 * n_lines))
 
@@ -239,10 +222,10 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
 
 
 def plot_overview_physical_difference(solution, second_solution, n_levels=100):
-    _ensure_simple_physical(solution)
+    prep_ops.ensure_simple_physical(solution)
     if not second_solution.metadata.flags.simple_phys_initialized:
-        print("Initializing physical solution first")
-        physical_ops.init_phys_variables(second_solution, "simple")
+        print("Initializing physical solution of the second case first")
+        second_solution.fields.initialize_physical("simple")
 
     colorbar_labels = [r"n, m$^{-3}$", r"$n_n$, m$^{-3}$", r"$T_i$", r"$T_e$", r"M", r"k"]
     left_simple_phys = solution.views.simple.solution.physical
@@ -258,7 +241,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     if solution.neq > 5:
         solutions_plot[:, 5] = left_simple_phys[:, 11] - right_simple_phys[:, 11]
 
-    _ensure_connectivity_big(solution)
+    prep_ops.ensure_connectivity_big(solution)
     n_lines = int(np.floor(solution.neq / 2 + 0.5))
     fig, axes = plt.subplots(n_lines, 2, figsize=(15, 7.5 * n_lines))
 
@@ -291,8 +274,8 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
         if variable not in defined_variables:
             raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
 
-    _ensure_connectivity_big(solution)
-    _ensure_simple_solution(solution)
+    prep_ops.ensure_connectivity_big(solution)
+    prep_ops.ensure_simple_solution(solution)
     simple_solution = solution.views.simple.solution.conservative
 
     var_to_plot = len(variable_list)

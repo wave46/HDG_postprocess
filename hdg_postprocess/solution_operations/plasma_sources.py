@@ -1,8 +1,6 @@
-import numpy as np
-
 from hdg_postprocess.routines.atomic import *
 from hdg_postprocess.routines.plasma import *
-from hdg_postprocess.solution_operations import physical as physical_ops
+from hdg_postprocess.solution_operations import preparation as prep_ops
 
 
 def calculate_ohmic_source(solution, which="simple"):
@@ -16,13 +14,11 @@ def calculate_ohmic_source(solution, which="simple"):
 
     if which == "simple":
         calculate_ohmic_source(solution, which="full")
-        glob_solution = solution.views.glob.solution.conservative
-        solution.views.simple.sources.ohmic_source = np.zeros(solution.mesh.global_state.vertices.shape[0])
-        solution.views.simple.sources.ohmic_source[
-            solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()
-        ] = solution.views.glob.sources.ohmic_source.reshape(glob_solution.shape[0] * glob_solution.shape[1])
+        solution.views.simple.sources.ohmic_source = prep_ops.project_full_to_simple(
+            solution, solution.views.glob.sources.ohmic_source
+        )
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         glob_view = solution.views.glob
         solution.views.glob.sources.ohmic_source = calculate_ohmic_source_cons(
             glob_view.solution.conservative,
@@ -36,7 +32,7 @@ def calculate_ohmic_source(solution, which="simple"):
             solution.parameters["physics"]["Zeff"],
         )
     elif which == "gauss":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         if solution.views.gauss.equilibrium.jtor is None:
             print("Calculating on gauss points first")
             solution.assembly.gauss()
@@ -57,11 +53,11 @@ def calculate_ohmic_source(solution, which="simple"):
 def calculate_ionization_rate(solution, which="simple"):
     if which == "simple":
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_ionization_rate(solution, which="full")
         solution._atomic_rates.ionization_simple = solution._ionization_rate
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution._ionization_rate = calculate_iz_rate_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["iz"],
@@ -74,11 +70,11 @@ def calculate_ionization_rate(solution, which="simple"):
 def calculate_recombination_rate(solution, which="simple"):
     if which == "simple":
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_recombination_rate(solution, which="full")
         solution._atomic_rates.recombination_simple = solution._recombination_rate
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution._recombination_rate = calculate_rec_rate_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["rec"],
@@ -91,11 +87,11 @@ def calculate_recombination_rate(solution, which="simple"):
 def calculate_cx_rate(solution, which="simple"):
     if which == "simple":
         _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_cx_rate(solution, which="full")
         solution._atomic_rates.cx_simple = solution._cx_rate
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution._cx_rate = calculate_cx_rate_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["cx"],
@@ -107,11 +103,11 @@ def calculate_cx_rate(solution, which="simple"):
 def calculate_ionization_source(solution, which="simple"):
     _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_ionization_source(solution, which="full")
         _assign_simple_view(solution, "ionization_source", solution.views.glob.sources.ionization_source)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.ionization_source = calculate_iz_source_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["iz"],
@@ -121,7 +117,7 @@ def calculate_ionization_source(solution, which="simple"):
             solution._cons_idx,
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.ionization_source = calculate_iz_source_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["iz"],
@@ -137,11 +133,11 @@ def calculate_ion_gain_due_to_iz(solution, which="simple"):
     if "R_E" not in solution.parameters["physics"].keys():
         raise ValueError("Please, provide effective energy transfer from neutrals to ions R_E to self.parameters['physics']")
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_ion_gain_due_to_iz(solution, which="full")
         _assign_simple_view(solution, "ion_gain_iz", solution.views.glob.sources.ion_gain_iz)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["iz"],
@@ -153,7 +149,7 @@ def calculate_ion_gain_due_to_iz(solution, which="simple"):
             solution._cons_idx,
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.ion_gain_iz = calculate_ion_gain_due_to_iz_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["iz"],
@@ -171,11 +167,11 @@ def calculate_ion_sink_due_to_rec(solution, which="simple"):
         solution, "rec", "Please, provide atomic settings for ion losses due to recombination for the simulation"
     )
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_ion_sink_due_to_rec(solution, which="full")
         _assign_simple_view(solution, "ion_sink_rec", solution.views.glob.sources.ion_sink_rec)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["rec"],
@@ -186,7 +182,7 @@ def calculate_ion_sink_due_to_rec(solution, which="simple"):
             * solution.parameters["adimensionalization"]["mass_scale"],
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.ion_sink_rec = calculate_ion_sink_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["rec"],
@@ -203,11 +199,11 @@ def calculate_ion_sink_due_to_cx(solution, which="simple"):
         solution, "cx", "Please, provide atomic settings for ion losses due to charge exchange for the simulation"
     )
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_ion_sink_due_to_cx(solution, which="full")
         _assign_simple_view(solution, "ion_sink_cx", solution.views.glob.sources.ion_sink_cx)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["cx"],
@@ -219,7 +215,7 @@ def calculate_ion_sink_due_to_cx(solution, which="simple"):
             solution._cons_idx,
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.ion_sink_cx = calculate_ion_sink_due_to_cx_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["cx"],
@@ -237,11 +233,11 @@ def calculate_electron_sink_due_to_iz(solution, which="simple"):
         solution, "Eiz", "Please, provide atomic settings for electron losses due to ionization for the simulation"
     )
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_electron_sink_due_to_iz(solution, which="full")
         _assign_simple_view(solution, "electron_sink_iz", solution.views.glob.sources.electron_sink_iz)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["Eiz"],
@@ -252,7 +248,7 @@ def calculate_electron_sink_due_to_iz(solution, which="simple"):
             solution._cons_idx,
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_sink_iz = calculate_electron_sink_due_to_iz_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["Eiz"],
@@ -269,11 +265,11 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
         solution, "Erec", "Please, provide atomic settings for electron losses due to recombination for the simulation"
     )
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_electron_sink_due_to_rec(solution, which="full")
         _assign_simple_view(solution, "electron_sink_rec", solution.views.glob.sources.electron_sink_rec)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["Erec"],
@@ -284,7 +280,7 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
             solution._cons_idx,
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_sink_rec = calculate_electron_sink_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["Erec"],
@@ -299,11 +295,11 @@ def calculate_electron_sink_due_to_rec(solution, which="simple"):
 def calculate_electron_gain_due_to_rec(solution, which="simple"):
     _require_atomic_key(solution, "rec", "Please, provide recombination atomic settings for the simulation")
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_electron_gain_due_to_rec(solution, which="full")
         _assign_simple_view(solution, "electron_gain_rec", solution.views.glob.sources.electron_gain_rec)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["rec"],
@@ -314,7 +310,7 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
             solution._cons_idx,
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_gain_rec = calculate_electron_gain_due_to_rec_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["rec"],
@@ -333,11 +329,11 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
         "Please, provide atomic settings for electron losses due to cooling factor for the simulation",
     )
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_electron_sink_due_to_cooling_factor(solution, which="full")
         _assign_simple_view(solution, "electron_sink_cooling_factor", solution.views.glob.sources.electron_sink_cooling_factor)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["cooling_factor"],
@@ -348,7 +344,7 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
             solution.parameters["adimensionalization"]["charge_scale"],
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["cooling_factor"],
@@ -363,11 +359,11 @@ def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
 def calculate_cooling_factor(solution, which="simple"):
     _require_atomic_key(solution, "cooling_factor", "Please, provide atomic settings for the cooling factor for the simulation")
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_cooling_factor(solution, which="full")
         _assign_simple_view(solution, "cooling_factor", solution.views.glob.sources.cooling_factor)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.cooling_factor = calculate_cooling_factor_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["cooling_factor"],
@@ -376,7 +372,7 @@ def calculate_cooling_factor(solution, which="simple"):
             solution.parameters["adimensionalization"]["charge_scale"],
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.cooling_factor = calculate_cooling_factor_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["cooling_factor"],
@@ -390,11 +386,11 @@ def calculate_cooling_factor(solution, which="simple"):
 def calculate_cx_source(solution, which="simple"):
     _require_atomic_key(solution, "iz", "Please, provide ionization atomic settings for the simulation")
     if which == "simple":
-        _ensure_simple_phys(solution)
+        prep_ops.ensure_simple_physical(solution)
         calculate_cx_source(solution, which="full")
         _assign_simple_view(solution, "cx_source", solution.views.glob.sources.cx_source)
     elif which == "full":
-        _ensure_full_solution(solution)
+        prep_ops.ensure_full_solution(solution)
         solution.views.glob.sources.cx_source = calculate_cx_source_cons(
             solution.views.glob.solution.conservative,
             solution.additional_parameters.atomic["cx"],
@@ -404,7 +400,7 @@ def calculate_cx_source(solution, which="simple"):
             solution._cons_idx,
         )
     elif which == "gauss":
-        _ensure_gauss_solution(solution)
+        prep_ops.ensure_gauss_solution(solution)
         solution.views.gauss.sources.cx_source = calculate_cx_source_cons(
             solution.views.gauss.solution.conservative,
             solution.additional_parameters.atomic["cx"],
@@ -421,27 +417,5 @@ def _require_atomic_key(solution, key, message):
     if key not in solution.additional_parameters.atomic.keys():
         raise ValueError(message)
 
-
-def _ensure_simple_phys(solution):
-    if not solution.metadata.flags.simple_phys_initialized:
-        print("Initializing physical solution first")
-        physical_ops.init_phys_variables(solution, "simple")
-
-
-def _ensure_full_solution(solution):
-    if not solution.metadata.flags.combined_to_full:
-        solution.assembly.full()
-
-
-def _ensure_gauss_solution(solution):
-    if solution.views.gauss.solution.conservative is None:
-        print("Initializing values in gauss points first")
-        solution.assembly.gauss()
-
-
 def _assign_simple_view(solution, field_name, full_values):
-    simple_values = np.zeros(solution.mesh.global_state.vertices.shape[0])
-    simple_values[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = full_values.reshape(
-        solution.views.glob.solution.conservative.shape[0] * solution.views.glob.solution.conservative.shape[1]
-    )
-    setattr(solution.views.simple.sources, field_name, simple_values)
+    setattr(solution.views.simple.sources, field_name, prep_ops.project_full_to_simple(solution, full_values))

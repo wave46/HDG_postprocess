@@ -1,5 +1,6 @@
 import numpy as np
 
+from hdg_postprocess.solution_operations import preparation as prep_ops
 from hdg_postprocess.solution_operations import boundary as boundary_ops
 
 
@@ -62,30 +63,21 @@ def calculate_power_balance(solution):
 
 
 def calculate_volumetric_sources(solution):
-    if not solution.mesh.metadata.flags.gauss_volumes_initialized:
-        solution.mesh.geometry.gauss_volumes
+    prep_ops.ensure_gauss_volumes(solution)
     gauss_sources = solution.views.gauss.sources
-    if gauss_sources.ohmic_source is None:
-        print("Calculating ohmic source on gauss points first")
-        solution.sources.ohmic("gauss")
-    if gauss_sources.electron_sink_iz is None:
-        print("Calculating electron ionization sink on gauss points first")
-        solution.sources.electron_sink_iz("gauss")
-    if gauss_sources.electron_sink_rec is None:
-        print("Calculating electron recombination sink on gauss points first")
-        solution.sources.electron_sink_rec("gauss")
-    if gauss_sources.ion_gain_iz is None:
-        print("Calculating ionization gain on gauss points first")
-        solution.sources.ion_gain_iz("gauss")
-    if gauss_sources.electron_gain_rec is None:
-        print("Calculating electron recombination gain on gauss points first")
-        solution.sources.electron_gain_rec("gauss")
-    if gauss_sources.ion_sink_rec is None:
-        print("Calculating ion recombination sink on gauss points first")
-        solution.sources.ion_sink_rec("gauss")
-    if gauss_sources.ion_sink_cx is None:
-        print("Calculating ion charge exchange sink on gauss points first")
-        solution.sources.ion_sink_cx("gauss")
+    required_sources = [
+        ("ohmic_source", "Calculating ohmic source on gauss points first", solution.sources.ohmic),
+        ("electron_sink_iz", "Calculating electron ionization sink on gauss points first", solution.sources.electron_sink_iz),
+        ("electron_sink_rec", "Calculating electron recombination sink on gauss points first", solution.sources.electron_sink_rec),
+        ("ion_gain_iz", "Calculating ionization gain on gauss points first", solution.sources.ion_gain_iz),
+        ("electron_gain_rec", "Calculating electron recombination gain on gauss points first", solution.sources.electron_gain_rec),
+        ("ion_sink_rec", "Calculating ion recombination sink on gauss points first", solution.sources.ion_sink_rec),
+        ("ion_sink_cx", "Calculating ion charge exchange sink on gauss points first", solution.sources.ion_sink_cx),
+    ]
+    for field_name, message, calculator in required_sources:
+        if getattr(gauss_sources, field_name) is None:
+            print(message)
+            calculator("gauss")
 
     if "impurity_concentration" in solution.parameters["physics"].keys():
         if solution.parameters["physics"]["impurity_concentration"] > 0:
@@ -108,7 +100,9 @@ def calculate_volumetric_sources(solution):
     elif "external_heating_e" in solution.parameters["physics"].keys():
         source_summary.external_heating_e_total = np.sum(gauss_sources.external_heating_e * gauss_volumes)
         source_summary.external_heating_i_total = np.sum(gauss_sources.external_heating_i * gauss_volumes)
-        source_summary.external_heating_total = source_summary.external_heating_e_total + source_summary.external_heating_i_total
+        source_summary.external_heating_total = (
+            source_summary.external_heating_e_total + source_summary.external_heating_i_total
+        )
     if "impurity_concentration" in solution.parameters["physics"].keys():
         if solution.parameters["physics"]["impurity_concentration"] > 0:
             source_summary.electron_sink_cooling_factor_total = np.sum(
