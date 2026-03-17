@@ -99,9 +99,8 @@ Current practical runtime dependencies include:
 - `scipy`
 - `matplotlib`
 - `silx` for HDF5 dictionary loading in the current file readers
-- `raysect` for the production element locator used by interpolation
 
-`raysect` is still kept deliberately: benchmarked pure-Python and SciPy locator attempts were much slower than `Discrete2DMesh`, so replacing it has been deferred until a native compiled locator is introduced in this library. The reasoning is documented in [locator_decision.md](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/locator_decision.md).
+`raysect` is no longer required for the production interpolation path. It is still useful as an optional comparison baseline in the locator benchmark tooling, and the transition history is documented in [locator_decision.md](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/locator_decision.md).
 
 ## Refactor status
 

@@ -2,8 +2,16 @@ import os
 from pathlib import Path
 
 import numpy as np
-from raysect.core.math.function.float import Discrete2DMesh
 from hdg_postprocess.core.mesh import assembly as assembly_ops
+from hdg_postprocess.locator import Exact2DMeshFunction
+
+
+class _InsideMeshMask:
+    def __init__(self, locator):
+        self._locator = locator
+
+    def __call__(self, x, y):
+        return 1 if int(self._locator(x, y)) != -1 else 0
 
 
 def _ensure_full_mesh(mesh):
@@ -31,11 +39,9 @@ def create_connectivity_big(mesh):
 
 
 def make_mask(mesh):
-    _ensure_connectivity_big(mesh)
-
-    mesh.derived_geometry.mask = Discrete2DMesh(
-        mesh.global_state.vertices, mesh.derived_geometry.connectivity_big, np.ones(mesh.derived_geometry.connectivity_big.shape[0]), limit=False, default_value=0
-    )
+    if not mesh.metadata.flags.element_locator_initialized:
+        make_element_number_function(mesh)
+    mesh.derived_geometry.mask = _InsideMeshMask(mesh.derived_geometry.element_locator)
     mesh.metadata.flags.mask_initialized = True
 
 
@@ -45,7 +51,7 @@ def make_element_number_function(mesh):
         np.arange(len(mesh.global_state.connectivity)),
         mesh.derived_geometry.connectivity_big.shape[0] // mesh.global_state.connectivity.shape[0],
     )
-    mesh.derived_geometry.element_locator = Discrete2DMesh(
+    mesh.derived_geometry.element_locator = Exact2DMeshFunction(
         mesh.global_state.vertices, mesh.derived_geometry.connectivity_big, element_numbers, limit=False, default_value=-1
     )
     mesh.metadata.flags.element_locator_initialized = True

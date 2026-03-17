@@ -53,7 +53,6 @@ For existing notebooks and scripts that still use the old split-property names:
 ## Known limitations
 
 - Some setup-heavy analyses such as power balance still require assigning atomic and neutral settings explicitly, just as in the legacy API.
-- `raysect` is still used for production element location during interpolation.
 - Notebook execution was not revalidated automatically in this cleanup phase because the local environment does not currently have `nbformat` / `nbconvert` installed.
 
 ## Next simplification targets
@@ -62,4 +61,3 @@ For existing notebooks and scripts that still use the old split-property names:
 - continue second-pass cleanup of `core/solution` and `routines`
 - simplify facade internals where repeated orchestration is still visible
 - expand tutor-style documentation around the structured API and migration path
-- revisit a native compiled locator after the broader refactor is complete

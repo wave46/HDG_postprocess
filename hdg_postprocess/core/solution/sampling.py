@@ -10,13 +10,11 @@ def calculate_variables_along_line(solution, r_line, z_line, variable_list):
     for variable in variable_list:
         if variable not in defined_variables:
             raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
-    result = {}
-    for variable in variable_list:
-        temp = np.zeros_like(z_line)
-        getter = variable_getters[variable]
-        for i, (r, z) in enumerate(zip(r_line, z_line)):
-            temp[i] = getter(r, z)
-        result[variable] = temp
+    result = {variable: np.zeros_like(z_line) for variable in variable_list}
+    requested_getters = [(variable, variable_getters[variable]) for variable in variable_list]
+    for i, (r, z) in enumerate(zip(r_line, z_line)):
+        for variable, getter in requested_getters:
+            result[variable][i] = getter(r, z)
     return result
 
 

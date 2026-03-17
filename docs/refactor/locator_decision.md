@@ -175,13 +175,27 @@ A sampled SAH-lite split was prototyped, but it increased build cost without imp
 
 Batch queries and serialized locator artifacts may still be worthwhile later, but they are secondary compared with tree quality right now.
 
-## Current Decision
+## Production Decision
 
-Keep Raysect as the production default for the moment, but the native tree prototype is now strong enough to justify continued development.
+The native compiled locator is now the production default in the library.
 
-The best next locator step is:
+Why that decision is reasonable:
 
-1. keep the current grouped-element tree
-2. use the new diagnostics to target traversal and leaf refinement
-3. re-benchmark build and query separately
-4. only reintroduce more expensive split heuristics if they pay for themselves
+- startup time improves dramatically because locator build no longer scales with the full split-triangle KD-tree
+- the broader random-point comparison against Raysect stayed clean:
+  - `20,000` random points on `legacy_mesh_west`
+  - `0` mismatches
+  - `0` inside/outside mismatches
+- the remaining query slowdown versus Raysect is acceptable for the current workflows because setup time dominates overall runtime
+
+Raysect is still useful as an optional comparison baseline in `scripts/benchmark_locator.py`, but it is no longer required for production interpolation inside the package.
+
+## Current Recommendation
+
+For the locator itself, this is a good stopping point unless a larger redesign becomes worthwhile later.
+
+If locator work is revisited in the future, the next ideas worth considering are:
+
+1. batch-oriented query APIs rather than more scalar-query micro-tuning
+2. a more substantial tree redesign, not just local heuristic tweaks
+3. serialized locator artifacts if startup time becomes critical across repeated short-lived processes
