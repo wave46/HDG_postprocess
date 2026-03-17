@@ -28,6 +28,17 @@ The refactor is intentionally staged.
 
 The demo compatibility contract is recorded in [compatibility_contract.md](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/compatibility_contract.md).
 
+## Tutorials
+
+For a lighter entry point than the full demo notebooks, start with:
+
+- [Solution Quickstart](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/solution_quickstart.md)
+- [Mesh Quickstart](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/mesh_quickstart.md)
+- [Migrating Solution API](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/migrating_solution_api.md)
+- [Migrating Mesh API](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/migrating_mesh_api.md)
+
+The longer runnable examples remain in [demos](/home/ikudashev/Documents/Github/HDG_postprocess/demos).
+
 ## Modern additive API
 
 The legacy API remains supported:
@@ -112,15 +123,13 @@ The current branch has completed the safety-foundation phase:
 - partial split of mesh and solution internals
 - structured public API on `HDGsolution`
 
-The most disruptive `HDGsolution` cleanup is already done:
+The most disruptive public-API cleanup is already done:
 
-- structured state now lives in the dedicated `solution_api` package
 - grouped facades are the preferred public API
+- structured containers are the preferred state surface
 - the old flat wrapper layer has been removed
 
 The main remaining refactor targets are:
 
-- `HDG_mesh.py`
-- second-pass cleanup of `core/solution`
-- second-pass cleanup of `routines`
 - broader user documentation and tutor-style examples
+- final polish of internal helper layers where needed

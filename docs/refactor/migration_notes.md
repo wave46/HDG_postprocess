@@ -5,7 +5,7 @@
 The refactor has moved past the heaviest compatibility bridge phase.
 
 - Demo-covered loader entrypoints remain supported.
-- `hdg_postprocess.api` is now a thin convenience loader that returns the structured `HDGsolution` directly.
+- `hdg_postprocess.api` is now the preferred convenience entry point for both solution and mesh loading.
 - The preferred data-access style is now the structured container API:
   - `solution.views`
   - `solution.summary`
@@ -57,7 +57,5 @@ For existing notebooks and scripts that still use the old split-property names:
 
 ## Next simplification targets
 
-- clean `HDG_mesh.py` with the same package-first structure used for the solution API
-- continue second-pass cleanup of `core/solution` and `routines`
-- simplify facade internals where repeated orchestration is still visible
 - expand tutor-style documentation around the structured API and migration path
+- keep polishing internals only where a clear readability or performance win still exists
