@@ -227,6 +227,8 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
     tol = 1e-8
     maxit = 100
     scale = tol*np.sqrt(x**2+y**2)+1e-14
+    x_vertices = vertices_element[:,0]
+    y_vertices = vertices_element[:,1]
     xieta0 = xieta_element(x,y,vertices_element,eltype)
     # back projection
     if eltype == 'triangle':
@@ -248,8 +250,6 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
                 shape_functions = shapefunctions_quads(xieta0[0], xieta0[1], p_order,inv_vandermonde)                
                 Nx = shape_functions[:,1]
                 Ny = shape_functions[:,2]
-            x_vertices = vertices_element[:,0]
-            y_vertices = vertices_element[:,1]
             j00 = Nx@x_vertices
             j10 = Ny@x_vertices
             j01 = Nx@y_vertices
@@ -458,18 +458,13 @@ def orthopoly2D_deriv_rst(r,s,n):
 
 
 def  jacobi (n,a,b,x):
-    p = 1
-    
     if n == 0:
-        return p
+        return 1
     elif n == 1:
-
-        p = 0.5*(a - b + (2+a+b)*x)
-        return p
+        return 0.5*(a - b + (2+a+b)*x)
     else:
-        p = ((2*n + a + b-1)*((a+b)*(a-b) + x*(2*n + a + b-2)*(2*n + a + b))/(2*(n * (n+a+b) * (2*n + a + b-2)))) * jacobi(n-1, a, b, x) - \
-            ((n+a-1)*(n+b-1)*(2*n + a + b)/(n * (n+a+b) * (2*n + a + b-2)))*jacobi(n-2, a, b, x)
-        return p
+        return ((2*n + a + b-1)*((a+b)*(a-b) + x*(2*n + a + b-2)*(2*n + a + b))/(2*(n * (n+a+b) * (2*n + a + b-2)))) * jacobi(n-1, a, b, x) - \
+            ((n+a-1)*(n+b-1)*(2*n + a + b)/(n * (n+a+b) * (2*n + a + b - 2)))*jacobi(n-2, a, b, x)
 
 #some hardcoded stuff from matlab
 permutations_quads = {}

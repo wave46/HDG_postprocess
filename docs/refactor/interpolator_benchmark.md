@@ -28,67 +28,67 @@ Scenario: `legacy_first`
 ### Cold passes
 
 ```text
-value_unique_cold_seconds=0.828619
-value_unique_cold_queries_per_second=2413.65
+value_unique_cold_seconds=0.833692
+value_unique_cold_queries_per_second=2398.97
 
-value_repeated_cold_seconds=0.027142
-value_repeated_cold_queries_per_second=2357.97
+value_repeated_cold_seconds=0.028252
+value_repeated_cold_queries_per_second=2265.29
 
-gradient_unique_cold_seconds=0.854686
-gradient_unique_cold_queries_per_second=2340.04
+gradient_unique_cold_seconds=0.837308
+gradient_unique_cold_queries_per_second=2388.61
 
-gradient_repeated_cold_seconds=0.027534
-gradient_repeated_cold_queries_per_second=2324.38
+gradient_repeated_cold_seconds=0.027898
+gradient_repeated_cold_queries_per_second=2294.06
 
-mixed_unique_cold_seconds=0.821813
-mixed_unique_cold_queries_per_second=2433.64
+mixed_unique_cold_seconds=0.850703
+mixed_unique_cold_queries_per_second=2351.00
 
-mixed_repeated_cold_seconds=0.026643
-mixed_repeated_cold_queries_per_second=2402.15
+mixed_repeated_cold_seconds=0.026952
+mixed_repeated_cold_queries_per_second=2374.58
 ```
 
 ### Warm passes
 
 ```text
-value_unique_warm_seconds=0.004311
-value_unique_warm_queries_per_second=463877.61
+value_unique_warm_seconds=0.004909
+value_unique_warm_queries_per_second=407411.64
 
-value_repeated_warm_seconds=0.000138
-value_repeated_warm_queries_per_second=464832.73
+value_repeated_warm_seconds=0.000186
+value_repeated_warm_queries_per_second=343783.03
 
-gradient_unique_warm_seconds=0.008642
-gradient_unique_warm_queries_per_second=231427.13
+gradient_unique_warm_seconds=0.008468
+gradient_unique_warm_queries_per_second=236190.03
 
-gradient_repeated_warm_seconds=0.000378
-gradient_repeated_warm_queries_per_second=169514.90
+gradient_repeated_warm_seconds=0.000326
+gradient_repeated_warm_queries_per_second=196078.41
 
-mixed_unique_warm_seconds=0.011401
-mixed_unique_warm_queries_per_second=175423.24
+mixed_unique_warm_seconds=0.013230
+mixed_unique_warm_queries_per_second=151166.67
 
-mixed_repeated_warm_seconds=0.000525
-mixed_repeated_warm_queries_per_second=121911.02
+mixed_repeated_warm_seconds=0.000459
+mixed_repeated_warm_queries_per_second=139303.64
 ```
 
 ### Mixed multi-pass results
 
 ```text
-value_unique_mixed_seconds=0.848758
-value_unique_mixed_queries_per_second=9425.54
+value_unique_mixed_seconds=0.827175
+value_unique_mixed_queries_per_second=9671.47
 
-value_repeated_mixed_seconds=0.028823
-value_repeated_mixed_queries_per_second=8881.94
+value_repeated_mixed_seconds=0.027209
+value_repeated_mixed_queries_per_second=9408.55
 
-gradient_unique_mixed_seconds=0.882651
-gradient_unique_mixed_queries_per_second=9063.60
+gradient_unique_mixed_seconds=0.860517
+gradient_unique_mixed_queries_per_second=9296.74
 
-gradient_repeated_mixed_seconds=0.029131
-gradient_repeated_mixed_queries_per_second=8787.89
+gradient_repeated_mixed_seconds=0.027210
+gradient_repeated_mixed_queries_per_second=9408.39
 
-mixed_unique_mixed_seconds=0.886075
-mixed_unique_mixed_queries_per_second=9028.58
+mixed_unique_mixed_seconds=0.886476
+mixed_unique_mixed_queries_per_second=9024.50
 
-mixed_repeated_mixed_seconds=0.032198
-mixed_repeated_mixed_queries_per_second=7950.90
+mixed_repeated_mixed_seconds=0.029839
+mixed_repeated_mixed_queries_per_second=8579.24
 ```
 
 ## Main interpretation
@@ -97,10 +97,20 @@ mixed_repeated_mixed_queries_per_second=7950.90
 - The old mixed throughput numbers make unique and repeated workloads look more similar than they really are, because they average cold and warm phases together.
 - For value interpolation, warm cached throughput is roughly two orders of magnitude higher than cold throughput.
 - Gradient and mixed calls also benefit strongly from caching, but they still do more work on the warm path than value-only interpolation.
-- After the structural cleanup, the first two optimization passes recovered the earlier mixed-path regression for the main unique-point workloads and improved the warm cached value and mixed paths further.
+- After the structural cleanup, the safe optimization passes recovered the earlier mixed-path regression for the main unique-point workloads and kept warm cached performance strong.
 
 ## Refactor note
 
 - `dcf279c` (`Refactor interpolator cache flow`) made the class cleaner but slightly slower.
 - `58a770b` (`Optimize interpolator fast path`) recovered most of the hot-path regression and improved warm cached calls noticeably.
 - The current benchmark numbers also include the follow-up allocation-reduction pass in `xieta_element()`, `xieta_element_precise()`, and `_compute_shape_data()`.
+
+## Likely remaining bottlenecks
+
+The cold-path cost is still dominated by the miss-side mathematical work, especially:
+
+- `xieta_element_precise()`
+- `orthopoly2D_deriv_xieta()` / `orthopoly2D_deriv_rst()`
+- `jacobi()`
+
+Those are good candidates for compiled acceleration later if more speed is needed. The failed pure-Python iterative `jacobi()` experiment was a useful sign here: this part of the stack is performance-sensitive enough that further gains may be better pursued with Cython or another compiled path rather than more aggressive Python-level rewrites.
