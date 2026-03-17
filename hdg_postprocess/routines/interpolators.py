@@ -35,67 +35,6 @@ class SoledgeHDG2DInterpolator():
         self._hashed_shape_functions_dx = {}
         self._hashed_shape_functions_dy = {}
 
-    def _cache_key(self, x, y):
-        return (x, y)
-
-    def _compute_shape_data(self, x, y, element_number):
-        element_vertices = self._vertex_coords[self._connectivity[element_number, :]]
-        xieta = xieta_element_precise(
-            x,
-            y,
-            element_vertices,
-            self._p_order,
-            self._inv_vandermonde,
-            self._element_type,
-        )
-        if self._element_type == "triangle":
-            p, pdx, pdy = orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order)
-            shape_functions = p @ self._inv_vandermonde
-            Nx = pdx @ self._inv_vandermonde
-            Ny = pdy @ self._inv_vandermonde
-        elif self._element_type == "quadrilateral":
-            shape_data = shapefunctions_quads(xieta[0], xieta[1], self._p_order, self._inv_vandermonde)
-            shape_functions = shape_data[:, 0]
-            Nx = shape_data[:, 1]
-            Ny = shape_data[:, 2]
-        else:
-            raise ValueError(f"Unsupported element type: {self._element_type!r}")
-
-        j00 = Nx @ element_vertices[:, 0]
-        j10 = Ny @ element_vertices[:, 0]
-        j01 = Nx @ element_vertices[:, 1]
-        j11 = Ny @ element_vertices[:, 1]
-        det_j = j00 * j11 - j01 * j10
-        inv_j00 = j11 / det_j
-        inv_j01 = -j10 / det_j
-        inv_j10 = -j01 / det_j
-        inv_j11 = j00 / det_j
-        shape_functions_dx = inv_j00 * Nx + inv_j01 * Ny
-        shape_functions_dy = inv_j10 * Nx + inv_j11 * Ny
-        return shape_functions, shape_functions_dx, shape_functions_dy
-
-    def _cache_miss(self, x, y, key):
-        element_number = int(self._element_number(x, y))
-        self._hashed_element[key] = element_number
-        if element_number == -1:
-            self._hashed_shape_functions[key] = [0]
-            if self._limit:
-                raise ValueError("Requested value outside mesh bounds.")
-            return -1
-        shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
-        self._hashed_shape_functions[key] = shape_functions
-        self._hashed_shape_functions_dx[key] = shape_functions_dx
-        self._hashed_shape_functions_dy[key] = shape_functions_dy
-        return element_number
-
-    def _prepare_point(self, x, y):
-        key = self._cache_key(x, y)
-        if key not in self._hashed_shape_functions:
-            element_number = self._cache_miss(x, y, key)
-        else:
-            element_number = self._hashed_element[key]
-        return key, element_number
-
     def evaluate(self, x, y):
         key, element_number = self._prepare_point(x, y)
         if element_number == -1:
@@ -120,23 +59,14 @@ class SoledgeHDG2DInterpolator():
         result[1] = np.dot(shape_functions_dy, element_data)
         return result
 
-    def __getstate__(self):
-        return self._vertex_data, self._element_number, self._limit, self._default_value
-    
-    def __setstate__(self, state):
-        self._vertex_data, self._element_number, self._limit, self._default_value = state
-
-    def __reduce__(self):
-        return self.__new__, (self.__class__, ), self.__getstate__()
-
-    def __call__(self,x,y):
+    def __call__(self, x, y):
         """
         Calculates interpolateion in given point (R,Z)
         """
-        return self.evaluate(x,y)
+        return self.evaluate(x, y)
 
     @classmethod
-    def instance(cls,instance,vertex_data=None,limit=None,default_value=None):
+    def instance(cls, instance, vertex_data=None, limit=None, default_value=None):
         m = SoledgeHDG2DInterpolator.__new__(SoledgeHDG2DInterpolator)
         m._element_number = instance._element_number
         m._connectivity = instance._connectivity
@@ -173,6 +103,76 @@ class SoledgeHDG2DInterpolator():
             m._default_value = default_value
         
         return m
+
+    def __getstate__(self):
+        return self._vertex_data, self._element_number, self._limit, self._default_value
+    
+    def __setstate__(self, state):
+        self._vertex_data, self._element_number, self._limit, self._default_value = state
+
+    def __reduce__(self):
+        return self.__new__, (self.__class__, ), self.__getstate__()
+
+    def _cache_key(self, x, y):
+        return (x, y)
+
+    def _prepare_point(self, x, y):
+        key = self._cache_key(x, y)
+        if key not in self._hashed_shape_functions:
+            element_number = self._cache_miss(x, y, key)
+        else:
+            element_number = self._hashed_element[key]
+        return key, element_number
+
+    def _cache_miss(self, x, y, key):
+        element_number = int(self._element_number(x, y))
+        self._hashed_element[key] = element_number
+        if element_number == -1:
+            self._hashed_shape_functions[key] = [0]
+            if self._limit:
+                raise ValueError("Requested value outside mesh bounds.")
+            return -1
+        shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
+        self._hashed_shape_functions[key] = shape_functions
+        self._hashed_shape_functions_dx[key] = shape_functions_dx
+        self._hashed_shape_functions_dy[key] = shape_functions_dy
+        return element_number
+
+    def _compute_shape_data(self, x, y, element_number):
+        element_vertices = self._vertex_coords[self._connectivity[element_number, :]]
+        xieta = xieta_element_precise(
+            x,
+            y,
+            element_vertices,
+            self._p_order,
+            self._inv_vandermonde,
+            self._element_type,
+        )
+        if self._element_type == "triangle":
+            p, pdx, pdy = orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order)
+            shape_functions = p @ self._inv_vandermonde
+            Nx = pdx @ self._inv_vandermonde
+            Ny = pdy @ self._inv_vandermonde
+        elif self._element_type == "quadrilateral":
+            shape_data = shapefunctions_quads(xieta[0], xieta[1], self._p_order, self._inv_vandermonde)
+            shape_functions = shape_data[:, 0]
+            Nx = shape_data[:, 1]
+            Ny = shape_data[:, 2]
+        else:
+            raise ValueError(f"Unsupported element type: {self._element_type!r}")
+
+        j00 = Nx @ element_vertices[:, 0]
+        j10 = Ny @ element_vertices[:, 0]
+        j01 = Nx @ element_vertices[:, 1]
+        j11 = Ny @ element_vertices[:, 1]
+        det_j = j00 * j11 - j01 * j10
+        inv_j00 = j11 / det_j
+        inv_j01 = -j10 / det_j
+        inv_j10 = -j01 / det_j
+        inv_j11 = j00 / det_j
+        shape_functions_dx = inv_j00 * Nx + inv_j01 * Ny
+        shape_functions_dy = inv_j10 * Nx + inv_j11 * Ny
+        return shape_functions, shape_functions_dx, shape_functions_dy
 
 def xieta_element (x,y,vertices_element,eltype):
     # find local element coordinates xi, eta

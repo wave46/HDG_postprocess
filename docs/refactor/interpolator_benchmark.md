@@ -58,4 +58,33 @@ mixed_repeated_queries_per_second=8764.43
 
 - These measurements include the current exact-point cache logic.
 - Because the cache is cleared before each workload, the repeated-point timings here are not a fully warm-cache best case; they represent the current cold-start behavior of each workload family.
+- The `queries_per_second` values for `*_unique` and `*_repeated` stay fairly close because both workloads contain a mix of cold and warm cache lookups. The repeated workloads are much shorter in absolute time only because they execute far fewer total queries, not because the benchmark is measuring a separately pre-warmed steady-state cache.
 - Locator time is part of the measured interpolation path because the benchmark uses the real `define_interpolators()` setup and live element lookup.
+
+## After first structural cleanup
+
+Commit: `dcf279c` (`Refactor interpolator cache flow`)
+
+This first pass only removed duplication between `evaluate()` and `gradient()` and routed both through a shared point-preparation path. It made the code easier to follow, but it was not an optimization pass yet.
+
+Measured on the same command and scenario:
+
+```text
+value_unique_seconds=0.912147
+value_unique_queries=8000
+value_unique_queries_per_second=8770.52
+
+gradient_unique_seconds=0.933171
+gradient_unique_queries=8000
+gradient_unique_queries_per_second=8572.92
+
+mixed_unique_seconds=0.923666
+mixed_unique_queries=8000
+mixed_unique_queries_per_second=8661.14
+```
+
+Interpretation:
+
+- the slowdown is small but real
+- the likely cause is extra helper and dictionary-access overhead in the hot path
+- this is acceptable for the structural pass because the next step is a focused optimization pass on the cleaned-up code path
