@@ -121,6 +121,20 @@ Current practical runtime dependencies include:
 
 `raysect` is no longer required for the production interpolation path. It is still useful as an optional comparison baseline in the locator benchmark tooling, and the transition history is documented in [locator_decision.md](docs/refactor/locator_decision.md).
 
+## Python support
+
+The current validated environments are:
+
+| Python | Full `pytest tests -q` | Notes |
+|---|---:|---|
+| 3.8 | passed | legacy working environment |
+| 3.10 | passed | good fresh-environment target |
+| 3.11 | passed | slightly faster than 3.8/3.10 |
+| 3.12 | passed | fastest among the tested versions |
+| 3.13 | passed | works, with no extra code changes beyond the compatibility fixes already in this branch |
+
+The package metadata still declares `requires-python = ">=3.8"`. For fresh installations, Python `3.11` or `3.12` is currently the most practical choice.
+
 ## Refactor status
 
 The current branch has completed the safety-foundation phase:

@@ -104,10 +104,6 @@ This helper:
 - fills and adimensionalizes the default neutral-diffusion bundle when requested
 - fills and adimensionalizes the default turbulence bundle when requested
 
-## Why the atomic path stays explicit
-
-The atomic data directory intentionally stays explicit so the library does not silently depend on private demo data folders. This keeps the public API honest on other machines and makes it clear which workflows rely on extra local assets.
-
 ## Availability
 
 These auxiliary files are available on request when you need to run the full demos, baseline regeneration, or benchmark workflows. The core package structure does not assume they are public repository contents.

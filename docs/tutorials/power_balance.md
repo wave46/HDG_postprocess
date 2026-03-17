@@ -61,8 +61,6 @@ solution.additional_parameters.set_neutral_diffusion(...)
 
 the preferred modern style is to collect that setup through `configure_solution_setup(...)`.
 
-The atomic data path intentionally stays explicit so the library does not silently depend on private demo data folders.
-
 ## Related docs
 
 - [Solution Quickstart](solution_quickstart.md)
