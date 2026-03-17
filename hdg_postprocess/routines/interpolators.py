@@ -2,10 +2,18 @@ import numpy as np
 
 class SoledgeHDG2DInterpolator():
 
-
-
-    def __init__(self,vertex_coords,vertex_data,connectivity,element_number,
-                    reference_element_coordinates,element_type,p_order,limit=True,default_value=0):
+    def __init__(
+        self,
+        vertex_coords,
+        vertex_data,
+        connectivity,
+        element_number,
+        reference_element_coordinates,
+        element_type,
+        p_order,
+        limit=True,
+        default_value=0,
+    ):
         """
         in case of triangles reference element coordinates in 2D
         in case of quadrilaterals reference element coordinates in 1D
@@ -16,153 +24,102 @@ class SoledgeHDG2DInterpolator():
         self._vertex_coords = vertex_coords
         self._element_number = element_number
         self._reference_element_coordinates = reference_element_coordinates
-        self._vandermonde = Vandermonde_LP (p_order, reference_element_coordinates)
+        self._vandermonde = Vandermonde_LP(p_order, reference_element_coordinates)
         self._inv_vandermonde = np.linalg.inv(self._vandermonde)
         self._limit = limit
-        self._default_value =  default_value
+        self._default_value = default_value
         self._p_order = p_order
         self._element_type = element_type
-        #self._hashed_points = []
         self._hashed_shape_functions = {}
         self._hashed_element = {}
-
-        #for gradients
         self._hashed_shape_functions_dx = {}
         self._hashed_shape_functions_dy = {}
 
+    def _cache_key(self, x, y):
+        return (x, y)
 
-
-    def evaluate(self,x,y):
-        result = 0
-
-        if (x,y) in self._hashed_shape_functions.keys():
-            if self._hashed_element[(x,y)]==-1:
-                return self._default_value
-            else: 
-                shape_functions = self._hashed_shape_functions[(x,y)]
-                element_data = self._vertex_data[self._hashed_element[(x,y)],:]
-                result = np.dot(shape_functions,element_data)
-            return result
+    def _compute_shape_data(self, x, y, element_number):
+        element_vertices = self._vertex_coords[self._connectivity[element_number, :]]
+        xieta = xieta_element_precise(
+            x,
+            y,
+            element_vertices,
+            self._p_order,
+            self._inv_vandermonde,
+            self._element_type,
+        )
+        if self._element_type == "triangle":
+            p, pdx, pdy = orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order)
+            shape_functions = p @ self._inv_vandermonde
+            Nx = pdx @ self._inv_vandermonde
+            Ny = pdy @ self._inv_vandermonde
+        elif self._element_type == "quadrilateral":
+            shape_data = shapefunctions_quads(xieta[0], xieta[1], self._p_order, self._inv_vandermonde)
+            shape_functions = shape_data[:, 0]
+            Nx = shape_data[:, 1]
+            Ny = shape_data[:, 2]
         else:
-            element_number = int(self._element_number(x,y))
-            self._hashed_element[(x,y)] = element_number
-            if (element_number==-1):
-                self._hashed_shape_functions[(x,y)] = [0]              
-                if self._limit:            
-                    raise ValueError("Requested value outside mesh bounds.")
-                else:
-                    return self._default_value
-            else:
-                # get element vertces coordinates
-                element_vertices = self._vertex_coords[self._connectivity[element_number,:]]
-                #transition to element local coordinates
-                xieta = xieta_element_precise(x, y, element_vertices,self._p_order,self._inv_vandermonde,self._element_type)
-                #calculating shape functions
-                if self._element_type == 'triangle':
-                    p, pdx, pdy= orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order) 
-                    shape_functions =  p@ self._inv_vandermonde
-                    Nx = pdx@ self._inv_vandermonde 
-                    Ny = pdy @ self._inv_vandermonde
-                elif self._element_type == 'quadrilateral':
-                    shape_functions = shapefunctions_quads(xieta[0], xieta[1], self._p_order,self._inv_vandermonde)
-                    shape_functions = shape_functions[:,0]
-                    Nx = shape_functions[:,1]
-                    Ny = shape_functions[:,2]
-                invJ = np.zeros([2,2])
-                J = np.zeros([2,2])
-                J[0,0] = Nx@element_vertices[:,0]
-                J[1,0] = Ny@element_vertices[:,0]
-                J[0,1] = Nx@element_vertices[:,1]
-                J[1,1] = Ny@element_vertices[:,1]
-                # inverse matrix
-                detJ = J[0,0]*J[1,1]-J[0,1]*J[1,0]
-                invJ[0,0] = J[1,1]/detJ
-                invJ[0,1] = -1*J[1,0]/detJ
-                invJ[1,0] = -1*J[0,1]/detJ
-                invJ[1,1] = J[0,0]/detJ
-                shape_functions_dx = invJ[0,0]*Nx + invJ[1,0]*Ny
-                shape_functions_dy = invJ[0,1]*Nx + invJ[1,1]*Ny
-                self._hashed_shape_functions[(x,y)] =shape_functions
-                self._hashed_shape_functions_dx[(x,y)] =shape_functions_dx
-                self._hashed_shape_functions_dy[(x,y)] =shape_functions_dy
-                #get data in element vertices
-                element_data = self._vertex_data[element_number,:]
+            raise ValueError(f"Unsupported element type: {self._element_type!r}")
 
-                #getting value in point with shape functiosn
-                result = np.dot(shape_functions,element_data)
+        j00 = Nx @ element_vertices[:, 0]
+        j10 = Ny @ element_vertices[:, 0]
+        j01 = Nx @ element_vertices[:, 1]
+        j11 = Ny @ element_vertices[:, 1]
+        det_j = j00 * j11 - j01 * j10
+        inv_j00 = j11 / det_j
+        inv_j01 = -j10 / det_j
+        inv_j10 = -j01 / det_j
+        inv_j11 = j00 / det_j
+        shape_functions_dx = inv_j00 * Nx + inv_j01 * Ny
+        shape_functions_dy = inv_j10 * Nx + inv_j11 * Ny
+        return shape_functions, shape_functions_dx, shape_functions_dy
 
-                return result
+    def _cache_miss(self, x, y, key):
+        element_number = int(self._element_number(x, y))
+        self._hashed_element[key] = element_number
+        if element_number == -1:
+            self._hashed_shape_functions[key] = [0]
+            if self._limit:
+                raise ValueError("Requested value outside mesh bounds.")
+            return -1
+        shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
+        self._hashed_shape_functions[key] = shape_functions
+        self._hashed_shape_functions_dx[key] = shape_functions_dx
+        self._hashed_shape_functions_dy[key] = shape_functions_dy
+        return element_number
 
-    def gradient(self,x,y):
+    def _prepare_point(self, x, y):
+        key = self._cache_key(x, y)
+        if key not in self._hashed_shape_functions:
+            element_number = self._cache_miss(x, y, key)
+        else:
+            element_number = self._hashed_element[key]
+        return key, element_number
+
+    def evaluate(self, x, y):
+        key, element_number = self._prepare_point(x, y)
+        if element_number == -1:
+            return self._default_value
+        shape_functions = self._hashed_shape_functions[key]
+        element_data = self._vertex_data[element_number, :]
+        return np.dot(shape_functions, element_data)
+
+    def gradient(self, x, y):
         """
         calculates gradient with the gradients of shape functions
         using its own hash
         """
-        result = np.array([0.,0.])
-
-        if (x,y) in self._hashed_shape_functions.keys():
-            if self._hashed_element[(x,y)]==-1:
-                return result
-            else: 
-                shape_functions_dx = self._hashed_shape_functions_dx[(x,y)]
-                shape_functions_dy = self._hashed_shape_functions_dy[(x,y)]
-                element_data = self._vertex_data[self._hashed_element[(x,y)],:]
-                result[0] = np.dot(shape_functions_dx,element_data)
-                result[1] = np.dot(shape_functions_dy,element_data)
+        key, element_number = self._prepare_point(x, y)
+        result = np.array([0.0, 0.0])
+        if element_number == -1:
             return result
-        else:
-            element_number = int(self._element_number(x,y))
-            self._hashed_element[(x,y)] = element_number
-            if (element_number==-1):
-                self._hashed_shape_functions[(x,y)] = [0]              
-                if self._limit:            
-                    raise ValueError("Requested value outside mesh bounds.")
-                else:
-                    return result
-            else:
-                # get element vertces coordinates
-                element_vertices = self._vertex_coords[self._connectivity[element_number,:]]
-                #transition to element local coordinates
-                xieta = xieta_element_precise(x, y, element_vertices,self._p_order,self._inv_vandermonde,self._element_type)
-                #calculating shape functions
-                if self._element_type == 'triangle':
-                    p, pdx, pdy= orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order) 
-                    shape_functions =  p@ self._inv_vandermonde
-                    Nx = pdx@ self._inv_vandermonde 
-                    Ny = pdy @ self._inv_vandermonde
-                elif self._element_type == 'quadrilateral':
-                    shape_functions = shapefunctions_quads(xieta[0], xieta[1], self._p_order,self._inv_vandermonde)
-                    shape_functions = shape_functions[:,0]
-                    Nx = shape_functions[:,1]
-                    Ny = shape_functions[:,2]
-                invJ = np.zeros([2,2])
-                J = np.zeros([2,2])
-                J[0,0] = Nx@element_vertices[:,0]
-                J[1,0] = Ny@element_vertices[:,0]
-                J[0,1] = Nx@element_vertices[:,1]
-                J[1,1] = Ny@element_vertices[:,1]
-                # inverse matrix
-                detJ = J[0,0]*J[1,1]-J[0,1]*J[1,0]
-                invJ[0,0] = J[1,1]/detJ
-                invJ[0,1] = -1*J[1,0]/detJ
-                invJ[1,0] = -1*J[0,1]/detJ
-                invJ[1,1] = J[0,0]/detJ
-                shape_functions_dx = invJ[0,0]*Nx + invJ[1,0]*Ny
-                shape_functions_dy = invJ[0,1]*Nx + invJ[1,1]*Ny
-                self._hashed_shape_functions[(x,y)] =shape_functions
-                self._hashed_shape_functions_dx[(x,y)] =shape_functions_dx
-                self._hashed_shape_functions_dy[(x,y)] =shape_functions_dy
-                #get data in element vertices
-                element_data = self._vertex_data[element_number,:]
+        shape_functions_dx = self._hashed_shape_functions_dx[key]
+        shape_functions_dy = self._hashed_shape_functions_dy[key]
+        element_data = self._vertex_data[element_number, :]
+        result[0] = np.dot(shape_functions_dx, element_data)
+        result[1] = np.dot(shape_functions_dy, element_data)
+        return result
 
-                #getting value in point with shape functiosn
-                result[0] = np.dot(shape_functions_dx,element_data)
-                result[1] = np.dot(shape_functions_dy,element_data)
-
-                return result
-
-
-            
     def __getstate__(self):
         return self._vertex_data, self._element_number, self._limit, self._default_value
     
