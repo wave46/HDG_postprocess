@@ -14,3 +14,5 @@ demos/data/*
 .vscode
 hdg_postprocess/routines/_interpolators_fast.c
 hdg_postprocess/routines/_interpolators_fast.*.so
+hdg_postprocess/locator.c
+hdg_postprocess/locator.*.so

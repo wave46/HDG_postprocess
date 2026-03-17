@@ -123,3 +123,41 @@ Suggested order:
 2. benchmark build time separately from query time
 3. compare against the current Raysect build/query split
 4. only replace Raysect if the native version is competitive in both correctness and overall runtime
+
+## First compiled prototype result
+
+A first compiled prototype now exists in `hdg_postprocess.locator.Exact2DMeshFunction`.
+
+Current prototype design:
+
+- builds a uniform-grid spatial index over the split triangles
+- stores candidate triangle ids per grid cell
+- uses a compiled point-in-triangle check for queries
+
+Benchmark on `legacy_mesh_west` with `scripts/benchmark_locator.py --scenario legacy_mesh_west --repeat 3`:
+
+- Raysect:
+  - build: `52.651 s`
+  - query: `0.007 s`
+  - total: `52.658 s`
+- Native prototype:
+  - build: `0.193 s`
+  - query: `0.116 s`
+  - total: `0.308 s`
+
+Interpretation:
+
+- build time is dramatically better than Raysect
+- query time is substantially worse than Raysect
+- total end-to-end time for this workload is still much better for the native prototype because setup dominates so strongly in current workflows
+
+Correctness check on the centroid-query benchmark set:
+
+- benchmark points checked: `601`
+- mismatches against Raysect: `0`
+
+So this prototype is promising, but not yet a final production replacement. The next improvement target would be query speed:
+
+- better cell layout or occupancy strategy
+- neighborhood search policy if needed
+- possibly indexing at the high-order element level rather than the split-triangle level

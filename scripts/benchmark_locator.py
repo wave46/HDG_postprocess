@@ -76,6 +76,7 @@ def main():
     repeats = mesh.derived_geometry.connectivity_big.shape[0] // mesh.global_state.connectivity.shape[0]
     element_numbers = np.repeat(np.arange(len(mesh.global_state.connectivity)), repeats)
 
+    build_start = time.perf_counter()
     raysect_locator = Discrete2DMesh(
         mesh.global_state.vertices,
         mesh.derived_geometry.connectivity_big,
@@ -83,6 +84,7 @@ def main():
         limit=False,
         default_value=-1,
     )
+    raysect_build_seconds = time.perf_counter() - build_start
 
     points = build_query_points(mesh)
 
@@ -90,13 +92,16 @@ def main():
 
     print(f"scenario={args.scenario}")
     print(f"queries={raysect_result['queries']}")
+    print(f"raysect_build_seconds={raysect_build_seconds:.6f}")
     print(f"raysect_seconds={raysect_result['seconds']:.6f}")
+    print(f"raysect_total_seconds={raysect_build_seconds + raysect_result['seconds']:.6f}")
 
     native_locator_cls = maybe_load_native_locator()
     if native_locator_cls is None:
         print("native_locator=unavailable")
         return
 
+    build_start = time.perf_counter()
     native_locator = native_locator_cls(
         mesh.global_state.vertices,
         mesh.derived_geometry.connectivity_big,
@@ -104,10 +109,15 @@ def main():
         limit=False,
         default_value=-1,
     )
+    native_build_seconds = time.perf_counter() - build_start
     native_result = benchmark_callable("native", native_locator, points, args.repeat)
+    print(f"native_build_seconds={native_build_seconds:.6f}")
     print(f"native_seconds={native_result['seconds']:.6f}")
+    print(f"native_total_seconds={native_build_seconds + native_result['seconds']:.6f}")
     if raysect_result["seconds"] > 0:
         print(f"speed_ratio_native_over_raysect={native_result['seconds'] / raysect_result['seconds']:.6f}")
+    if raysect_build_seconds > 0:
+        print(f"build_ratio_native_over_raysect={native_build_seconds / raysect_build_seconds:.6f}")
 
 
 if __name__ == "__main__":
