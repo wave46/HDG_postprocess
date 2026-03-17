@@ -4,6 +4,8 @@ import numpy as np
 cimport numpy as cnp
 from libc.math cimport sqrt
 
+cnp.import_array()
+
 
 ctypedef cnp.float64_t DTYPE_t
 

@@ -3,6 +3,8 @@
 import numpy as np
 cimport numpy as cnp
 
+cnp.import_array()
+
 
 ctypedef cnp.float64_t DTYPE_t
 ctypedef cnp.int64_t ITYPE_t
