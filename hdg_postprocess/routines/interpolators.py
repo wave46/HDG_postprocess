@@ -72,12 +72,7 @@ class SoledgeHDG2DInterpolator():
         if element_number == -1:
             return np.array([0.0, 0.0])
         element_data = self._vertex_data[element_number, :]
-        return np.array(
-            [
-                np.dot(shape_functions_dx, element_data),
-                np.dot(shape_functions_dy, element_data),
-            ]
-        )
+        return np.array((np.dot(shape_functions_dx, element_data), np.dot(shape_functions_dy, element_data)))
 
     def __call__(self, x, y):
         """
@@ -149,31 +144,36 @@ class SoledgeHDG2DInterpolator():
 
     def _compute_shape_data(self, x, y, element_number):
         element_vertices = self._vertex_coords[self._connectivity[element_number, :]]
+        inv_vandermonde = self._inv_vandermonde
+        p_order = self._p_order
+        element_type = self._element_type
         xieta = xieta_element_precise(
             x,
             y,
             element_vertices,
-            self._p_order,
-            self._inv_vandermonde,
-            self._element_type,
+            p_order,
+            inv_vandermonde,
+            element_type,
         )
-        if self._element_type == "triangle":
-            p, pdx, pdy = orthopoly2D_deriv_xieta(xieta[0], xieta[1], self._p_order)
-            shape_functions = p @ self._inv_vandermonde
-            Nx = pdx @ self._inv_vandermonde
-            Ny = pdy @ self._inv_vandermonde
-        elif self._element_type == "quadrilateral":
-            shape_data = shapefunctions_quads(xieta[0], xieta[1], self._p_order, self._inv_vandermonde)
+        if element_type == "triangle":
+            p, pdx, pdy = orthopoly2D_deriv_xieta(xieta[0], xieta[1], p_order)
+            shape_functions = p @ inv_vandermonde
+            Nx = pdx @ inv_vandermonde
+            Ny = pdy @ inv_vandermonde
+        elif element_type == "quadrilateral":
+            shape_data = shapefunctions_quads(xieta[0], xieta[1], p_order, inv_vandermonde)
             shape_functions = shape_data[:, 0]
             Nx = shape_data[:, 1]
             Ny = shape_data[:, 2]
         else:
-            raise ValueError(f"Unsupported element type: {self._element_type!r}")
+            raise ValueError(f"Unsupported element type: {element_type!r}")
 
-        j00 = Nx @ element_vertices[:, 0]
-        j10 = Ny @ element_vertices[:, 0]
-        j01 = Nx @ element_vertices[:, 1]
-        j11 = Ny @ element_vertices[:, 1]
+        x_vertices = element_vertices[:, 0]
+        y_vertices = element_vertices[:, 1]
+        j00 = Nx @ x_vertices
+        j10 = Ny @ x_vertices
+        j01 = Nx @ y_vertices
+        j11 = Ny @ y_vertices
         det_j = j00 * j11 - j01 * j10
         inv_j00 = j11 / det_j
         inv_j01 = -j10 / det_j
@@ -186,40 +186,39 @@ class SoledgeHDG2DInterpolator():
 def xieta_element (x,y,vertices_element,eltype):
     # find local element coordinates xi, eta
     # todo simplified so far (straight triangles)
-    J = np.zeros([2,2])
-    invJ = np.zeros([2,2])
-    xieta = np.zeros(2, dtype = np.float64, order = 'C')
-
     if eltype == 'triangle':
         #compute jacobian
-        J[0,0] = (vertices_element[1,0]-vertices_element[0,0])/2
-        J[0,1] = (vertices_element[1,1]-vertices_element[0,1])/2  
-        J[1,0] = (vertices_element[2,0]-vertices_element[0,0])/2
-        J[1,1] = (vertices_element[2,1]-vertices_element[0,1])/2
+        j00 = (vertices_element[1,0]-vertices_element[0,0])/2
+        j01 = (vertices_element[1,1]-vertices_element[0,1])/2  
+        j10 = (vertices_element[2,0]-vertices_element[0,0])/2
+        j11 = (vertices_element[2,1]-vertices_element[0,1])/2
         auxx = x - (vertices_element[1,0]+vertices_element[2,0])/2
         auxy = y - (vertices_element[1,1]+vertices_element[2,1])/2
 
         
     elif eltype == 'quadrilateral':
         #compute jacobian
-        J[0,0] = vertices_element[1,0]+vertices_element[2,0]-vertices_element[0,0]-vertices_element[3,0]
-        J[0,1] = vertices_element[1,1]+vertices_element[2,1]-vertices_element[0,1]-vertices_element[3,1]
-        J[1,0] = vertices_element[2,0]+vertices_element[3,0]-vertices_element[1,0]-vertices_element[0,0]
-        J[1,1] = vertices_element[2,1]+vertices_element[3,1]-vertices_element[1,1]-vertices_element[0,1]
-        J /= 4
+        j00 = (vertices_element[1,0]+vertices_element[2,0]-vertices_element[0,0]-vertices_element[3,0]) / 4
+        j01 = (vertices_element[1,1]+vertices_element[2,1]-vertices_element[0,1]-vertices_element[3,1]) / 4
+        j10 = (vertices_element[2,0]+vertices_element[3,0]-vertices_element[1,0]-vertices_element[0,0]) / 4
+        j11 = (vertices_element[2,1]+vertices_element[3,1]-vertices_element[1,1]-vertices_element[0,1]) / 4
         auxx = x - 0.25*(vertices_element[1,0]+vertices_element[2,0]+vertices_element[0,0]+vertices_element[3,0])
         auxy = y - 0.25*(vertices_element[1,1]+vertices_element[2,1]+vertices_element[0,1]+vertices_element[3,1])
 
     #inverse matrix
-    detJ = J[0,0]*J[1,1]-J[0,1]*J[1,0]
-    invJ[0,0] = J[1,1]/detJ
-    invJ[0,1] = -1*J[1,0]/detJ
-    invJ[1,0] = -1*J[0,1]/detJ
-    invJ[1,1] = J[0,0]/detJ
+    detJ = j00*j11-j01*j10
+    inv_j00 = j11/detJ
+    inv_j01 = -j10/detJ
+    inv_j10 = -j01/detJ
+    inv_j11 = j00/detJ
     #compute coordinates
-    xieta[0] = auxx*invJ[0,0] + auxy*invJ[0,1]
-    xieta[1] = auxx*invJ[1,0] + auxy*invJ[1,1]
-    return xieta  
+    return np.array(
+        [
+            auxx*inv_j00 + auxy*inv_j01,
+            auxx*inv_j10 + auxy*inv_j11,
+        ],
+        dtype=np.float64,
+    )  
 
 
 def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
@@ -227,12 +226,7 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
     # todo simplified so far (straight triangles)
     tol = 1e-8
     maxit = 100
-    invJ = np.zeros([2,2])
-    J = np.zeros([2,2])
-    xieta0 = np.zeros(2, dtype = np.float64, order = 'C')
-
-    #first, try supposing that element is straight
-
+    scale = tol*np.sqrt(x**2+y**2)+1e-14
     xieta0 = xieta_element(x,y,vertices_element,eltype)
     # back projection
     if eltype == 'triangle':
@@ -240,11 +234,11 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
     elif eltype == 'quadrilateral':
         shape_functions = shapefunctions_quads(xieta0[0], xieta0[1], p_order,inv_vandermonde)
         [x_back,y_back] = shape_functions[:,0]@vertices_element
-    if np.sqrt(((x_back-x)**2+(y_back-y)**2))<tol*np.sqrt(x**2+y**2)+1e-14:
+    if np.hypot(x_back-x, y_back-y) < scale:
         return xieta0
     else:
         for i in range(maxit):
-            if np.sqrt(((x_back-x)**2+(y_back-y)**2))<tol*np.sqrt(x**2+y**2)+1e-14:
+            if np.hypot(x_back-x, y_back-y) < scale:
                 return xieta0
             if eltype == 'triangle':
                 _,dp_dxi,dp_deta = orthopoly2D_deriv_xieta(xieta0[0], xieta0[1],p_order)
@@ -254,27 +248,30 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
                 shape_functions = shapefunctions_quads(xieta0[0], xieta0[1], p_order,inv_vandermonde)                
                 Nx = shape_functions[:,1]
                 Ny = shape_functions[:,2]
-            J[0,0] = Nx@vertices_element[:,0]
-            J[1,0] = Ny@vertices_element[:,0]
-            J[0,1] = Nx@vertices_element[:,1]
-            J[1,1] = Ny@vertices_element[:,1]
+            x_vertices = vertices_element[:,0]
+            y_vertices = vertices_element[:,1]
+            j00 = Nx@x_vertices
+            j10 = Ny@x_vertices
+            j01 = Nx@y_vertices
+            j11 = Ny@y_vertices
             # inverse matrix
-            detJ = J[0,0]*J[1,1]-J[0,1]*J[1,0]
-            invJ[0,0] = J[1,1]/detJ
-            invJ[0,1] = -1*J[1,0]/detJ
-            invJ[1,0] = -1*J[0,1]/detJ
-            invJ[1,1] = J[0,0]/detJ
+            detJ = j00*j11-j01*j10
+            inv_j00 = j11/detJ
+            inv_j01 = -j10/detJ
+            inv_j10 = -j01/detJ
+            inv_j11 = j00/detJ
 
-            rhs = np.array([x-x_back,y-y_back])[None].T
-            
-            xieta0 = xieta0+((invJ@rhs).T)[0]
+            rhs0 = x-x_back
+            rhs1 = y-y_back
+            xieta0[0] = xieta0[0] + inv_j00 * rhs0 + inv_j01 * rhs1
+            xieta0[1] = xieta0[1] + inv_j10 * rhs0 + inv_j11 * rhs1
             if eltype == 'triangle':
                 [x_back,y_back] = (orthopoly2D(xieta0[0], xieta0[1], p_order)@inv_vandermonde)@ vertices_element
             elif eltype == 'quadrilateral':
                 shape_functions = shapefunctions_quads(xieta0[0], xieta0[1], p_order,inv_vandermonde)
                 [x_back,y_back] = shape_functions[:,0]@vertices_element
 
-        if np.sqrt(((x_back-x)**2+(y_back-y)**2))>(tol*np.sqrt(x**2+y**2)+1e-14):
+        if np.hypot(x_back-x, y_back-y) > scale:
             raise Warning("Not converging")
         return xieta0
 def Vandermonde_LP(p_order,coord):
