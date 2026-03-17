@@ -32,6 +32,7 @@ The demo compatibility contract is recorded in [compatibility_contract.md](docs/
 
 For a lighter entry point than the full demo notebooks, start with:
 
+- [Installation](docs/tutorials/installation.md)
 - [Solution Quickstart](docs/tutorials/solution_quickstart.md)
 - [Mesh Quickstart](docs/tutorials/mesh_quickstart.md)
 - [Migrating Solution API](docs/tutorials/migrating_solution_api.md)
@@ -42,6 +43,24 @@ For a lighter entry point than the full demo notebooks, start with:
 - [Setup Helpers](docs/tutorials/setup_helpers.md)
 
 The longer runnable examples remain in [demos](demos).
+
+## Quick installation
+
+For a fresh local environment, the simplest tested path is:
+
+```bash
+micromamba create -n hdg-postprocess-py312 -c conda-forge python=3.12 pip numpy scipy matplotlib cython silx pytest
+micromamba activate hdg-postprocess-py312
+pip install -e .
+```
+
+Then run a quick check:
+
+```bash
+python -m pytest tests/test_modern_api.py tests/test_mesh_ops.py -q
+```
+
+For the fuller local installation flow, see [Installation](docs/tutorials/installation.md).
 
 ## Setup data
 
