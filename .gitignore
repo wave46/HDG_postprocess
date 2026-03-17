@@ -16,3 +16,5 @@ hdg_postprocess/routines/_interpolators_fast.c
 hdg_postprocess/routines/_interpolators_fast.*.so
 hdg_postprocess/locator.c
 hdg_postprocess/locator.*.so
+hdg_postprocess/core/mesh/locator.c
+hdg_postprocess/core/mesh/locator.*.so

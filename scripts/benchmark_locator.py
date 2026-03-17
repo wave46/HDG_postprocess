@@ -87,7 +87,7 @@ def benchmark_native_locator(native_locator_cls, mesh, element_numbers, points, 
 
 def maybe_load_native_locator():
     try:
-        module = importlib.import_module("hdg_postprocess.locator")
+        module = importlib.import_module("hdg_postprocess.core.mesh.locator")
     except ModuleNotFoundError:
         return None
     return getattr(module, "Exact2DMeshFunction", None)

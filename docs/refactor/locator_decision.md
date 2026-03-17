@@ -50,7 +50,7 @@ This explains the current tradeoff:
 ## Native Locator Structure
 
 The native prototype in
-[locator.pyx](/home/ikudashev/Documents/Github/HDG_postprocess/hdg_postprocess/locator.pyx)
+[locator.pyx](/home/ikudashev/Documents/Github/HDG_postprocess/hdg_postprocess/core/mesh/locator.pyx)
 now uses a tree over grouped high-order elements rather than over all split triangles.
 
 The structure is:

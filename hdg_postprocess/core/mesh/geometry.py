@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 from hdg_postprocess.core.mesh import assembly as assembly_ops
-from hdg_postprocess.locator import Exact2DMeshFunction
+from hdg_postprocess.core.mesh.locator import Exact2DMeshFunction
 
 
 class _InsideMeshMask:
