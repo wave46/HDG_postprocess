@@ -8,7 +8,6 @@ ctypedef cnp.float64_t DTYPE_t
 ctypedef cnp.int64_t ITYPE_t
 ctypedef cnp.int32_t INDEX_t
 
-
 cdef inline bint _bbox_contains(
     DTYPE_t[:, ::1] bounds,
     INDEX_t idx,
@@ -45,6 +44,13 @@ cdef class Exact2DMeshFunction:
     cdef double _cached_value
     cdef bint _cached_hit
     cdef int _leaf_size
+    cdef bint _collect_stats
+    cdef long long _query_count
+    cdef long long _node_visit_count
+    cdef long long _leaf_visit_count
+    cdef long long _element_test_count
+    cdef long long _triangle_test_count
+    cdef long long _cache_hit_count
 
     def __init__(
         self,
@@ -54,13 +60,16 @@ cdef class Exact2DMeshFunction:
         limit=False,
         default_value=-1,
         leaf_size=8,
+        collect_stats=False,
     ):
         self._limit = limit
         self._default_value = float(default_value)
         self._leaf_size = max(1, int(leaf_size))
+        self._collect_stats = collect_stats
         self._prepare_mesh(vertices, connectivity, values)
         self._prepare_tree()
         self._reset_cache()
+        self.reset_stats()
 
     cdef void _prepare_mesh(self, object vertices, object connectivity, object values):
         cdef cnp.ndarray[DTYPE_t, ndim=2] vertices_arr
@@ -128,6 +137,29 @@ cdef class Exact2DMeshFunction:
         self._cached_y = 0.0
         self._cached_value = self._default_value
         self._cached_hit = False
+
+    def reset_stats(self):
+        self._query_count = 0
+        self._node_visit_count = 0
+        self._leaf_visit_count = 0
+        self._element_test_count = 0
+        self._triangle_test_count = 0
+        self._cache_hit_count = 0
+
+    def statistics(self):
+        cdef double queries = float(self._query_count) if self._query_count > 0 else 1.0
+        return {
+            "queries": int(self._query_count),
+            "cache_hits": int(self._cache_hit_count),
+            "node_visits": int(self._node_visit_count),
+            "leaf_visits": int(self._leaf_visit_count),
+            "element_tests": int(self._element_test_count),
+            "triangle_tests": int(self._triangle_test_count),
+            "avg_node_visits_per_query": self._node_visit_count / queries,
+            "avg_leaf_visits_per_query": self._leaf_visit_count / queries,
+            "avg_element_tests_per_query": self._element_test_count / queries,
+            "avg_triangle_tests_per_query": self._triangle_test_count / queries,
+        }
 
     cdef object _return_default(self, double x, double y):
         self._cache_available = True
@@ -344,12 +376,16 @@ cdef class Exact2DMeshFunction:
         cdef INDEX_t leaf_idx
 
         for leaf_idx in range(leaf_start, leaf_start + leaf_count):
+            if self._collect_stats:
+                self._element_test_count += 1
             elem_id = leaf_indices[leaf_idx]
             if not _bbox_contains(boxes, elem_id, x, y):
                 continue
             tri_id = triangle_starts[elem_id]
             tri_end = tri_id + triangle_counts[elem_id]
             while tri_id < tri_end:
+                if self._collect_stats:
+                    self._triangle_test_count += 1
                 if self._point_in_triangle(vertices, connectivity, tri_id, x, y):
                     return element_values[elem_id]
                 tri_id += 1
@@ -373,7 +409,12 @@ cdef class Exact2DMeshFunction:
         cdef INDEX_t node_id
         cdef ITYPE_t value = -1
 
+        if self._collect_stats:
+            self._query_count += 1
+
         if self._cache_available and x == self._cached_x and y == self._cached_y:
+            if self._collect_stats:
+                self._cache_hit_count += 1
             return self._cache_hit_value()
 
         if node_bounds.shape[0] == 0:
@@ -387,10 +428,14 @@ cdef class Exact2DMeshFunction:
         while stack_size > 0:
             stack_size -= 1
             node_id = stack[stack_size]
+            if self._collect_stats:
+                self._node_visit_count += 1
             if not _bbox_contains(node_bounds, node_id, x, y):
                 continue
 
             if node_leaf_count[node_id] > 0:
+                if self._collect_stats:
+                    self._leaf_visit_count += 1
                 value = self._query_leaf(
                     boxes,
                     vertices,

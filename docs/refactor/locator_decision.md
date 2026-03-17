@@ -95,33 +95,25 @@ This proved that setup time could be reduced dramatically, but the query path wa
 
 ### Current native prototype: tree over grouped element boxes
 
-Benchmark on `legacy_mesh_west` with `scripts/benchmark_locator.py --scenario legacy_mesh_west --leaf-sweep 4,8,16,32`.
+Benchmark on `legacy_mesh_west` with `scripts/benchmark_locator.py --scenario legacy_mesh_west --leaf-sweep 8,32 --diagnostics`.
 
 The benchmark now uses a higher default query repeat so the query numbers are less noisy than the earlier very short runs.
 
 - Raysect:
-  - build: `53.558 s`
-  - query: `0.0177 s`
-  - total: `53.576 s`
+  - build: `53.513 s`
+  - query: `0.0241 s`
+  - total: `53.537 s`
 
-Leaf-size sweep for the native tree:
+Representative native results:
 
-- leaf `4`:
-  - build: `0.629 s`
-  - query: `0.0911 s`
-  - total: `0.720 s`
 - leaf `8`:
-  - build: `0.387 s`
-  - query: `0.0896 s`
-  - total: `0.476 s`
-- leaf `16`:
-  - build: `0.256 s`
-  - query: `0.0903 s`
-  - total: `0.346 s`
+  - build: `0.415 s`
+  - query: `0.0921 s`
+  - total: `0.507 s`
 - leaf `32`:
-  - build: `0.197 s`
-  - query: `0.0895 s`
-  - total: `0.287 s`
+  - build: `0.199 s`
+  - query: `0.0898 s`
+  - total: `0.289 s`
 
 Best observed settings in this sweep:
 
@@ -133,45 +125,51 @@ Correctness check on the centroid-query benchmark set:
 - points checked: `601`
 - mismatches against Raysect: `0`
 
+Diagnostics from the same run explain why leaf-size tuning alone changes little:
+
+- leaf `8`:
+  - average node visits per query: `24.29`
+  - average element tests per query: `5.09`
+  - average triangle tests per query: `16.55`
+- leaf `32`:
+  - average node visits per query: `20.12`
+  - average element tests per query: `14.93`
+  - average triangle tests per query: `16.71`
+
+So leaf `8` trades more traversal for fewer candidate elements, while leaf `32` trades fewer nodes for more candidate elements. In both cases the query ends up doing almost the same number of triangle tests, which is why the timing barely moves.
+
 ## Interpretation
 
 At this point, the native tree prototype is already a credible direction:
 
 - build time is vastly better than Raysect
-- query time is still about `5x` slower than Raysect on this benchmark
+- query time is still about `4x` slower than Raysect on this benchmark
 - total end-to-end time is overwhelmingly better because locator build dominates current workflows
 
 The important remaining question is not whether the native tree idea works. It does. The next question is how much more query performance can still be recovered with a better tree.
 
 ## Most Promising Next Improvements
 
-### 1. Improve split quality
+### 1. Improve traversal and leaf refinement
 
-The current tree still uses a simple median split on the longest axis. The next meaningful improvement is a better split heuristic, for example an SAH-lite score:
+The new diagnostics show that the triangle-refinement workload per query barely changes across reasonable leaf sizes. That means the next likely win is not more leaf-size tuning by itself, but reducing candidate and triangle work inside the winning leaves:
 
-- evaluate several candidate split positions
-- score each split with something like
-  - `left_count * left_area + right_count * right_area`
-- choose the lowest-cost split
-
-This is the closest low-risk step toward the quality of the Raysect KD-tree.
+- traverse the more likely child first
+- tighten candidate filtering inside leaves
+- reduce repeated box checks before triangle refinement
 
 ### 2. Tune leaf size against real workloads
 
-The first sweep shows that:
+The diagnostics sweep shows that:
 
 - smaller leaves do not help query much on this benchmark
 - larger leaves reduce build time noticeably
 
 So leaf size should be treated as a tuning parameter rather than fixed by intuition.
 
-### 3. Tighten leaf refinement
+### 3. Revisit smarter split heuristics carefully
 
-If needed later:
-
-- store tighter leaf-local triangle ranges
-- improve traversal order
-- reduce unnecessary box checks inside leaves
+A sampled SAH-lite split was prototyped, but it increased build cost without improving query time enough to keep. Smarter splits are still a valid direction, but they need to be justified against the new diagnostics rather than assumed to help automatically.
 
 ### 4. Only then revisit batch or persistence
 
@@ -184,6 +182,6 @@ Keep Raysect as the production default for the moment, but the native tree proto
 The best next locator step is:
 
 1. keep the current grouped-element tree
-2. replace the median split with a better split heuristic
+2. use the new diagnostics to target traversal and leaf refinement
 3. re-benchmark build and query separately
-4. compare again against Raysect on both setup-heavy and query-heavy workloads
+4. only reintroduce more expensive split heuristics if they pay for themselves

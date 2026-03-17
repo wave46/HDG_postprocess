@@ -53,7 +53,7 @@ def benchmark_callable(name, fn, points, repeat):
     return {"name": name, "seconds": elapsed, "queries": len(points) * repeat}
 
 
-def benchmark_native_locator(native_locator_cls, mesh, element_numbers, points, repeat, leaf_size):
+def benchmark_native_locator(native_locator_cls, mesh, element_numbers, points, repeat, leaf_size, diagnostics=False):
     build_start = time.perf_counter()
     native_locator = native_locator_cls(
         mesh.global_state.vertices,
@@ -62,15 +62,19 @@ def benchmark_native_locator(native_locator_cls, mesh, element_numbers, points, 
         limit=False,
         default_value=-1,
         leaf_size=leaf_size,
+        collect_stats=diagnostics,
     )
     native_build_seconds = time.perf_counter() - build_start
     native_result = benchmark_callable("native", native_locator, points, repeat)
-    return {
+    result = {
         "leaf_size": leaf_size,
         "build_seconds": native_build_seconds,
         "query_seconds": native_result["seconds"],
         "total_seconds": native_build_seconds + native_result["seconds"],
     }
+    if diagnostics:
+        result["statistics"] = native_locator.statistics()
+    return result
 
 
 def maybe_load_native_locator():
@@ -90,6 +94,11 @@ def main():
         "--leaf-sweep",
         default="",
         help="Comma-separated native leaf sizes to benchmark, e.g. 4,8,16,32.",
+    )
+    parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Print native locator traversal diagnostics.",
     )
     args = parser.parse_args()
 
@@ -139,6 +148,7 @@ def main():
             points,
             args.repeat,
             leaf_size,
+            diagnostics=args.diagnostics,
         )
         for leaf_size in leaf_sizes
     ]
@@ -158,6 +168,9 @@ def main():
                 f"{prefix}_build_ratio_native_over_raysect="
                 f"{native_result['build_seconds'] / raysect_build_seconds:.6f}"
             )
+        if args.diagnostics and "statistics" in native_result:
+            for key, value in native_result["statistics"].items():
+                print(f"{prefix}_{key}={value}")
 
     if len(native_results) > 1:
         best_total = min(native_results, key=lambda result: result["total_seconds"])
