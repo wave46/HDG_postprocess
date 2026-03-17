@@ -70,3 +70,4 @@ class MeshBoundaryState:
     normals_gauss: object = None
     segment_length_gauss: object = None
     segment_surface_gauss: object = None
+    ordered_face_elements: object = None

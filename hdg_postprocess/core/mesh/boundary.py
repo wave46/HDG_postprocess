@@ -11,6 +11,16 @@ def _ensure_boundary_combined(mesh, raw_boundary_info):
     assembly_ops.recombine_full_boundary(mesh, raw_boundary_info)
 
 
+def _ensure_boundary_gauss(mesh, raw_boundary_info, boundaries):
+    if mesh.metadata.flags.boundary_gauss_initialized:
+        return
+    if boundaries is None:
+        raise ValueError("Please, provide boundaries when boundary gauss data is not initialized")
+    from hdg_postprocess.core.mesh import assembly as assembly_ops
+
+    assembly_ops.calculate_gauss_boundary(mesh, boundaries, raw_boundary_info)
+
+
 def boundary_ordering(mesh, raw_boundary_info, boundaries):
     _ensure_boundary_combined(mesh, raw_boundary_info)
 
@@ -68,3 +78,11 @@ def boundary_ordering(mesh, raw_boundary_info, boundaries):
         )
 
     return boundary_ordering_res, connectivity_b_ordered, iel_face_ordered
+
+
+def nearest_boundary_face_index(mesh, r, z, raw_boundary_info=None, boundaries=None):
+    _ensure_boundary_gauss(mesh, raw_boundary_info, boundaries)
+    distances = (mesh.boundary_state.vertices_gauss[:, :, 0] - r) ** 2 + (
+        mesh.boundary_state.vertices_gauss[:, :, 1] - z
+    ) ** 2
+    return int(np.unravel_index(np.argmin(distances), distances.shape)[0])

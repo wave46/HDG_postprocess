@@ -5,8 +5,12 @@ import json
 from pathlib import Path
 
 import numpy as np
-import scipy.io
 
+from hdg_postprocess.api import (
+    load_reference_element,
+    make_atomic_parameters,
+    make_neutral_diffusion_parameters,
+)
 from hdg_postprocess.formats import load_from_file
 
 
@@ -33,102 +37,12 @@ def _to_builtin(value):
     return value
 
 
-def _load_reference_element(path):
-    ref_elem = scipy.io.loadmat(path)
-    if "refEl" in ref_elem:
-        name = "refEl"
-    elif "referenceelement" in ref_elem:
-        name = "referenceelement"
-    else:
-        raise KeyError(f"Unsupported reference-element keys in {path}: {sorted(ref_elem.keys())}")
-    ref_dic = {}
-    ref_dic["IPcoordinates"] = ref_elem[name][0, 0][0]
-    ref_dic["IPweights"] = ref_elem[name][0, 0][1][:, 0]
-    ref_dic["N"] = ref_elem[name][0, 0][2]
-    ref_dic["Nxi"] = ref_elem[name][0, 0][3]
-    ref_dic["Neta"] = ref_elem[name][0, 0][4]
-    ref_dic["IPcoordinates1d"] = ref_elem[name][0, 0][5]
-    ref_dic["IPweights1d"] = ref_elem[name][0, 0][6]
-    ref_dic["N1d"] = ref_elem[name][0, 0][7]
-    ref_dic["N1dxi"] = ref_elem[name][0, 0][8]
-    ref_dic["faceNodes"] = ref_elem[name][0, 0][9] - 1
-    ref_dic["innerNodes"] = ref_elem[name][0, 0][10]
-    ref_dic["faceNodes1d"] = ref_elem[name][0, 0][11] - 1
-    ref_dic["NodesCoord"] = ref_elem[name][0, 0][12]
-    ref_dic["NodesCoord1d"] = ref_elem[name][0, 0][13]
-    ref_dic["degree"] = ref_elem[name][0, 0][14]
-    return ref_dic
-
-
 def _make_dnn_params():
-    return {
-        "const": False,
-        "dnn_soft": True,
-        "dnn_max": 2e8,
-        "dnn_min": 3.0,
-        "dnn_w": 0.01,
-        "dnn_width": 10,
-        "ti_soft": True,
-        "ti_min": 1e-6,
-        "ti_w": 0.01,
-        "ti_width": 10,
-    }
+    return make_neutral_diffusion_parameters()
 
 
 def _make_atomic_params(radiation_model):
-    atomic_data = ROOT / "demos" / "data" / "atomic"
-    atomic = {
-        "iz": {
-            "database": "AMJUEL 2.1.5JH",
-            "alpha": np.load(atomic_data / "alpha_iz.npy"),
-            "te_min": 0.1,
-            "te_max": 2e4,
-            "ne_min": 1e14,
-            "ne_max": 1e22,
-        },
-        "cx": {
-            "database": "OpenADAS expanded",
-            "alpha": np.array(
-                [-1.87744894e01, 4.51800000e-01, -3.58100000e-02, 8.00400000e-03, -6.83700000e-04]
-            ),
-            "te_min": 0.1,
-            "te_max": 2e4,
-        },
-        "rec": {
-            "database": "AMJUEL 2.1.8JH",
-            "alpha": np.load(atomic_data / "alpha_rec_2.1.8JH.npy"),
-            "te_min": 0.1,
-            "te_max": 2e4,
-            "ne_min": 1e14,
-            "ne_max": 1e22,
-        },
-        "Eiz": {
-            "database": "AMJUEL 2.1.5JH",
-            "alpha": np.load(atomic_data / "alpha_energy_iz.npy"),
-            "te_min": 0.1,
-            "te_max": 2e4,
-            "ne_min": 1e14,
-            "ne_max": 1e22,
-        },
-        "Erec": {
-            "database": "AMJUEL 2.1.8JH",
-            "alpha": np.load(atomic_data / "alpha_energy_rec.npy"),
-            "te_min": 0.1,
-            "te_max": 2e4,
-            "ne_min": 1e14,
-            "ne_max": 1e22,
-        },
-    }
-    if radiation_model == "nitrogen_cooling":
-        cooling = np.load(atomic_data / "LZ_Nitrogen_adas_fit_te_2e-1_4e3.npy")
-        cooling[0] -= np.log(1.60217662e-19)
-        atomic["cooling_factor"] = {
-            "database": "ADAS",
-            "alpha": cooling,
-            "te_min": 0.1,
-            "te_max": 3e3,
-        }
-    return atomic
+    return make_atomic_parameters(radiation_model=radiation_model, data_dir=ROOT / "demos" / "data" / "atomic")
 
 
 def _roundtrip_names(values):
@@ -287,7 +201,7 @@ def _collect_solution_baseline(config):
         config.get("mesh_base"),
         config["n_partitions"],
     )
-    sol.mesh.metadata.reference_element = _load_reference_element(ROOT / config["reference_element"])
+    sol.mesh.metadata.reference_element = load_reference_element(ROOT / config["reference_element"])
     sol.mesh.geometry.element_locator
 
     if config.get("with_atomic_setup"):
@@ -330,7 +244,7 @@ def _collect_mesh_baseline(config):
         config["mesh_base"],
         config["n_partitions"],
     )
-    mesh.metadata.reference_element = _load_reference_element(ROOT / config["reference_element"])
+    mesh.metadata.reference_element = load_reference_element(ROOT / config["reference_element"])
     return _mesh_baseline(mesh, config.get("element_probe"))
 
 

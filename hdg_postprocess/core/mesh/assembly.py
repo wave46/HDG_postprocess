@@ -139,6 +139,7 @@ def _reset_boundary_gauss_cache(mesh):
     mesh.boundary_state.normals_gauss = None
     mesh.boundary_state.segment_length_gauss = None
     mesh.boundary_state.segment_surface_gauss = None
+    mesh.boundary_state.ordered_face_elements = None
     mesh.metadata.flags.boundary_gauss_initialized = False
     mesh.metadata.cache.boundary_gauss_boundaries = None
 
@@ -178,6 +179,7 @@ def calculate_gauss_boundary(mesh, boundaries, raw_boundary_info):
     from hdg_postprocess.core.mesh.boundary import boundary_ordering
 
     boundary_ordering_res, connectivity_ordered, iel_face_number = boundary_ordering(mesh, raw_boundary_info, boundaries)
+    mesh.boundary_state.ordered_face_elements = iel_face_number
 
     mesh.boundary_state.vertices_gauss = np.einsum(
         "ij,kjh->kih", mesh.metadata.reference_element["N1d"], mesh.global_state.vertices[connectivity_ordered, :]
