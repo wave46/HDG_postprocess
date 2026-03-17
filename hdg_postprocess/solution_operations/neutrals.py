@@ -12,7 +12,7 @@ def calculate_dnn(solution, which="simple"):
         prep_ops.ensure_simple_physical(solution)
         calculate_dnn(solution, which="full")
         solution.views.simple.derived.dnn = prep_ops.project_full_to_simple(solution, solution.views.glob.derived.dnn)
-    if which == "full":
+    elif which == "full":
         prep_ops.ensure_full_solution(solution)
         solution.views.glob.derived.dnn = calculate_dnn_cons(
             solution.views.glob.solution.conservative,
@@ -36,7 +36,7 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
         solution.views.simple.derived.dnn_with_nn_collision = prep_ops.project_full_to_simple(
             solution, solution.views.glob.derived.dnn_with_nn_collision
         )
-    if which == "full":
+    elif which == "full":
         prep_ops.ensure_full_solution(solution)
         solution.views.glob.derived.dnn_with_nn_collision = calculate_dnn_with_nn_collision_cons(
             solution.views.glob.solution.conservative,
@@ -54,12 +54,12 @@ def calculate_dnn_with_nn_collision(solution, which="simple"):
 
 def calculate_mfp(solution, which="simple"):
     _ensure_neutral_settings(solution)
-    prep_ops.ensure_simple_physical(solution)
     if which == "simple":
         prep_ops.ensure_simple_physical(solution)
         calculate_mfp(solution, which="full")
         solution.views.simple.derived.mfp = prep_ops.project_full_to_simple(solution, solution.views.glob.derived.mfp)
-    if which == "full":
+    elif which == "full":
+        prep_ops.ensure_simple_physical(solution)
         prep_ops.ensure_full_solution(solution)
         if solution.views.glob.derived.dnn is None:
             calculate_dnn(solution, "full")

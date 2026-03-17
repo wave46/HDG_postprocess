@@ -1,12 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from hdg_postprocess.routines.neutrals import calculate_dnn_cons
 from hdg_postprocess.routines.plasma import (
     calculate_M_cons,
     calculate_Te_cons,
     calculate_Ti_cons,
-    calculate_dk_cons,
     calculate_k_cons,
     calculate_n_cons,
     calculate_nn_cons,
@@ -86,9 +84,7 @@ def plot_overview(solution, n_levels=100):
 
 def plot_overview_difference(solution, second_solution, n_levels=100):
     prep_ops.ensure_simple_solution(solution)
-    if not second_solution.metadata.flags.combined_simple_solution:
-        print("Combining simple solution of the second case first")
-        second_solution.assembly.simple()
+    prep_ops.ensure_simple_solution(second_solution)
     left_simple_solution = solution.views.simple.solution.conservative
     right_simple_solution = second_solution.views.simple.solution.conservative
 
@@ -223,9 +219,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
 
 def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     prep_ops.ensure_simple_physical(solution)
-    if not second_solution.metadata.flags.simple_phys_initialized:
-        print("Initializing physical solution of the second case first")
-        second_solution.fields.initialize_physical("simple")
+    prep_ops.ensure_simple_physical(second_solution)
 
     colorbar_labels = [r"n, m$^{-3}$", r"$n_n$, m$^{-3}$", r"$T_i$", r"$T_e$", r"M", r"k"]
     left_simple_phys = solution.views.simple.solution.physical
@@ -316,18 +310,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
         elif variable == "M":
             data = calculate_M_cons(simple_solution, solution.metadata.indices.conservative)
         elif variable == "dnn":
-            data = calculate_dnn_cons(
-                simple_solution,
-                solution.additional_parameters.neutral_diffusion,
-                solution.additional_parameters.atomic,
-                solution._e,
-                solution.parameters["adimensionalization"]["mass_scale"],
-                solution.parameters["adimensionalization"]["temperature_scale"],
-                solution.parameters["adimensionalization"]["density_scale"],
-                solution.parameters["physics"]["Mref"],
-                solution.parameters["adimensionalization"]["length_scale"],
-                solution.parameters["adimensionalization"]["time_scale"],
-            )
+            data = solution.neutrals.dnn("simple")
         elif variable == "k":
             data = calculate_k_cons(
                 simple_solution,
@@ -335,23 +318,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 solution.metadata.indices.conservative,
             )
         elif variable == "dk":
-            if solution.additional_parameters.turbulence is None:
-                raise ValueError("Please, provide turbulent diffusion settings for the simulation")
-            if (solution.summary.equilibrium.axis.r is None) or (solution.summary.equilibrium.axis.z is None):
-                solution.equilibrium.define_axis()
-            if solution.views.simple.equilibrium.a is None:
-                solution.equilibrium.define_minor_radii(view="simple")
-            if solution.views.simple.equilibrium.qcyl is None:
-                solution.equilibrium.define_qcyl(view="simple")
-            data = calculate_dk_cons(
-                simple_solution,
-                solution.additional_parameters.turbulence,
-                solution.views.simple.equilibrium.qcyl,
-                solution.mesh.global_state.vertices[:, 0] / solution.parameters["adimensionalization"]["length_scale"],
-                solution.parameters["adimensionalization"]["length_scale"] ** 2
-                / solution.parameters["adimensionalization"]["time_scale"],
-                solution.metadata.indices.conservative,
-            )
+            data = solution.turbulence.dk("simple")
         data[np.isnan(data)] = limit[0]
         if log:
             data[data < 0] = 10.0 ** limit[0]

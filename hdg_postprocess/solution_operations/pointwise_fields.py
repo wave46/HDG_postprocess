@@ -6,12 +6,8 @@ from hdg_postprocess.routines.plasma import *  # noqa: F403
 from hdg_postprocess.solution_operations import preparation as prep_ops
 
 
-def _ensure_interpolators(solution):
-    prep_ops.ensure_interpolators(solution)
-
-
 def _sample_state(solution, r, z):
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     for i in range(solution.neq):
         state[0, i] = solution.interpolators.solution[i](r, z)
@@ -19,7 +15,7 @@ def _sample_state(solution, r, z):
 
 
 def _sample_state_and_gradient(solution, r, z):
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     gradient = np.zeros([1, solution.neq, 2])
     for i in range(solution.neq):
@@ -33,7 +29,7 @@ def n(solution, r, z):
     if b"rho" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("density is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     return calculate_n_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
@@ -43,7 +39,7 @@ def ti(solution, r, z):
     if b"Ti" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("ion temperature is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
@@ -62,7 +58,7 @@ def te(solution, r, z):
     if b"Te" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("electron temperature is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
@@ -80,7 +76,7 @@ def u(solution, r, z):
     if b"u" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
@@ -93,7 +89,7 @@ def cs(solution, r, z):
     if b"Csi" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
@@ -108,7 +104,7 @@ def M(solution, r, z):
     if b"M" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
     if state[:, solution._cons_idx[b"rho"]] == 0:
@@ -123,7 +119,7 @@ def nn(solution, r, z):
     if b"rhon" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("neutral density number is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"rhon"]] = solution.interpolators.solution[solution._cons_idx[b"rhon"]](r, z)
     return calculate_nn_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
@@ -208,7 +204,7 @@ def k(solution, r, z):
     if b"rho" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("density is not in the models")
 
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"k"]] = solution.interpolators.solution[solution._cons_idx[b"k"]](r, z)
     return calculate_k_cons(state, solution.parameters["adimensionalization"]["k_scale"], solution._cons_idx)
@@ -217,7 +213,7 @@ def k(solution, r, z):
 def dk(solution, r, z):
     if solution.additional_parameters.turbulence is None:
         raise ValueError("Please, provide turbulent diffusion settings for the simulation")
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     if solution.summary.equilibrium.axis.r is None:
         solution.equilibrium.define_minor_radii(view="simple")
 
@@ -401,7 +397,7 @@ def grad_te_par(solution, r, z):
 
 
 def particle_flux_par(solution, r, z):
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
     state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
     return calculate_parallel_flux_cons(
@@ -575,7 +571,7 @@ def electron_heat_flux_par(solution, r, z):
 
 
 def psi(solution, r, z):
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     return solution._psi_interpolator(r, z)
 
 
@@ -588,7 +584,7 @@ def B(solution, r, z, component):
         idx = 2
     else:
         raise ValueError(f"{component} is not a component of the problem")
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     return solution.interpolators.field[idx](r, z)
 
 
@@ -608,7 +604,7 @@ def grad_B(solution, r, z, component, coordinate):
         idx_grad = 1
     else:
         raise ValueError(f"{coordinate} is not a coordinate of the problem")
-    _ensure_interpolators(solution)
+    prep_ops.ensure_interpolators(solution)
     return solution.interpolators.field[idx].gradient(r, z)[idx_grad]
 
 

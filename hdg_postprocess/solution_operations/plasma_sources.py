@@ -32,10 +32,7 @@ def calculate_ohmic_source(solution, which="simple"):
             solution.parameters["physics"]["Zeff"],
         )
     elif which == "gauss":
-        prep_ops.ensure_full_solution(solution)
-        if solution.views.gauss.equilibrium.jtor is None:
-            print("Calculating on gauss points first")
-            solution.assembly.gauss()
+        prep_ops.ensure_gauss_solution(solution)
         gauss_view = solution.views.gauss
         gauss_view.sources.ohmic_source = calculate_ohmic_source_cons(
             gauss_view.solution.conservative,
@@ -416,6 +413,7 @@ def _require_atomic_key(solution, key, message):
         raise ValueError("Please, provide atomic settings for the simulation")
     if key not in solution.additional_parameters.atomic.keys():
         raise ValueError(message)
+
 
 def _assign_simple_view(solution, field_name, full_values):
     setattr(solution.views.simple.sources, field_name, prep_ops.project_full_to_simple(solution, full_values))
