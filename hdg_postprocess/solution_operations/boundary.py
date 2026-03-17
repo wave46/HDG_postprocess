@@ -70,179 +70,127 @@ def summary_along_the_wall(solution):
         "neutral_flux_skeleton",
     ]
 
+    normal_vector = solution.mesh.boundary_state.normals_gauss
+    b_n = np.sum(boundary_equilibrium.magnetic_field_unit[:, :, :2] * normal_vector, axis=-1)
+    p_dyn_scale = (
+        (2 / 3 / solution.parameters["physics"]["Mref"])
+        * solution.parameters["adimensionalization"]["density_scale"]
+        * solution.parameters["adimensionalization"]["temperature_scale"]
+        * solution.parameters["adimensionalization"]["charge_scale"]
+    )
+    p_dyn_mass_scale = (
+        solution.parameters["adimensionalization"]["speed_scale"] ** 2
+        * solution.parameters["adimensionalization"]["mass_scale"]
+        * solution.parameters["adimensionalization"]["density_scale"]
+    )
+    evaluators = {
+        "dl": lambda result: solution.mesh.boundary_state.segment_length_gauss[:, :, 0],
+        "ds": lambda result: solution.mesh.boundary_state.segment_surface_gauss[:, :, 0],
+        "normal_vector": lambda result: normal_vector,
+        "b_n": lambda result: b_n,
+        "solution": lambda result: boundary_solution,
+        "solution_skeleton": lambda result: boundary_solution_skeleton,
+        "gradient": lambda result: boundary_gradient,
+        "n": lambda result: calculate_n_cons(
+            boundary_solution,
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.metadata.indices.conservative,
+        ),
+        "n_skeleton": lambda result: calculate_n_cons(
+            boundary_solution_skeleton,
+            solution.parameters["adimensionalization"]["density_scale"],
+            solution.metadata.indices.conservative,
+        ),
+        "u": lambda result: calculate_u_cons(
+            boundary_solution,
+            solution.parameters["adimensionalization"]["speed_scale"],
+            solution.metadata.indices.conservative,
+        ),
+        "u_skeleton": lambda result: calculate_u_cons(
+            boundary_solution_skeleton,
+            solution.parameters["adimensionalization"]["speed_scale"],
+            solution.metadata.indices.conservative,
+        ),
+        "te": lambda result: calculate_Te_cons(
+            boundary_solution,
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        ),
+        "te_skeleton": lambda result: calculate_Te_cons(
+            boundary_solution_skeleton,
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        ),
+        "ti": lambda result: calculate_Ti_cons(
+            boundary_solution,
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        ),
+        "ti_skeleton": lambda result: calculate_Ti_cons(
+            boundary_solution_skeleton,
+            solution.parameters["adimensionalization"]["temperature_scale"],
+            solution.parameters["physics"]["Mref"],
+            solution._cons_idx,
+        ),
+        "M": lambda result: calculate_M_cons(boundary_solution, solution.metadata.indices.conservative),
+        "M_skeleton": lambda result: calculate_M_cons(
+            boundary_solution_skeleton, solution.metadata.indices.conservative
+        ),
+        "p_dyn": lambda result: calculate_pdyn_cons(
+            boundary_solution, p_dyn_scale, p_dyn_mass_scale, solution.metadata.indices.conservative
+        ),
+        "p_dyn_skeleton": lambda result: calculate_pdyn_cons(
+            boundary_solution_skeleton, p_dyn_scale, p_dyn_mass_scale, solution.metadata.indices.conservative
+        ),
+        "gamma": lambda result: calculate_parallel_flux_cons(
+            boundary_solution,
+            solution.parameters["adimensionalization"]["density_scale"]
+            * solution.parameters["adimensionalization"]["speed_scale"],
+            solution._cons_idx,
+        ),
+        "gamma_skeleton": lambda result: calculate_parallel_flux_cons(
+            boundary_solution_skeleton,
+            solution.parameters["adimensionalization"]["density_scale"]
+            * solution.parameters["adimensionalization"]["speed_scale"],
+            solution._cons_idx,
+        ),
+        "gamma_perp_dep": lambda result: _calculate_gamma_perp_dep(solution, boundary_solution),
+        "gamma_perp_dep_skeleton": lambda result: _calculate_gamma_perp_dep(solution, boundary_solution_skeleton),
+        "gamma_tot_dep": lambda result: result["gamma"] * result["b_n"] + result["gamma_perp_dep"],
+        "gamma_tot_dep_skeleton": lambda result: result["gamma_skeleton"] * result["b_n"] + result["gamma_perp_dep_skeleton"],
+        "q_i_par_cond": lambda result: _calculate_q_i_par_cond(solution, boundary_solution),
+        "q_i_par_cond_skeleton": lambda result: _calculate_q_i_par_cond(solution, boundary_solution_skeleton),
+        "q_e_par_cond": lambda result: _calculate_q_e_par_cond(solution, boundary_solution),
+        "q_e_par_cond_skeleton": lambda result: _calculate_q_e_par_cond(solution, boundary_solution_skeleton),
+        "q_i_par_conv": lambda result: _calculate_q_i_par_conv(solution, boundary_solution),
+        "q_i_par_conv_skeleton": lambda result: _calculate_q_i_par_conv(solution, boundary_solution_skeleton),
+        "q_e_par_conv": lambda result: _calculate_q_e_par_conv(solution, boundary_solution),
+        "q_e_par_conv_skeleton": lambda result: _calculate_q_e_par_conv(solution, boundary_solution_skeleton),
+        "q_i_par": lambda result: _calculate_q_i_par(solution, boundary_solution),
+        "q_i_par_skeleton": lambda result: _calculate_q_i_par(solution, boundary_solution_skeleton),
+        "q_e_par": lambda result: _calculate_q_e_par(solution, boundary_solution),
+        "q_e_par_skeleton": lambda result: _calculate_q_e_par(solution, boundary_solution_skeleton),
+        "q_i_perp_dep": lambda result: _calculate_q_i_perp_dep(solution, boundary_solution),
+        "q_i_perp_dep_skeleton": lambda result: _calculate_q_i_perp_dep(solution, boundary_solution_skeleton),
+        "q_e_perp_dep": lambda result: _calculate_q_e_perp_dep(solution, boundary_solution),
+        "q_e_perp_dep_skeleton": lambda result: _calculate_q_e_perp_dep(solution, boundary_solution_skeleton),
+        "q_i_tot_dep": lambda result: result["q_i_par"] * result["b_n"] + result["q_i_perp_dep"],
+        "q_i_tot_dep_skeleton": lambda result: result["q_i_par_skeleton"] * result["b_n"] + result["q_i_perp_dep_skeleton"],
+        "q_e_tot_dep": lambda result: result["q_e_par"] * result["b_n"] + result["q_e_perp_dep"],
+        "q_e_tot_dep_skeleton": lambda result: result["q_e_par_skeleton"] * result["b_n"] + result["q_e_perp_dep_skeleton"],
+        "q_e_tot_dep_bc": lambda result: _calculate_q_e_tot_dep_bc(solution, boundary_solution),
+        "q_e_tot_dep_bc_skeleton": lambda result: _calculate_q_e_tot_dep_bc(solution, boundary_solution_skeleton),
+        "q_i_tot_dep_bc": lambda result: _calculate_q_i_tot_dep_bc(solution, boundary_solution),
+        "q_i_tot_dep_bc_skeleton": lambda result: _calculate_q_i_tot_dep_bc(solution, boundary_solution_skeleton),
+        "neutral_flux": lambda result: _calculate_neutral_flux(solution, boundary_solution),
+        "neutral_flux_skeleton": lambda result: _calculate_neutral_flux(solution, boundary_solution_skeleton),
+    }
     result = {}
     for variable in variables:
-        if variable == "dl":
-            res = solution.mesh.boundary_state.segment_length_gauss[:, :, 0]
-        elif variable == "ds":
-            res = solution.mesh.boundary_state.segment_surface_gauss[:, :, 0]
-        elif variable == "normal_vector":
-            res = solution.mesh.boundary_state.normals_gauss
-        elif variable == "b_n":
-            res = np.sum(
-                boundary_equilibrium.magnetic_field_unit[:, :, :2] * solution.mesh.boundary_state.normals_gauss, axis=-1
-            )
-        elif variable == "solution":
-            res = boundary_solution
-        elif variable == "solution_skeleton":
-            res = boundary_solution_skeleton
-        elif variable == "gradient":
-            res = boundary_gradient
-        elif variable == "n":
-            res = calculate_n_cons(
-                boundary_solution,
-                solution.parameters["adimensionalization"]["density_scale"],
-                solution.metadata.indices.conservative,
-            )
-        elif variable == "n_skeleton":
-            res = calculate_n_cons(
-                boundary_solution_skeleton,
-                solution.parameters["adimensionalization"]["density_scale"],
-                solution.metadata.indices.conservative,
-            )
-        elif variable == "u":
-            res = calculate_u_cons(
-                boundary_solution,
-                solution.parameters["adimensionalization"]["speed_scale"],
-                solution.metadata.indices.conservative,
-            )
-        elif variable == "u_skeleton":
-            res = calculate_u_cons(
-                boundary_solution_skeleton,
-                solution.parameters["adimensionalization"]["speed_scale"],
-                solution.metadata.indices.conservative,
-            )
-        elif variable == "te":
-            res = calculate_Te_cons(
-                boundary_solution,
-                solution.parameters["adimensionalization"]["temperature_scale"],
-                solution.parameters["physics"]["Mref"],
-                solution._cons_idx,
-            )
-        elif variable == "te_skeleton":
-            res = calculate_Te_cons(
-                boundary_solution_skeleton,
-                solution.parameters["adimensionalization"]["temperature_scale"],
-                solution.parameters["physics"]["Mref"],
-                solution._cons_idx,
-            )
-        elif variable == "ti":
-            res = calculate_Ti_cons(
-                boundary_solution,
-                solution.parameters["adimensionalization"]["temperature_scale"],
-                solution.parameters["physics"]["Mref"],
-                solution._cons_idx,
-            )
-        elif variable == "ti_skeleton":
-            res = calculate_Ti_cons(
-                boundary_solution_skeleton,
-                solution.parameters["adimensionalization"]["temperature_scale"],
-                solution.parameters["physics"]["Mref"],
-                solution._cons_idx,
-            )
-        elif variable == "M":
-            res = calculate_M_cons(boundary_solution, solution.metadata.indices.conservative)
-        elif variable == "M_skeleton":
-            res = calculate_M_cons(boundary_solution_skeleton, solution.metadata.indices.conservative)
-        elif variable == "p_dyn":
-            res = calculate_pdyn_cons(
-                boundary_solution,
-                (2 / 3 / solution.parameters["physics"]["Mref"])
-                * solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["temperature_scale"]
-                * solution.parameters["adimensionalization"]["charge_scale"],
-                solution.parameters["adimensionalization"]["speed_scale"] ** 2
-                * solution.parameters["adimensionalization"]["mass_scale"]
-                * solution.parameters["adimensionalization"]["density_scale"],
-                solution.metadata.indices.conservative,
-            )
-        elif variable == "p_dyn_skeleton":
-            res = calculate_pdyn_cons(
-                boundary_solution_skeleton,
-                (2 / 3 / solution.parameters["physics"]["Mref"])
-                * solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["temperature_scale"]
-                * solution.parameters["adimensionalization"]["charge_scale"],
-                solution.parameters["adimensionalization"]["speed_scale"] ** 2
-                * solution.parameters["adimensionalization"]["mass_scale"]
-                * solution.parameters["adimensionalization"]["density_scale"],
-                solution.metadata.indices.conservative,
-            )
-        elif variable == "gamma":
-            res = calculate_parallel_flux_cons(
-                boundary_solution,
-                solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["speed_scale"],
-                solution._cons_idx,
-            )
-        elif variable == "gamma_skeleton":
-            res = calculate_parallel_flux_cons(
-                boundary_solution_skeleton,
-                solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["speed_scale"],
-                solution._cons_idx,
-            )
-        elif variable == "gamma_perp_dep":
-            res = _calculate_gamma_perp_dep(solution, boundary_solution)
-        elif variable == "gamma_perp_dep_skeleton":
-            res = _calculate_gamma_perp_dep(solution, boundary_solution_skeleton)
-        elif variable == "gamma_tot_dep":
-            res = result["gamma"] * result["b_n"] + result["gamma_perp_dep"]
-        elif variable == "gamma_tot_dep_skeleton":
-            res = result["gamma_skeleton"] * result["b_n"] + result["gamma_perp_dep_skeleton"]
-        elif variable == "q_i_par_cond":
-            res = _calculate_q_i_par_cond(solution, boundary_solution)
-        elif variable == "q_i_par_cond_skeleton":
-            res = _calculate_q_i_par_cond(solution, boundary_solution_skeleton)
-        elif variable == "q_e_par_cond":
-            res = _calculate_q_e_par_cond(solution, boundary_solution)
-        elif variable == "q_e_par_cond_skeleton":
-            res = _calculate_q_e_par_cond(solution, boundary_solution_skeleton)
-        elif variable == "q_i_par_conv":
-            res = _calculate_q_i_par_conv(solution, boundary_solution)
-        elif variable == "q_i_par_conv_skeleton":
-            res = _calculate_q_i_par_conv(solution, boundary_solution_skeleton)
-        elif variable == "q_e_par_conv":
-            res = _calculate_q_e_par_conv(solution, boundary_solution)
-        elif variable == "q_e_par_conv_skeleton":
-            res = _calculate_q_e_par_conv(solution, boundary_solution_skeleton)
-        elif variable == "q_i_par":
-            res = _calculate_q_i_par(solution, boundary_solution)
-        elif variable == "q_i_par_skeleton":
-            res = _calculate_q_i_par(solution, boundary_solution_skeleton)
-        elif variable == "q_e_par":
-            res = _calculate_q_e_par(solution, boundary_solution)
-        elif variable == "q_e_par_skeleton":
-            res = _calculate_q_e_par(solution, boundary_solution_skeleton)
-        elif variable == "q_i_perp_dep":
-            res = _calculate_q_i_perp_dep(solution, boundary_solution)
-        elif variable == "q_i_perp_dep_skeleton":
-            res = _calculate_q_i_perp_dep(solution, boundary_solution_skeleton)
-        elif variable == "q_e_perp_dep":
-            res = _calculate_q_e_perp_dep(solution, boundary_solution)
-        elif variable == "q_e_perp_dep_skeleton":
-            res = _calculate_q_e_perp_dep(solution, boundary_solution_skeleton)
-        elif variable == "q_i_tot_dep":
-            res = result["q_i_par"] * result["b_n"] + result["q_i_perp_dep"]
-        elif variable == "q_i_tot_dep_skeleton":
-            res = result["q_i_par_skeleton"] * result["b_n"] + result["q_i_perp_dep_skeleton"]
-        elif variable == "q_e_tot_dep":
-            res = result["q_e_par"] * result["b_n"] + result["q_e_perp_dep"]
-        elif variable == "q_e_tot_dep_skeleton":
-            res = result["q_e_par_skeleton"] * result["b_n"] + result["q_e_perp_dep_skeleton"]
-        elif variable == "q_e_tot_dep_bc":
-            res = _calculate_q_e_tot_dep_bc(solution, boundary_solution)
-        elif variable == "q_e_tot_dep_bc_skeleton":
-            res = _calculate_q_e_tot_dep_bc(solution, boundary_solution_skeleton)
-        elif variable == "q_i_tot_dep_bc":
-            res = _calculate_q_i_tot_dep_bc(solution, boundary_solution)
-        elif variable == "q_i_tot_dep_bc_skeleton":
-            res = _calculate_q_i_tot_dep_bc(solution, boundary_solution_skeleton)
-        elif variable == "neutral_flux":
-            res = _calculate_neutral_flux(solution, boundary_solution)
-        elif variable == "neutral_flux_skeleton":
-            res = _calculate_neutral_flux(solution, boundary_solution_skeleton)
-        result[variable] = res
+        result[variable] = evaluators[variable](result)
 
     for key, item in result.items():
         result[key] = item[:, ::-1]

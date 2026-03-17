@@ -82,7 +82,7 @@ def recombine_simple_full_solution(solution):
     glob_view = solution.views.glob
     simple_view = solution.views.simple
     simple_view.solution.conservative = prep_ops.project_full_to_simple(solution, glob_view.solution.conservative)
-    simple_view.gradient.conservative = _project_full_gradient_to_simple(solution, glob_view.gradient.conservative)
+    simple_view.gradient.conservative = prep_ops.project_full_to_simple(solution, glob_view.gradient.conservative)
     simple_view.equilibrium.magnetic_field = prep_ops.project_full_to_simple(solution, glob_view.equilibrium.magnetic_field)
     if solution.parameters["switches"]["ohmicsrc"][0] == 1:
         simple_view.equilibrium.jtor = prep_ops.project_full_to_simple(solution, glob_view.equilibrium.jtor)
@@ -274,16 +274,6 @@ def _assign_external_heating_sources(solution, target_view):
             target_view.sources.external_heating_e = physics["external_heating_e"]
         if "external_heating_i" in physics:
             target_view.sources.external_heating_i = physics["external_heating_i"]
-
-
-def _project_full_gradient_to_simple(solution, full_values):
-    simple_values = np.zeros([solution.mesh.global_state.vertices.shape[0], solution.neq, solution.ndim])
-    simple_values[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :, :] = full_values.reshape(
-        full_values.shape[0] * full_values.shape[1], solution.neq, solution.ndim
-    )
-    return simple_values
-
-
 def _reset_boundary_gauss_cache(solution):
     cache = solution.metadata.cache
     cache.boundary_gauss_boundaries = None
