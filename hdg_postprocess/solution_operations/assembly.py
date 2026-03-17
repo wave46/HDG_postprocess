@@ -1,9 +1,11 @@
 import numpy as np
 
+from hdg_postprocess.solution_operations import preparation as prep_ops
+
 
 def recombine_full_solution(solution):
     if not solution.mesh.metadata.flags.combined_to_full:
-        print("Comibining first mesh full")
+        print("Combining full mesh first")
         solution.mesh.assembly.full()
 
     glob_view = solution.views.glob
@@ -63,12 +65,7 @@ def recombine_full_solution(solution):
             if solution.parameters["switches"]["ohmicsrc"][0] == 1:
                 glob_view.equilibrium.jtor = raw_jtor
 
-    if "external_heating" in solution.parameters["physics"]:
-        glob_view.sources.external_heating = solution.parameters["physics"]["external_heating"][solution.mesh.global_state.connectivity]
-    if "external_heating_e" in solution.parameters["physics"]:
-        glob_view.sources.external_heating_e = solution.parameters["physics"]["external_heating_e"][solution.mesh.global_state.connectivity]
-    if "external_heating_i" in solution.parameters["physics"]:
-        glob_view.sources.external_heating_i = solution.parameters["physics"]["external_heating_i"][solution.mesh.global_state.connectivity]
+    _assign_external_heating_sources(solution, glob_view)
 
     glob_view.equilibrium.magnetic_field_unit = glob_view.equilibrium.magnetic_field / np.sqrt(
         (glob_view.equilibrium.magnetic_field ** 2).sum(axis=-1)
@@ -80,50 +77,28 @@ def recombine_full_solution(solution):
 
 def recombine_simple_full_solution(solution):
     if not solution.metadata.flags.combined_to_full:
-        print("Comibining first solution full")
+        print("Combining full solution first")
         recombine_full_solution(solution)
     glob_view = solution.views.glob
     simple_view = solution.views.simple
-    simple_view.solution.conservative = np.zeros([solution.mesh.global_state.vertices.shape[0], solution.neq])
-    simple_view.solution.conservative[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :] = glob_view.solution.conservative.reshape(
-        glob_view.solution.conservative.shape[0] * glob_view.solution.conservative.shape[1], solution.neq
-    )
-
-    simple_view.gradient.conservative = np.zeros([solution.mesh.global_state.vertices.shape[0], solution.neq, solution.ndim])
-    simple_view.gradient.conservative[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :, :] = glob_view.gradient.conservative.reshape(
-        glob_view.gradient.conservative.shape[0] * glob_view.gradient.conservative.shape[1], solution.neq, solution.ndim
-    )
-
-    simple_view.equilibrium.magnetic_field = np.zeros([solution.mesh.global_state.vertices.shape[0], 3])
-    simple_view.equilibrium.magnetic_field[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :] = glob_view.equilibrium.magnetic_field.reshape(
-        glob_view.equilibrium.magnetic_field.shape[0] * glob_view.equilibrium.magnetic_field.shape[1], 3
-    )
+    simple_view.solution.conservative = prep_ops.project_full_to_simple(solution, glob_view.solution.conservative)
+    simple_view.gradient.conservative = _project_full_gradient_to_simple(solution, glob_view.gradient.conservative)
+    simple_view.equilibrium.magnetic_field = prep_ops.project_full_to_simple(solution, glob_view.equilibrium.magnetic_field)
     if solution.parameters["switches"]["ohmicsrc"][0] == 1:
-        simple_view.equilibrium.jtor = np.zeros(solution.mesh.global_state.vertices.shape[0])
-        simple_view.equilibrium.jtor[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = glob_view.equilibrium.jtor.reshape(
-            glob_view.equilibrium.jtor.shape[0] * glob_view.equilibrium.jtor.shape[1]
-        )
+        simple_view.equilibrium.jtor = prep_ops.project_full_to_simple(solution, glob_view.equilibrium.jtor)
     if "poloidal_flux" in solution.raw.equilibriums[0].keys():
-        simple_view.equilibrium.poloidal_flux = np.zeros([solution.mesh.global_state.vertices.shape[0]])
-        simple_view.equilibrium.poloidal_flux[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = glob_view.equilibrium.poloidal_flux.reshape(
-            glob_view.equilibrium.poloidal_flux.shape[0] * glob_view.equilibrium.poloidal_flux.shape[1]
-        )
+        simple_view.equilibrium.poloidal_flux = prep_ops.project_full_to_simple(solution, glob_view.equilibrium.poloidal_flux)
     solution.metadata.flags.combined_simple_solution = True
 
-    if "external_heating" in solution.parameters["physics"]:
-        simple_view.sources.external_heating = solution.parameters["physics"]["external_heating"]
-    if "external_heating_e" in solution.parameters["physics"]:
-        simple_view.sources.external_heating_e = solution.parameters["physics"]["external_heating_e"]
-    if "external_heating_i" in solution.parameters["physics"]:
-        simple_view.sources.external_heating_i = solution.parameters["physics"]["external_heating_i"]
+    _assign_external_heating_sources(solution, simple_view)
 
 
 def recombine_boundary_solution(solution):
     if not solution.metadata.flags.combined_to_full:
-        print("Comibining first solution full")
+        print("Combining full solution first")
         recombine_full_solution(solution)
     if solution.mesh.boundary_state.connectivity is None:
-        print("Comibining first boundary connectivity and info")
+        print("Combining boundary connectivity and info first")
         solution.mesh.assembly.boundary(solution.raw.boundary_infos)
     if solution.mesh.metadata.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
@@ -172,7 +147,6 @@ def recombine_boundary_solution(solution):
             solution.neq,
         )
         solution_skeleton_boundary = solution_skeleton_boundary[-solution.mesh.raw.mesh_numbers[0]["Nextfaces"] :, :, :]
-    print(solution_skeleton_boundary.shape)
     for key, indices in solution.mesh.boundary_state.indices.items():
         boundary_view.solution_skeleton.conservative[key] = []
         for ind in indices:
@@ -180,15 +154,12 @@ def recombine_boundary_solution(solution):
 
     solution.metadata.flags.combined_boundary = True
     solution.metadata.flags.combined_boundary_gauss = False
-    solution.metadata.cache.boundary_gauss_boundaries = None
-    solution.metadata.cache.boundary_gauss_ordering = None
-    solution.metadata.cache.boundary_gauss_connectivity = None
-    solution.metadata.cache.boundary_gauss_face_elements = None
+    _reset_boundary_gauss_cache(solution)
 
 
 def calculate_in_gauss_points(solution):
     if not solution.metadata.flags.combined_to_full:
-        print("Comibining first solution full")
+        print("Combining full solution first")
         recombine_full_solution(solution)
     if solution.mesh.metadata.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
@@ -218,7 +189,7 @@ def calculate_in_boundary_gauss_points(solution, boundaries):
     if solution.mesh.metadata.reference_element is None:
         raise ValueError("Please, provide reference element to the mesh")
     if not solution.metadata.flags.combined_boundary:
-        print("Comibining first values on boundary")
+        print("Combining boundary values first")
         recombine_boundary_solution(solution)
     normalized_boundaries = tuple(np.asarray(boundaries, dtype=int).tolist())
     cache = solution.metadata.cache
@@ -284,3 +255,38 @@ def calculate_in_boundary_gauss_points(solution, boundaries):
     cache.boundary_gauss_connectivity = connectivity_ordered
     cache.boundary_gauss_face_elements = iel_face_ordered
     return boundary_ordering, connectivity_ordered, iel_face_ordered
+
+
+def _assign_external_heating_sources(solution, target_view):
+    physics = solution.parameters["physics"]
+    if target_view is solution.views.glob:
+        connectivity = solution.mesh.global_state.connectivity
+        if "external_heating" in physics:
+            target_view.sources.external_heating = physics["external_heating"][connectivity]
+        if "external_heating_e" in physics:
+            target_view.sources.external_heating_e = physics["external_heating_e"][connectivity]
+        if "external_heating_i" in physics:
+            target_view.sources.external_heating_i = physics["external_heating_i"][connectivity]
+    else:
+        if "external_heating" in physics:
+            target_view.sources.external_heating = physics["external_heating"]
+        if "external_heating_e" in physics:
+            target_view.sources.external_heating_e = physics["external_heating_e"]
+        if "external_heating_i" in physics:
+            target_view.sources.external_heating_i = physics["external_heating_i"]
+
+
+def _project_full_gradient_to_simple(solution, full_values):
+    simple_values = np.zeros([solution.mesh.global_state.vertices.shape[0], solution.neq, solution.ndim])
+    simple_values[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel(), :, :] = full_values.reshape(
+        full_values.shape[0] * full_values.shape[1], solution.neq, solution.ndim
+    )
+    return simple_values
+
+
+def _reset_boundary_gauss_cache(solution):
+    cache = solution.metadata.cache
+    cache.boundary_gauss_boundaries = None
+    cache.boundary_gauss_ordering = None
+    cache.boundary_gauss_connectivity = None
+    cache.boundary_gauss_face_elements = None

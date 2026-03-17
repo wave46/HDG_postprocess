@@ -2,19 +2,14 @@ import numpy as np
 
 from hdg_postprocess.routines.neutrals import *
 from hdg_postprocess.routines.plasma import *
+from hdg_postprocess.solution_operations import preparation as prep_ops
 
 
 def summary_along_the_wall(solution):
     """
     Calculate values in gauss points along the wall.
     """
-    default_boundaries = tuple(np.unique(solution.raw.boundary_infos[0]["boundary_flags"]).tolist())
-    if (
-        not solution.metadata.flags.combined_boundary_gauss
-        or solution.metadata.cache.boundary_gauss_boundaries != default_boundaries
-    ):
-        print("Comibining first values on boundary gauss points")
-        solution.assembly.boundary_gauss(default_boundaries)
+    _ensure_default_boundary_gauss(solution)
     boundary_gauss = solution.views.boundary_gauss
     boundary_solution = boundary_gauss.solution.conservative
     boundary_solution_skeleton = boundary_gauss.solution_skeleton.conservative
@@ -260,14 +255,19 @@ def summary_along_the_wall(solution):
 
 
 def calculate_boundary_summary(solution):
+    _ensure_default_boundary_gauss(solution)
+    solution.summary.boundary.profile = summary_along_the_wall(solution)
+    return solution.summary.boundary.profile
+
+
+def _ensure_default_boundary_gauss(solution):
     default_boundaries = tuple(np.unique(solution.raw.boundary_infos[0]["boundary_flags"]).tolist())
     if (
         not solution.metadata.flags.combined_boundary_gauss
         or solution.metadata.cache.boundary_gauss_boundaries != default_boundaries
     ):
+        print("Combining boundary gauss values first")
         solution.assembly.boundary_gauss(default_boundaries)
-    solution.summary.boundary.profile = summary_along_the_wall(solution)
-    return solution.summary.boundary.profile
 
 
 def _parallel_conductivity(solution, key):

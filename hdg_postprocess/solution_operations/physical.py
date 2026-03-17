@@ -26,33 +26,28 @@ from hdg_postprocess.routines.plasma import (
     calculate_pi_cons,
     calculate_u_cons,
 )
+from hdg_postprocess.solution_operations import preparation as prep_ops
 
 
 def init_phys_variables(solution, which="both"):
     flags = solution.metadata.flags
     if which == "simple":
-        if not flags.combined_simple_solution:
-            print("Comibining first simple solution full")
-            solution.assembly.simple()
+        prep_ops.ensure_simple_solution(solution)
         simple_view = solution.views.simple
         cons2phys(solution, simple_view.solution.conservative)
         cons2phys(solution, simple_view.gradient.conservative)
         flags.simple_phys_initialized = True
     elif which == "full":
-        if not flags.combined_to_full:
-            print("Comibining first solution full")
-            solution.assembly.full()
+        prep_ops.ensure_full_solution(solution)
         glob_view = solution.views.glob
         cons2phys(solution, glob_view.solution.conservative)
         cons2phys(solution, glob_view.gradient.conservative)
         flags.full_phys_initialized = True
     elif which == "gauss":
         if not flags.full_phys_initialized:
-            print("Comibining first full physical solution")
+            print("Initializing full physical solution first")
             init_phys_variables(solution, which="full")
-        if not flags.combined_gauss:
-            print("Comibining first solution in gauss points")
-            solution.assembly.gauss()
+        prep_ops.ensure_gauss_solution(solution)
         gauss_view = solution.views.gauss
         cons2phys(solution, gauss_view.solution.conservative)
         cons2phys(solution, gauss_view.gradient.conservative)
@@ -127,16 +122,7 @@ def cons2phys(solution, data):
             else:
                 raise KeyError("Unknown variable, go into the code and add this variable if you are sure")
 
-        if data is solution.views.glob.solution.conservative:
-            solution.views.glob.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
-        elif data is solution.views.gauss.solution.conservative:
-            solution.views.gauss.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
-        elif len(data.shape) == 3:
-            solution.views.glob.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
-        elif len(data.shape) == 2:
-            solution.views.simple.solution.physical = solution_phys
-        else:
-            raise ValueError("Something weird with the data shape of the solution")
+        _assign_physical_solution(solution, data, solution_phys)
 
     elif data.shape[-1] == solution.ndim:
         if len(data.shape) == 4:
@@ -180,8 +166,12 @@ def cons2phys(solution, data):
                 p0 = (2 / 3 / solution.parameters["physics"]["Mref"]) * solution.parameters["adimensionalization"]["density_scale"] * solution.parameters["adimensionalization"]["temperature_scale"] * solution.parameters["adimensionalization"]["charge_scale"]
                 grad_phys[:, i, :] = calculate_grad_pi_cons(sol_loc, data_loc, p0, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"pe":
-                p0 = (2 / 3 / solution.parameters["physics"]["Mref"]) * solution.parameters["adimensionalization"]["density_scale"] * solution.parameters["adimensionalization"]["temperature_scale"] * solution.parameters["adimensionalization"]["charge_scale"]
-                grad_phys[:, i, :] = calculate_grad_pe_cons(data_loc, p0, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative)
+                grad_phys[:, i, :] = calculate_grad_pe_cons(
+                    data_loc,
+                    _pressure_scale(solution),
+                    solution.parameters["adimensionalization"]["length_scale"],
+                    solution.metadata.indices.conservative,
+                )
             elif phys_variable == b"Ti":
                 grad_phys[:, i, :] = calculate_grad_Ti_cons(
                     sol_loc, data_loc, solution.parameters["adimensionalization"]["temperature_scale"], solution.parameters["physics"]["Mref"], solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
@@ -205,11 +195,39 @@ def cons2phys(solution, data):
                     data_loc, solution.parameters["adimensionalization"]["speed_scale"] ** 2, solution.parameters["adimensionalization"]["length_scale"], solution.metadata.indices.conservative
                 )
 
-        if data is solution.views.glob.gradient.conservative:
-            solution.views.glob.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
-        elif data is solution.views.gauss.gradient.conservative:
-            solution.views.gauss.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
-        elif len(data.shape) == 4:
-            solution.views.glob.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
-        elif len(data.shape) == 3:
-            solution.views.simple.gradient.physical = grad_phys
+        _assign_physical_gradient(solution, data, grad_phys)
+
+
+def _assign_physical_solution(solution, data, solution_phys):
+    if data is solution.views.glob.solution.conservative or (
+        len(data.shape) == 3 and data is not solution.views.gauss.solution.conservative
+    ):
+        solution.views.glob.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
+    elif data is solution.views.gauss.solution.conservative:
+        solution.views.gauss.solution.physical = solution_phys.reshape((data.shape[0], data.shape[1], solution.nphys))
+    elif len(data.shape) == 2:
+        solution.views.simple.solution.physical = solution_phys
+    else:
+        raise ValueError("Unexpected solution data shape")
+
+
+def _assign_physical_gradient(solution, data, grad_phys):
+    if data is solution.views.glob.gradient.conservative or (
+        len(data.shape) == 4 and data is not solution.views.gauss.gradient.conservative
+    ):
+        solution.views.glob.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
+    elif data is solution.views.gauss.gradient.conservative:
+        solution.views.gauss.gradient.physical = grad_phys.reshape((data.shape[0], data.shape[1], solution.nphys, solution.ndim))
+    elif len(data.shape) == 3:
+        solution.views.simple.gradient.physical = grad_phys
+    else:
+        raise ValueError("Unexpected gradient data shape")
+
+
+def _pressure_scale(solution):
+    return (
+        (2 / 3 / solution.parameters["physics"]["Mref"])
+        * solution.parameters["adimensionalization"]["density_scale"]
+        * solution.parameters["adimensionalization"]["temperature_scale"]
+        * solution.parameters["adimensionalization"]["charge_scale"]
+    )

@@ -54,8 +54,10 @@ def ensure_interpolators(solution):
 
 
 def project_full_to_simple(solution, full_values):
-    simple_values = np.zeros(solution.mesh.global_state.vertices.shape[0])
+    n_vertices = solution.mesh.global_state.vertices.shape[0]
+    trailing_shape = full_values.shape[2:]
+    simple_values = np.zeros((n_vertices, *trailing_shape))
     simple_values[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = full_values.reshape(
-        solution.views.glob.solution.conservative.shape[0] * solution.views.glob.solution.conservative.shape[1]
+        full_values.shape[0] * full_values.shape[1], *trailing_shape
     )
     return simple_values
