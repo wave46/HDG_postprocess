@@ -38,13 +38,14 @@ For a lighter entry point than the full demo notebooks, start with:
 - [Migrating Mesh API](docs/tutorials/migrating_mesh_api.md)
 - [Point Sampling](docs/tutorials/point_sampling.md)
 - [Power Balance](docs/tutorials/power_balance.md)
-- [Demo Data](docs/tutorials/demo_data.md)
+- [Boundary Summary](docs/tutorials/boundary_summary.md)
+- [Setup Helpers](docs/tutorials/setup_helpers.md)
 
 The longer runnable examples remain in [demos](demos).
 
-## Demo data
+## Setup data
 
-Some workflows depend on local auxiliary data such as reference-element files and atomic tables. Those assets are not required for the core package layout, and they can be shared on request when you need to run the full demo or benchmark workflows. See [Demo Data](docs/tutorials/demo_data.md) for the expected local layout and setup patterns.
+Some workflows depend on local auxiliary data such as reference-element files and atomic tables. Those assets are not required for the core package layout, and they can be shared on request when you need to run the full demo or benchmark workflows. See [Setup Helpers](docs/tutorials/setup_helpers.md) for the expected local layout and setup patterns.
 
 ## Modern additive API
 

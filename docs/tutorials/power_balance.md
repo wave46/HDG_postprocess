@@ -1,6 +1,6 @@
 # Power Balance
 
-This guide shows the typical setup needed before calling the integrated power-balance and boundary-summary workflows.
+This guide shows the typical setup needed before calling the integrated power-balance workflow.
 
 ## Why extra setup is needed
 
@@ -50,25 +50,6 @@ power["total_loss"]
 power["total"]
 ```
 
-## Evaluate boundary summary
-
-```python
-wall = solution.analysis.boundary_summary()
-```
-
-This computes ordered boundary profiles and integrated sheath-loss terms. The result is also cached in `solution.summary.boundary.profile`.
-
-Typical boundary-profile access:
-
-```python
-wall["r"]
-wall["z"]
-wall["te"]
-wall["ti"]
-wall["n"]
-wall["b_n"]
-```
-
 ## Old versus new setup style
 
 Instead of manually loading `.mat` and `.npy` files in the notebook and then calling:
@@ -86,5 +67,6 @@ The atomic data path intentionally stays explicit so the library does not silent
 
 - [Solution Quickstart](solution_quickstart.md)
 - [Point Sampling](point_sampling.md)
-- [Demo Data](demo_data.md)
+- [Boundary Summary](boundary_summary.md)
+- [Setup Helpers](setup_helpers.md)
 - demo notebook [hdg_solution_power_balance.ipynb](../../demos/hdg_solution_power_balance.ipynb)

@@ -73,4 +73,5 @@ These calls are useful when the physics meaning matters more than the raw variab
 
 - [Solution Quickstart](solution_quickstart.md)
 - [Power Balance](power_balance.md)
+- [Setup Helpers](setup_helpers.md)
 - demo notebook [hdg_solution_west.ipynb](../../demos/hdg_solution_west.ipynb)
