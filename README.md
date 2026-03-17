@@ -16,7 +16,7 @@ The current loader supports the combinations exercised by the demo datasets:
 - Newer grouped single-file solutions with an embedded mesh.
 - Models with `n`, `Gamma`, `Ti`, `Te`, neutrals, and optional `k`.
 
-These scenarios are locked down by baseline regression tests under [tests/baselines](/home/ikudashev/Documents/Github/HDG_postprocess/tests/baselines).
+These scenarios are locked down by baseline regression tests under [tests/baselines](tests/baselines).
 
 ## Compatibility status
 
@@ -26,18 +26,18 @@ The refactor is intentionally staged.
 - The modern API now returns the structured `HDGsolution` object directly.
 - Numerical behavior is protected by regression baselines for loading, mesh recombination, physical variables, interpolated samples, sampled profiles, power balance, and boundary summaries.
 
-The demo compatibility contract is recorded in [compatibility_contract.md](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/compatibility_contract.md).
+The demo compatibility contract is recorded in [compatibility_contract.md](docs/refactor/compatibility_contract.md).
 
 ## Tutorials
 
 For a lighter entry point than the full demo notebooks, start with:
 
-- [Solution Quickstart](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/solution_quickstart.md)
-- [Mesh Quickstart](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/mesh_quickstart.md)
-- [Migrating Solution API](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/migrating_solution_api.md)
-- [Migrating Mesh API](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/migrating_mesh_api.md)
+- [Solution Quickstart](docs/tutorials/solution_quickstart.md)
+- [Mesh Quickstart](docs/tutorials/mesh_quickstart.md)
+- [Migrating Solution API](docs/tutorials/migrating_solution_api.md)
+- [Migrating Mesh API](docs/tutorials/migrating_mesh_api.md)
 
-The longer runnable examples remain in [demos](/home/ikudashev/Documents/Github/HDG_postprocess/demos).
+The longer runnable examples remain in [demos](demos).
 
 ## Modern additive API
 
@@ -111,7 +111,7 @@ Current practical runtime dependencies include:
 - `matplotlib`
 - `silx` for HDF5 dictionary loading in the current file readers
 
-`raysect` is no longer required for the production interpolation path. It is still useful as an optional comparison baseline in the locator benchmark tooling, and the transition history is documented in [locator_decision.md](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/locator_decision.md).
+`raysect` is no longer required for the production interpolation path. It is still useful as an optional comparison baseline in the locator benchmark tooling, and the transition history is documented in [locator_decision.md](docs/refactor/locator_decision.md).
 
 ## Refactor status
 

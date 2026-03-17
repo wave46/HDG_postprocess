@@ -23,7 +23,7 @@ So the main startup bottleneck is locator construction, not interpolation calls 
 ## Raysect Baseline
 
 The current production locator is built in
-[geometry.py](/home/ikudashev/Documents/Github/HDG_postprocess/hdg_postprocess/core/mesh/geometry.py)
+[geometry.py](../../hdg_postprocess/core/mesh/geometry.py)
 with `raysect.core.math.function.float.Discrete2DMesh(...)`.
 
 For `legacy_first`:
@@ -50,7 +50,7 @@ This explains the current tradeoff:
 ## Native Locator Structure
 
 The native prototype in
-[locator.pyx](/home/ikudashev/Documents/Github/HDG_postprocess/hdg_postprocess/core/mesh/locator.pyx)
+[locator.pyx](../../hdg_postprocess/core/mesh/locator.pyx)
 now uses a tree over grouped high-order elements rather than over all split triangles.
 
 The structure is:

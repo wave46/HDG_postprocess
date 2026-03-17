@@ -34,6 +34,8 @@ solution.summary.boundary.profile
 solution.metadata.flags
 ```
 
+The guiding idea is that cached data now lives in explicit containers: `views` for assembled field representations, `summary` for integrated outputs, and `metadata` for flags and cache state.
+
 ## Common method migrations
 
 Old:
@@ -56,6 +58,8 @@ solution.analysis.boundary_summary()
 solution.plot.overview()
 ```
 
+The newer calls are grouped by responsibility, so field assembly, sampling, analysis, and plotting no longer compete for space on one large flat class surface.
+
 ## Pointwise migrations
 
 Old top-level pointwise access:
@@ -76,6 +80,8 @@ solution.pointwise.gradients.ti(r, z, "x")
 solution.pointwise.sources.Q_loss_total(r, z)
 ```
 
+This grouping makes it easier to see whether a call is about plasma state, gradients, equilibrium fields, or source terms when scanning analysis code later.
+
 ## Sampling migrations
 
 Old:
@@ -89,6 +95,8 @@ New:
 ```python
 solution.sample.line(r_line, z_line, variables)
 ```
+
+The method now lives under `sample` because it is an interpolation workflow, not a core container mutation.
 
 ## Boundary and Gauss views
 
@@ -112,5 +120,5 @@ For migrated code:
 
 ## Related docs
 
-- [Solution Quickstart](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/solution_quickstart.md)
-- [Migration Notes](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/migration_notes.md)
+- [Solution Quickstart](solution_quickstart.md)
+- [Migration Notes](../refactor/migration_notes.md)

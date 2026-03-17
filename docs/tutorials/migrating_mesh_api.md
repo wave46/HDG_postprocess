@@ -32,6 +32,8 @@ mesh.derived_geometry
 mesh.boundary_state
 ```
 
+This split is intentional: raw partition payload, metadata and flags, recombined global mesh arrays, cached derived geometry, and ordered boundary state now live in separate predictable places.
+
 Examples:
 
 ```python
@@ -65,6 +67,8 @@ mesh.geometry.element_locator
 mesh.geometry.gauss_volumes
 ```
 
+The distinction is that `assembly.*` methods actively build or reorder mesh state, while `geometry.*` exposes cached derived products that can then be reused by sampling, plotting, and integration workflows.
+
 ## Plotting migrations
 
 Old flat plotting methods were replaced by the grouped plotting facade:
@@ -74,6 +78,8 @@ mesh.plot.raw()
 mesh.plot.full()
 mesh.plot.boundary(raw_boundary_info)
 ```
+
+Plotting remains procedural because these calls produce figures, but it is now grouped behind one dedicated facade instead of being mixed with geometry-building methods.
 
 ## Recommendation
 
@@ -86,5 +92,5 @@ For migrated mesh code:
 
 ## Related docs
 
-- [Mesh Quickstart](/home/ikudashev/Documents/Github/HDG_postprocess/docs/tutorials/mesh_quickstart.md)
-- [locator_decision.md](/home/ikudashev/Documents/Github/HDG_postprocess/docs/refactor/locator_decision.md)
+- [Mesh Quickstart](mesh_quickstart.md)
+- [locator_decision.md](../refactor/locator_decision.md)

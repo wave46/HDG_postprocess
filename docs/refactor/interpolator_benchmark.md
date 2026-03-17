@@ -1,9 +1,9 @@
 # Interpolator Benchmark Baseline
 
 This note keeps the current benchmark baseline for
-[benchmark_interpolators.py](/home/ikudashev/Documents/Github/HDG_postprocess/scripts/benchmark_interpolators.py)
+[benchmark_interpolators.py](../../scripts/benchmark_interpolators.py)
 and serves as the comparison point for the next optimization pass in
-[interpolators.py](/home/ikudashev/Documents/Github/HDG_postprocess/hdg_postprocess/routines/interpolators.py).
+[interpolators.py](../../hdg_postprocess/routines/interpolators.py).
 
 ## Command
 
