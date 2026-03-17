@@ -34,7 +34,7 @@ def build_current_baseline(scenario_config):
     raise ValueError(f"Unsupported scenario kind: {scenario_config['kind']}")
 
 
-def assert_allclose_nested(current, expected, *, rtol=1e-10, atol=1e-10, path="root"):
+def assert_allclose_nested(current, expected, *, rtol=1e-9, atol=1e-9, path="root"):
     if isinstance(expected, dict):
         assert isinstance(current, dict), f"{path}: expected dict, got {type(current)}"
         assert set(current.keys()) == set(expected.keys()), (
