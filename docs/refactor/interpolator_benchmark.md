@@ -113,6 +113,24 @@ mixed_repeated_mixed_queries_per_second=16964.69
 - The current benchmark numbers also include the follow-up allocation-reduction pass in `xieta_element()`, `xieta_element_precise()`, and `_compute_shape_data()`.
 - The current benchmark numbers also include an optional Cython fast path in `hdg_postprocess.routines._interpolators_fast` for the triangle-scalar orthogonal polynomial routines.
 
+## Short benchmark history
+
+- Original pure-Python baseline, large workload (`repeat=4`, `unique_points=2000`, `repeated_points=64`):
+  - `value_unique_mixed`: about `9.2k q/s`
+  - `gradient_unique_mixed`: about `9.0k q/s`
+  - `mixed_unique_mixed`: about `7.7k q/s`
+- Structural cleanup only:
+  - code became cleaner
+  - hot-path performance regressed slightly
+- Python fast-path cleanup and allocation reduction:
+  - mostly recovered the regression
+  - warm cached calls improved noticeably
+- First Cython triangle-scalar kernel pass with compact defaults (`repeat=2`, `unique_points=500`, `repeated_points=32`):
+  - `value_unique_mixed`: about `20.2k q/s`
+  - `gradient_unique_mixed`: about `18.5k q/s`
+  - `mixed_unique_mixed`: about `16.9k q/s`
+  - cold miss-path throughput improved by roughly a factor of `4` compared with the compact pure-Python baseline
+
 ## Likely remaining bottlenecks
 
 With the compiled polynomial path in place, the cold-path cost is now dominated more clearly by:
