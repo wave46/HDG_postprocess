@@ -36,6 +36,8 @@ For a lighter entry point than the full demo notebooks, start with:
 - [Mesh Quickstart](docs/tutorials/mesh_quickstart.md)
 - [Migrating Solution API](docs/tutorials/migrating_solution_api.md)
 - [Migrating Mesh API](docs/tutorials/migrating_mesh_api.md)
+- [Point Sampling](docs/tutorials/point_sampling.md)
+- [Power Balance](docs/tutorials/power_balance.md)
 
 The longer runnable examples remain in [demos](demos).
 
