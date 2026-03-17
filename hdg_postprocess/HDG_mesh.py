@@ -1,6 +1,6 @@
 import numpy as np
 
-from hdg_postprocess.mesh_api import (
+from hdg_postprocess.api.mesh import (
     MeshBoundary,
     MeshBoundaryState,
     MeshDerivedGeometryState,

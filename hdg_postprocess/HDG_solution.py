@@ -1,6 +1,6 @@
 import numpy as np
 
-from hdg_postprocess.solution_api import (
+from hdg_postprocess.api.solution import (
     AtomicRateState,
     InterpolatorState,
     SolutionMetadataState,

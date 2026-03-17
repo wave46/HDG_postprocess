@@ -1,11 +1,11 @@
-from hdg_postprocess.mesh_api.containers import (
+from hdg_postprocess.api.mesh.containers import (
     MeshBoundaryState,
     MeshDerivedGeometryState,
     MeshGlobalState,
     MeshMetadata,
     MeshRawState,
 )
-from hdg_postprocess.mesh_api.facades import MeshBoundary, MeshGeometry, MeshPlot
+from hdg_postprocess.api.mesh.facades import MeshBoundary, MeshGeometry, MeshPlot
 
 __all__ = [
     "MeshBoundary",

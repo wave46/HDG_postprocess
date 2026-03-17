@@ -1,4 +1,4 @@
-from hdg_postprocess.solution_api.containers import (
+from hdg_postprocess.api.solution.containers import (
     AtomicRateState,
     InterpolatorState,
     ParameterState,
@@ -7,7 +7,7 @@ from hdg_postprocess.solution_api.containers import (
     SolutionSummaryState,
     SolutionViews,
 )
-from hdg_postprocess.solution_api.facades import (
+from hdg_postprocess.api.solution.facades import (
     SolutionAnalysis,
     SolutionAssembly,
     SolutionEquilibrium,

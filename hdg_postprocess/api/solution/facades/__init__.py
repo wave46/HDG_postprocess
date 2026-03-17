@@ -1,4 +1,4 @@
-from hdg_postprocess.solution_api.facades.core import (
+from hdg_postprocess.api.solution.facades.core import (
     SolutionAnalysis,
     SolutionAssembly,
     SolutionEquilibrium,
@@ -6,9 +6,9 @@ from hdg_postprocess.solution_api.facades.core import (
     SolutionPlotting,
     SolutionSampling,
 )
-from hdg_postprocess.solution_api.facades.pointwise import SolutionPointwise
-from hdg_postprocess.solution_api.facades.sources import SolutionSources
-from hdg_postprocess.solution_api.facades.transport import SolutionNeutrals, SolutionTurbulence
+from hdg_postprocess.api.solution.facades.pointwise import SolutionPointwise
+from hdg_postprocess.api.solution.facades.sources import SolutionSources
+from hdg_postprocess.api.solution.facades.transport import SolutionNeutrals, SolutionTurbulence
 
 __all__ = [
     "SolutionAnalysis",
