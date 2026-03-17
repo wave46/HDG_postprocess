@@ -106,7 +106,7 @@ def test_modern_mesh_api(manifest_path, baselines_dir):
     baseline = load_baseline(baselines_dir, "legacy_mesh_west")
 
     mesh = load_mesh(cfg["mesh_path"], cfg["mesh_base"], cfg["n_partitions"])
-    mesh.geometry.recombine_full()
+    mesh.assembly.full()
     connectivity_big = mesh.geometry.connectivity_big
 
     assert mesh.metadata.p_order == baseline["p_order"]

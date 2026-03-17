@@ -5,13 +5,5 @@ class MeshBoundary:
     def __init__(self, mesh):
         self._mesh = mesh
 
-    def recombine_full(self, raw_boundary_info):
-        if not self._mesh.metadata.flags.boundary_combined:
-            boundary_ops.recombine_full_boundary(self._mesh, raw_boundary_info)
-        return self._mesh.boundary_state
-
     def ordering(self, raw_boundary_info, boundaries):
         return boundary_ops.boundary_ordering(self._mesh, raw_boundary_info, boundaries)
-
-    def compute_gauss(self, boundaries, raw_boundary_info):
-        return boundary_ops.calculate_gauss_boundary(self._mesh, boundaries, raw_boundary_info)

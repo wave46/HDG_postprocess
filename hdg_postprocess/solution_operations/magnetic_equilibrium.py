@@ -20,7 +20,7 @@ def define_minor_radii(solution, which="simple"):
             define_magnetic_axis(solution)
         if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.geometry.recombine_full()
+            solution.mesh.assembly.full()
         define_minor_radii(solution, which="full")
         solution.views.simple.equilibrium.a = np.zeros(solution.mesh.global_state.vertices.shape[0])
         solution.views.simple.equilibrium.a[solution.mesh.global_state.connectivity.reshape(-1, 1).ravel()] = solution.views.glob.equilibrium.a.reshape(
@@ -31,7 +31,7 @@ def define_minor_radii(solution, which="simple"):
             define_magnetic_axis(solution)
         if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.geometry.recombine_full()
+            solution.mesh.assembly.full()
         solution.views.glob.equilibrium.a = calculate_a(
             solution.mesh.global_state.vertices[solution.mesh.global_state.connectivity],
             solution.summary.equilibrium.axis.r,
@@ -43,7 +43,7 @@ def define_qcyl(solution, which="simple"):
     if which == "simple":
         if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.geometry.recombine_full()
+            solution.mesh.assembly.full()
         if not solution.metadata.flags.combined_simple_solution:
             print("Comibining first simple solution full")
             assembly_ops.recombine_simple_full_solution(solution)
@@ -57,7 +57,7 @@ def define_qcyl(solution, which="simple"):
     elif which == "full":
         if not solution.mesh.metadata.flags.combined_to_full:
             print("Comibining to full mesh")
-            solution.mesh.geometry.recombine_full()
+            solution.mesh.assembly.full()
         if solution.views.glob.equilibrium.a is None:
             define_minor_radii(solution, "full")
         glob_equilibrium = solution.views.glob.equilibrium

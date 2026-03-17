@@ -1,6 +1,7 @@
 import numpy as np
 
 from hdg_postprocess.api.mesh import (
+    MeshAssembly,
     MeshBoundary,
     MeshBoundaryState,
     MeshDerivedGeometryState,
@@ -83,6 +84,7 @@ class HDGmesh:
         self._n_partitions = n_partitions
 
     def _init_api_helpers(self):
+        self._assembly = MeshAssembly(self)
         self._boundary = MeshBoundary(self)
         self._geometry = MeshGeometry(self)
         self._plot = MeshPlot(self)
@@ -148,13 +150,18 @@ class HDGmesh:
         return self._n_partitions
 
     @property
+    def assembly(self):
+        """Facade for recombination and other mesh build steps."""
+        return self._assembly
+
+    @property
     def geometry(self):
-        """Facade for recombination and derived mesh geometry."""
+        """Facade for derived mesh geometry and cached geometric fields."""
         return self._geometry
 
     @property
     def boundary(self):
-        """Facade for boundary recombination, ordering, and gauss geometry."""
+        """Facade for boundary-specific accessors and ordering helpers."""
         return self._boundary
 
     @property

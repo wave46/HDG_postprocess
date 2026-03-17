@@ -61,7 +61,7 @@ Methods:
 
 - `plot.raw()`
 - `plot.full()`
-- `geometry.recombine_full()`
+- `assembly.full()`
 - `geometry.connectivity_big`
 - `geometry.element_locator`
 - `geometry.gauss_volumes`

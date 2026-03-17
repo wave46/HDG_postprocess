@@ -21,11 +21,6 @@ class MeshGeometry:
         if not self._mesh.metadata.flags.gauss_volumes_initialized:
             geometry_ops.calculate_gauss_volumes(self._mesh)
 
-    def recombine_full(self):
-        if not self._mesh.metadata.flags.combined_to_full:
-            geometry_ops.recombine_full_mesh(self._mesh)
-        return self._mesh.global_state
-
     @property
     def connectivity_big(self):
         self._ensure_connectivity_big()

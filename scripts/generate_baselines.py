@@ -137,7 +137,7 @@ def _roundtrip_names(values):
 
 def _mesh_baseline(mesh, element_probe=None):
     if not mesh.metadata.flags.combined_to_full:
-        mesh.geometry.recombine_full()
+        mesh.assembly.full()
     mesh.geometry.connectivity_big
 
     baseline = {

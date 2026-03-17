@@ -5,9 +5,10 @@ from hdg_postprocess.api.mesh.containers import (
     MeshMetadata,
     MeshRawState,
 )
-from hdg_postprocess.api.mesh.facades import MeshBoundary, MeshGeometry, MeshPlot
+from hdg_postprocess.api.mesh.facades import MeshAssembly, MeshBoundary, MeshGeometry, MeshPlot
 
 __all__ = [
+    "MeshAssembly",
     "MeshBoundary",
     "MeshGeometry",
     "MeshPlot",

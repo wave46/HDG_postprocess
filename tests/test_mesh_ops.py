@@ -32,7 +32,7 @@ def test_mesh_ops_compatibility_surface(manifest_path, project_root):
     cfg = scenarios["legacy_mesh_west"]
     mesh = load_from_file.load_HDG_mesh_from_file(cfg["mesh_path"], cfg["mesh_base"], cfg["n_partitions"])
 
-    mesh.geometry.recombine_full()
+    mesh.assembly.full()
     assert mesh.metadata.flags.combined_to_full
 
     _ = mesh.geometry.connectivity_big
