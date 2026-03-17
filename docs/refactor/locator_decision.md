@@ -59,6 +59,18 @@ For `legacy_first`:
 
 So the Raysect locator is being built over roughly `1.3 million` triangles. That explains why setup is expensive even though per-query interpolation is now much faster.
 
+Inspection of the Raysect Cython sources shows that `Discrete2DMesh` is built on a real adaptive KD-tree, not on a simple grid:
+
+- `Discrete2DMesh` builds `MeshKDTree2D`
+- `MeshKDTree2D` extends `KDTree2DCore`
+- one `Item2D` is created per triangle
+- each triangle gets a padded bounding box
+- `KDTree2DCore` uses an SAH-style split search over candidate edges
+- query traverses the tree and then does compiled barycentric triangle containment
+- Raysect also keeps a tiny exact-point cache for repeated queries
+
+So Raysect’s main advantage is very fast query traversal. Its weakness in this use case is the extremely expensive build over the full split-triangle set.
+
 ## Practical acceleration options
 
 ### 1. Keep Raysect, but cache the built locator
@@ -113,51 +125,67 @@ So batch evaluation is still worthwhile, but it should come after locator build-
 
 Longer-term, if locator build is still a major startup cost, one could consider serializing a native locator index to disk. That is a larger design step and probably not the first thing to do.
 
-## Recommended next locator step
+## Native prototype progression
 
-The best next step is to prototype a custom compiled locator whose build size scales with the number of high-order elements rather than the number of split triangles.
+### First compiled prototype: uniform grid over split triangles
 
-Suggested order:
+The first native prototype built a uniform-grid index directly over the split triangles.
 
-1. define a simple compiled candidate index over element bounding boxes
-2. benchmark build time separately from query time
-3. compare against the current Raysect build/query split
-4. only replace Raysect if the native version is competitive in both correctness and overall runtime
-
-## First compiled prototype result
-
-A first compiled prototype now exists in `hdg_postprocess.locator.Exact2DMeshFunction`.
-
-Current prototype design:
-
-- builds a uniform-grid spatial index over the split triangles
-- stores candidate triangle ids per grid cell
-- uses a compiled point-in-triangle check for queries
-
-Benchmark on `legacy_mesh_west` with `scripts/benchmark_locator.py --scenario legacy_mesh_west --repeat 3`:
+Benchmark on `legacy_mesh_west`:
 
 - Raysect:
   - build: `52.651 s`
   - query: `0.007 s`
   - total: `52.658 s`
-- Native prototype:
+- Native grid prototype:
   - build: `0.193 s`
   - query: `0.116 s`
   - total: `0.308 s`
 
+This proved that native setup time could be reduced dramatically, but query speed was too weak.
+
+### Current compiled prototype: tree over grouped element boxes
+
+The current `hdg_postprocess.locator.Exact2DMeshFunction` now:
+
+- groups split triangles by their repeated high-order element id
+- builds one bounding box per high-order element
+- builds a compiled binary tree over those grouped element boxes
+- refines inside each leaf by checking only the triangles belonging to candidate elements
+- keeps a tiny exact-point cache for repeated queries
+
+Benchmark on `legacy_mesh_west` with `scripts/benchmark_locator.py --scenario legacy_mesh_west --repeat 3`:
+
+- Raysect:
+  - build: `53.100 s`
+  - query: `0.002 s`
+  - total: `53.102 s`
+- Native tree prototype:
+  - build: `0.360 s`
+  - query: `0.010 s`
+  - total: `0.370 s`
+
 Interpretation:
 
-- build time is dramatically better than Raysect
-- query time is substantially worse than Raysect
-- total end-to-end time for this workload is still much better for the native prototype because setup dominates so strongly in current workflows
+- build time is still dramatically better than Raysect
+- query time is still slower than Raysect, but much better than the earlier grid prototype
+- total end-to-end time for this workload is still overwhelmingly better for the native prototype because setup dominates so strongly in current workflows
 
 Correctness check on the centroid-query benchmark set:
 
 - benchmark points checked: `601`
 - mismatches against Raysect: `0`
 
-So this prototype is promising, but not yet a final production replacement. The next improvement target would be query speed:
+So the tree-based native prototype is a much stronger direction than the original grid version.
 
-- better cell layout or occupancy strategy
-- neighborhood search policy if needed
-- possibly indexing at the high-order element level rather than the split-triangle level
+## Recommended next locator step
+
+The best next step is to keep improving the tree-based native locator whose build size already scales with the number of high-order elements rather than the number of split triangles.
+
+Suggested order:
+
+1. tighten query traversal in the native tree
+2. add better leaf sizing and split heuristics than the current median split
+3. benchmark build time separately from query time
+4. compare again against the Raysect KD-tree split
+5. only replace Raysect in production once the native query path is strong enough for the actual workloads
