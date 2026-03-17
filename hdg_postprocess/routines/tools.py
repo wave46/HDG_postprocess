@@ -1,6 +1,7 @@
 import numpy as np
 
-def double_softplus (x,xmin,xmax,w,width):
+
+def double_softplus(x, xmin, xmax, w, width):
     """
     this routine constrains value x between xmin and xmax
     using paradigm of softplus function
@@ -17,25 +18,30 @@ def double_softplus (x,xmin,xmax,w,width):
     x<xmin-width*w*xmin : f(x) = xmin
     """
     result = np.zeros_like(x)
+    xmax_band = w * width * xmax
+    xmin_band = w * width * xmin
+    xmax_scale = w * xmax
+    xmin_scale = w * xmin
 
-    index_1 = x>=xmax+w*width*xmax
+    index_1 = x >= xmax + xmax_band
     result[index_1] = xmax
 
-    index_2 = (x>=xmax-w*width*xmax)*(x<xmax+w*width*xmax)
-    result[index_2] = xmax-w*xmax*np.log(1+np.exp(-(x[index_2]-xmax)/(w*xmax)))
+    index_2 = (x >= xmax - xmax_band) & (x < xmax + xmax_band)
+    result[index_2] = xmax - xmax_scale * np.log(1 + np.exp(-(x[index_2] - xmax) / xmax_scale))
 
-    index_3 =  (x>=xmin+w*width*xmin)*(x<xmax-w*width*xmax)
+    index_3 = (x >= xmin + xmin_band) & (x < xmax - xmax_band)
     result[index_3] = x[index_3]
 
-    index_4 = (x>=xmin-w*width*xmin)*(x<xmin+w*width*xmin)
-    result[index_4] = xmin+w*xmin*np.log(1+np.exp((x[index_4]-xmin)/(w*xmin)))
+    index_4 = (x >= xmin - xmin_band) & (x < xmin + xmin_band)
+    result[index_4] = xmin + xmin_scale * np.log(1 + np.exp((x[index_4] - xmin) / xmin_scale))
 
-    index_5 = x<xmin-w*width*xmin
+    index_5 = x < xmin - xmin_band
     result[index_5] = xmin
 
     return result
 
-def softplus(x,xmin,w,width):
+
+def softplus(x, xmin, w, width):
     """
     this routine limits value x with xmin
     using paradigm of softplus function 
@@ -47,14 +53,16 @@ def softplus(x,xmin,w,width):
     """
 
     result = np.zeros_like(x)
+    xmin_band = w * width * xmin
+    xmin_scale = w * xmin
 
-    index_1 = x>=xmin+w*width*xmin
+    index_1 = x >= xmin + xmin_band
     result[index_1] = x[index_1]
 
-    index_2 = (x>=xmin-w*width*xmin)*(x<xmin+w*width*xmin)
-    result[index_2] =  xmin+w*xmin*np.log(1+np.exp((x[index_2]-xmin)/(w*xmin)))
+    index_2 = (x >= xmin - xmin_band) & (x < xmin + xmin_band)
+    result[index_2] = xmin + xmin_scale * np.log(1 + np.exp((x[index_2] - xmin) / xmin_scale))
 
-    index_3 = x<xmin-w*width*xmin
-    result[index_3] = xmin 
+    index_3 = x < xmin - xmin_band
+    result[index_3] = xmin
 
     return result
