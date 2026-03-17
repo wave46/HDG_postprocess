@@ -133,6 +133,7 @@ These views expose the same solution on different discretization layouts: volume
 - [Mesh Quickstart](mesh_quickstart.md)
 - [Point Sampling](point_sampling.md)
 - [Power Balance](power_balance.md)
+- [Demo Data](demo_data.md)
 - [Migrating Solution API](migrating_solution_api.md)
 - [migration_notes.md](../refactor/migration_notes.md)
 - demos in [demos](../../demos)

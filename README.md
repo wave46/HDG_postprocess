@@ -22,7 +22,7 @@ These scenarios are locked down by baseline regression tests under [tests/baseli
 
 The refactor is intentionally staged.
 
-- The legacy API remains supported for all workflows covered by the demo notebooks.
+- Legacy loaders and compatibility paths remain supported for the workflows still covered by the regression suite and maintained demos.
 - The modern API now returns the structured `HDGsolution` object directly.
 - Numerical behavior is protected by regression baselines for loading, mesh recombination, physical variables, interpolated samples, sampled profiles, power balance, and boundary summaries.
 
@@ -38,12 +38,13 @@ For a lighter entry point than the full demo notebooks, start with:
 - [Migrating Mesh API](docs/tutorials/migrating_mesh_api.md)
 - [Point Sampling](docs/tutorials/point_sampling.md)
 - [Power Balance](docs/tutorials/power_balance.md)
+- [Demo Data](docs/tutorials/demo_data.md)
 
 The longer runnable examples remain in [demos](demos).
 
 ## Demo data
 
-Some workflows depend on local auxiliary data such as reference-element files and atomic tables. Those assets are not required for the core package layout, and they can be shared on request when you need to run the full demo or benchmark workflows.
+Some workflows depend on local auxiliary data such as reference-element files and atomic tables. Those assets are not required for the core package layout, and they can be shared on request when you need to run the full demo or benchmark workflows. See [Demo Data](docs/tutorials/demo_data.md) for the expected local layout and setup patterns.
 
 ## Modern additive API
 

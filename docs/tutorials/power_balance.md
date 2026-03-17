@@ -86,4 +86,5 @@ The atomic data path intentionally stays explicit so the library does not silent
 
 - [Solution Quickstart](solution_quickstart.md)
 - [Point Sampling](point_sampling.md)
+- [Demo Data](demo_data.md)
 - demo notebook [hdg_solution_power_balance.ipynb](../../demos/hdg_solution_power_balance.ipynb)
