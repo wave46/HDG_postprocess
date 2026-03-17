@@ -122,6 +122,6 @@ The most disruptive `HDGsolution` cleanup is already done:
 The main remaining refactor targets are:
 
 - `HDG_mesh.py`
-- second-pass cleanup of `solution_operations`
+- second-pass cleanup of `core/solution`
 - second-pass cleanup of `routines`
 - broader user documentation and tutor-style examples

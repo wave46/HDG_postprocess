@@ -1,4 +1,4 @@
-from hdg_postprocess.mesh_operations import plotting as plotting_ops
+from hdg_postprocess.core.mesh import plotting as plotting_ops
 
 
 class MeshPlot:

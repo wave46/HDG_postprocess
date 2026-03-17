@@ -1,12 +1,12 @@
 import numpy as np
 
-from hdg_postprocess.solution_operations import analysis as analysis_ops
-from hdg_postprocess.solution_operations import assembly as assembly_ops
-from hdg_postprocess.solution_operations import boundary as boundary_ops
-from hdg_postprocess.solution_operations import magnetic_equilibrium as equilibrium_ops
-from hdg_postprocess.solution_operations import physical as physical_ops
-from hdg_postprocess.solution_operations import plotting as plotting_ops
-from hdg_postprocess.solution_operations import sampling as sampling_ops
+from hdg_postprocess.core.solution import analysis as analysis_ops
+from hdg_postprocess.core.solution import assembly as assembly_ops
+from hdg_postprocess.core.solution import boundary as boundary_ops
+from hdg_postprocess.core.solution import magnetic_equilibrium as equilibrium_ops
+from hdg_postprocess.core.solution import physical as physical_ops
+from hdg_postprocess.core.solution import plotting as plotting_ops
+from hdg_postprocess.core.solution import sampling as sampling_ops
 
 
 class SolutionFields:

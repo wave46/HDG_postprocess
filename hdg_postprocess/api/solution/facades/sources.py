@@ -1,4 +1,4 @@
-from hdg_postprocess.solution_operations import plasma_sources as plasma_source_ops
+from hdg_postprocess.core.solution import plasma_sources as plasma_source_ops
 
 
 class SourceRates:

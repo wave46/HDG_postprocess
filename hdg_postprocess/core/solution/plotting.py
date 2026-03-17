@@ -9,7 +9,7 @@ from hdg_postprocess.routines.plasma import (
     calculate_n_cons,
     calculate_nn_cons,
 )
-from hdg_postprocess.solution_operations import preparation as prep_ops
+from hdg_postprocess.core.solution import preparation as prep_ops
 
 
 def plot_overview(solution, n_levels=100):

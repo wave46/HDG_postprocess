@@ -1,4 +1,4 @@
-from hdg_postprocess.solution_operations import preparation as prep_ops
+from hdg_postprocess.core.solution import preparation as prep_ops
 from hdg_postprocess.routines.plasma import calculate_dk_cons
 
 

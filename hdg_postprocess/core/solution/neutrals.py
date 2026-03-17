@@ -3,7 +3,7 @@ from hdg_postprocess.routines.neutrals import (
     calculate_dnn_with_nn_collision_cons,
     calculate_mfp_cons,
 )
-from hdg_postprocess.solution_operations import preparation as prep_ops
+from hdg_postprocess.core.solution import preparation as prep_ops
 
 
 def calculate_dnn(solution, which="simple"):

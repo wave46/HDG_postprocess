@@ -6,7 +6,7 @@ def _ensure_boundary_combined(mesh, raw_boundary_info):
         return
     if raw_boundary_info is None:
         raise ValueError("Please, provide raw boundary info as input to this method")
-    from hdg_postprocess.mesh_operations import assembly as assembly_ops
+    from hdg_postprocess.core.mesh import assembly as assembly_ops
 
     assembly_ops.recombine_full_boundary(mesh, raw_boundary_info)
 

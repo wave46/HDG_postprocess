@@ -1,4 +1,4 @@
-from hdg_postprocess.mesh_operations import geometry as geometry_ops
+from hdg_postprocess.core.mesh import geometry as geometry_ops
 
 
 class MeshGeometry:

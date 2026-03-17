@@ -59,7 +59,7 @@ For existing notebooks and scripts that still use the old split-property names:
 ## Next simplification targets
 
 - clean `HDG_mesh.py` with the same package-first structure used for the solution API
-- continue second-pass cleanup of `solution_operations` and `routines`
+- continue second-pass cleanup of `core/solution` and `routines`
 - simplify facade internals where repeated orchestration is still visible
 - expand tutor-style documentation around the structured API and migration path
 - revisit a native compiled locator after the broader refactor is complete

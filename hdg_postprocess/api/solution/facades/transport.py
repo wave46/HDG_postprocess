@@ -1,5 +1,5 @@
-from hdg_postprocess.solution_operations import neutrals as neutrals_ops
-from hdg_postprocess.solution_operations import turbulent_model as turbulent_model_ops
+from hdg_postprocess.core.solution import neutrals as neutrals_ops
+from hdg_postprocess.core.solution import turbulent_model as turbulent_model_ops
 
 
 class SolutionNeutrals:

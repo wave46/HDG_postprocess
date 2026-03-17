@@ -1,7 +1,7 @@
 import numpy as np
 
-from hdg_postprocess.solution_operations import preparation as prep_ops
-from hdg_postprocess.solution_operations import boundary as boundary_ops
+from hdg_postprocess.core.solution import preparation as prep_ops
+from hdg_postprocess.core.solution import boundary as boundary_ops
 
 
 def calculate_power_balance(solution):

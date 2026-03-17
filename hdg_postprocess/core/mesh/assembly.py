@@ -162,7 +162,7 @@ def calculate_gauss_boundary(mesh, boundaries, raw_boundary_info):
         mesh.metadata.flags.boundary_gauss_initialized
         and mesh.metadata.cache.boundary_gauss_boundaries == requested_boundaries
     ):
-        from hdg_postprocess.mesh_operations.boundary import boundary_ordering
+        from hdg_postprocess.core.mesh.boundary import boundary_ordering
 
         return boundary_ordering(mesh, raw_boundary_info, boundaries)
 
@@ -175,7 +175,7 @@ def calculate_gauss_boundary(mesh, boundaries, raw_boundary_info):
             raise ValueError("Please, provide raw boundary info as input to this method")
         recombine_full_boundary(mesh, raw_boundary_info)
 
-    from hdg_postprocess.mesh_operations.boundary import boundary_ordering
+    from hdg_postprocess.core.mesh.boundary import boundary_ordering
 
     boundary_ordering_res, connectivity_ordered, iel_face_number = boundary_ordering(mesh, raw_boundary_info, boundaries)
 

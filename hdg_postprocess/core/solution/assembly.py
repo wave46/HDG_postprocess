@@ -1,6 +1,6 @@
 import numpy as np
 
-from hdg_postprocess.solution_operations import preparation as prep_ops
+from hdg_postprocess.core.solution import preparation as prep_ops
 
 
 def recombine_full_solution(solution):

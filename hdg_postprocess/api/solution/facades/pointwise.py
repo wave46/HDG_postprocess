@@ -1,4 +1,4 @@
-from hdg_postprocess.solution_operations import pointwise_fields as pointwise_fields_ops
+from hdg_postprocess.core.solution import pointwise_fields as pointwise_fields_ops
 
 
 class _PointwiseSection:

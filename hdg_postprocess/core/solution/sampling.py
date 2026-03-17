@@ -1,7 +1,7 @@
 import numpy as np
 
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
-from hdg_postprocess.solution_operations import preparation as prep_ops
+from hdg_postprocess.core.solution import preparation as prep_ops
 
 
 def calculate_variables_along_line(solution, r_line, z_line, variable_list):

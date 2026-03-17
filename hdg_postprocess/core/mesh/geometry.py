@@ -3,7 +3,7 @@ from pathlib import Path
 
 import numpy as np
 from raysect.core.math.function.float import Discrete2DMesh
-from hdg_postprocess.mesh_operations import assembly as assembly_ops
+from hdg_postprocess.core.mesh import assembly as assembly_ops
 
 
 def _ensure_full_mesh(mesh):
@@ -18,7 +18,7 @@ def _ensure_connectivity_big(mesh):
 
 def create_connectivity_big(mesh):
     _ensure_full_mesh(mesh)
-    base_path = Path(__file__).resolve().parents[1]
+    base_path = Path(__file__).resolve().parents[2]
     rel_path = f'data/triangulations_element/{mesh.mesh_parameters["element_type"]}_P{mesh.metadata.p_order}.npy'
     path = (base_path / rel_path).resolve()
     if not os.path.isfile(path):

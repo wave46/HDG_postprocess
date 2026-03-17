@@ -1,4 +1,4 @@
-from hdg_postprocess.mesh_operations import boundary as boundary_ops
+from hdg_postprocess.core.mesh import boundary as boundary_ops
 
 
 class MeshBoundary:
