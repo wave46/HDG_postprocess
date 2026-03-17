@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.tri import Triangulation
 from matplotlib import cm
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import LogNorm
@@ -47,6 +48,10 @@ def _plot_with_connectivity(ax, vertices, connectivity, data, linewidth):
     return "tricontourf"
 
 
+def _make_triangulation(vertices, connectivity):
+    return Triangulation(vertices[:, 0], vertices[:, 1], triangles=connectivity)
+
+
 def plot_raw_meshes(mesh, data=None, ax=None):
     colors = cm.get_cmap("hsv", mesh.n_partitions)
     if ax is None:
@@ -87,33 +92,45 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
 
     plot_mode = _plot_with_connectivity(ax, mesh.global_state.vertices, connectivity, data, linewidth)
     if plot_mode == "tricontourf":
+        triangulation = _make_triangulation(mesh.global_state.vertices, connectivity)
         if log:
             if limits is None:
                 im = ax.tricontourf(
-                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], np.log10(data),
-                    levels=n_levels, extend="both", triangles=connectivity, cmap=cmap, extendrect=True,
+                    triangulation,
+                    np.log10(data),
+                    levels=n_levels,
+                    extend="both",
+                    cmap=cmap,
                 )
                 ax.set_title(f"log10({label})")
             else:
                 im = ax.tricontourf(
-                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
-                    levels=np.logspace(limits[0], limits[1], n_levels), triangles=connectivity,
+                    triangulation,
+                    data,
+                    levels=np.logspace(limits[0], limits[1], n_levels),
                     cmap=cmap, vmin=10.0 ** limits[0], vmax=10.0 ** limits[1],
                     norm=LogNorm(vmin=10.0 ** limits[0], vmax=10.0 ** limits[1]),
-                    extend="both", extendrect=True,
+                    extend="both",
                 )
                 ax.set_title(f"{label}")
         else:
             if limits is None:
                 im = ax.tricontourf(
-                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
-                    levels=n_levels, extend="both", triangles=connectivity, cmap=cmap, extendrect=True,
+                    triangulation,
+                    data,
+                    levels=n_levels,
+                    extend="both",
+                    cmap=cmap,
                 )
             else:
                 im = ax.tricontourf(
-                    mesh.global_state.vertices[:, 0], mesh.global_state.vertices[:, 1], data,
-                    levels=np.linspace(limits[0], limits[1], n_levels), extend="both",
-                    triangles=connectivity, cmap=cmap, vmin=limits[0], vmax=limits[1], extendrect=True,
+                    triangulation,
+                    data,
+                    levels=np.linspace(limits[0], limits[1], n_levels),
+                    extend="both",
+                    cmap=cmap,
+                    vmin=limits[0],
+                    vmax=limits[1],
                 )
             ax.set_title(f"{label}")
         cbar = plt.colorbar(im, ax=ax, extendrect=True)
