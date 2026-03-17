@@ -6,12 +6,84 @@ from hdg_postprocess.routines.plasma import *  # noqa: F403
 from hdg_postprocess.solution_operations import preparation as prep_ops
 
 
-def _sample_state(solution, r, z):
+def _atomic_settings(solution):
+    atomic = solution.additional_parameters.atomic
+    if atomic is None:
+        raise ValueError("Please, provide atomic settings for the simulation")
+    return atomic
+
+
+def _require_atomic_keys(solution, *keys):
+    atomic = _atomic_settings(solution)
+    messages = {
+        "iz": "Please, provide ionization atomic settings for the simulation",
+        "cx": "Please, provide charge exchange atomic settings for the simulation",
+        "rec": "Please, provide recombination atomic settings for the simulation",
+        "Eiz": "Please, provide Eiz atomic settings for the simulation",
+        "Erec": "Please, provide Erec atomic settings for the simulation",
+    }
+    for key in keys:
+        if key not in atomic:
+            raise ValueError(messages.get(key, f"Please, provide {key} atomic settings for the simulation"))
+    return atomic
+
+
+def _sample_selected_state(solution, r, z, *names):
     prep_ops.ensure_interpolators(solution)
     state = np.zeros([1, solution.neq])
-    for i in range(solution.neq):
-        state[0, i] = solution.interpolators.solution[i](r, z)
+    for name in names:
+        idx = solution._cons_idx[name]
+        state[:, idx] = solution.interpolators.solution[idx](r, z)
     return state
+
+
+def _sample_density_state(solution, r, z, *extra_names):
+    state = _sample_selected_state(solution, r, z, b"rho", *extra_names)
+    if state[:, solution._cons_idx[b"rho"]] == 0:
+        return None
+    return state
+
+
+def _sample_field_components(solution, r, z):
+    prep_ops.ensure_interpolators(solution)
+    br = solution.interpolators.field[0](r, z)
+    bz = solution.interpolators.field[1](r, z)
+    bt = solution.interpolators.field[2](r, z)
+    return br, bz, bt
+
+
+def _pressure_scale(solution):
+    return (
+        (2 / 3 / solution.parameters["physics"]["Mref"])
+        * solution.parameters["adimensionalization"]["density_scale"]
+        * solution.parameters["adimensionalization"]["temperature_scale"]
+        * solution.parameters["adimensionalization"]["charge_scale"]
+    )
+
+
+def _dynamic_pressure_mass_scale(solution):
+    return (
+        solution.parameters["adimensionalization"]["speed_scale"] ** 2
+        * solution.parameters["adimensionalization"]["mass_scale"]
+        * solution.parameters["adimensionalization"]["density_scale"]
+    )
+
+
+def _parallel_conductivity(solution, key):
+    return solution.parameters["physics"][key] / (
+        solution.parameters["adimensionalization"]["time_scale"] ** 3
+        * solution.parameters["adimensionalization"]["temperature_scale"] ** (7 / 2)
+        / (
+            solution.parameters["adimensionalization"]["density_scale"]
+            * solution.parameters["adimensionalization"]["length_scale"] ** 4
+        )
+        / solution.parameters["adimensionalization"]["mass_scale"]
+    )
+
+
+def _sample_state(solution, r, z):
+    prep_ops.ensure_interpolators(solution)
+    return np.array([[solution.interpolators.solution[i](r, z) for i in range(solution.neq)]])
 
 
 def _sample_state_and_gradient(solution, r, z):
@@ -28,10 +100,7 @@ def _sample_state_and_gradient(solution, r, z):
 def n(solution, r, z):
     if b"rho" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("density is not in the models")
-
-    prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
+    state = _sample_selected_state(solution, r, z, b"rho")
     return calculate_n_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
 
 
@@ -39,13 +108,9 @@ def ti(solution, r, z):
     if b"Ti" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("ion temperature is not in the models")
 
-    prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
-    if state[:, solution._cons_idx[b"rho"]] == 0:
+    state = _sample_density_state(solution, r, z, b"Gamma", b"nEi")
+    if state is None:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
-    state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]](r, z)
     return calculate_Ti_cons(
         state,
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -58,12 +123,9 @@ def te(solution, r, z):
     if b"Te" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("electron temperature is not in the models")
 
-    prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
-    if state[:, solution._cons_idx[b"rho"]] == 0:
+    state = _sample_density_state(solution, r, z, b"nEe")
+    if state is None:
         return 0
-    state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]](r, z)
     return calculate_Te_cons(
         state,
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -76,12 +138,9 @@ def u(solution, r, z):
     if b"u" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
-    if state[:, solution._cons_idx[b"rho"]] == 0:
+    state = _sample_density_state(solution, r, z, b"Gamma")
+    if state is None:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
     return calculate_u_cons(state, solution.parameters["adimensionalization"]["speed_scale"], solution._cons_idx)
 
 
@@ -89,14 +148,9 @@ def cs(solution, r, z):
     if b"Csi" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
-    if state[:, solution._cons_idx[b"rho"]] == 0:
+    state = _sample_density_state(solution, r, z, b"Gamma", b"nEi", b"nEe")
+    if state is None:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
-    state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]](r, z)
-    state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]](r, z)
     return calculate_cs_cons(state, solution.parameters["adimensionalization"]["speed_scale"], solution._cons_idx)
 
 
@@ -104,14 +158,9 @@ def M(solution, r, z):
     if b"M" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]](r, z)
-    if state[:, solution._cons_idx[b"rho"]] == 0:
+    state = _sample_density_state(solution, r, z, b"Gamma", b"nEi", b"nEe")
+    if state is None:
         return 0
-    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
-    state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]](r, z)
-    state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]](r, z)
     return calculate_M_cons(state, solution._cons_idx)
 
 
@@ -119,23 +168,18 @@ def nn(solution, r, z):
     if b"rhon" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("neutral density number is not in the models")
 
-    prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"rhon"]] = solution.interpolators.solution[solution._cons_idx[b"rhon"]](r, z)
+    state = _sample_selected_state(solution, r, z, b"rhon")
     return calculate_nn_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
 
 
 def ionization_source_interp(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide ionization atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "iz")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_iz_source_cons(
         state,
-        solution.additional_parameters.atomic["iz"],
+        atomic["iz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -144,16 +188,13 @@ def ionization_source_interp(solution, r, z):
 
 
 def iz_rate(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide ionization atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "iz")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_iz_rate_cons(
         state,
-        solution.additional_parameters.atomic["iz"],
+        atomic["iz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -161,35 +202,27 @@ def iz_rate(solution, r, z):
 
 
 def cx_rate(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "cx")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_cx_rate_cons(
         state,
-        solution.additional_parameters.atomic["cx"],
+        atomic["cx"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
     )
 
 
 def dnn(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-    if "iz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide ionization atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "cx", "iz")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_dnn_cons(
         state,
         solution.additional_parameters.neutral_diffusion,
-        solution.additional_parameters.atomic,
+        atomic,
         solution._e,
         solution.parameters["adimensionalization"]["mass_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -222,9 +255,7 @@ def dk(solution, r, z):
         return 0
     axis = solution.summary.equilibrium.axis
     a = np.sqrt((r - axis.r) ** 2 + (z - axis.z) ** 2)
-    br = solution.interpolators.field[0](r, z)
-    bz = solution.interpolators.field[1](r, z)
-    bt = solution.interpolators.field[2](r, z)
+    br, bz, bt = _sample_field_components(solution, r, z)
     q_cyl = calculate_q_cyl(r, br, bz, bt, a)
     return calculate_dk_cons(
         state,
@@ -238,19 +269,14 @@ def dk(solution, r, z):
 
 
 def mfp_nn(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-    if "iz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide ionization atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "cx", "iz")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_mfp_cons(
         state,
         solution.additional_parameters.neutral_diffusion,
-        solution.additional_parameters.atomic,
+        atomic,
         solution._e,
         solution.parameters["adimensionalization"]["mass_scale"],
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -267,13 +293,8 @@ def p_dyn(solution, r, z):
         return 0
     return calculate_pdyn_cons(
         state,
-        (2 / 3 / solution.parameters["physics"]["Mref"])
-        * solution.parameters["adimensionalization"]["density_scale"]
-        * solution.parameters["adimensionalization"]["temperature_scale"]
-        * solution.parameters["adimensionalization"]["charge_scale"],
-        solution.parameters["adimensionalization"]["speed_scale"] ** 2
-        * solution.parameters["adimensionalization"]["mass_scale"]
-        * solution.parameters["adimensionalization"]["density_scale"],
+        _pressure_scale(solution),
+        _dynamic_pressure_mass_scale(solution),
         solution.metadata.indices.conservative,
     )
 
@@ -282,13 +303,7 @@ def pi(solution, r, z):
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    p0 = (
-        (2 / 3 / solution.parameters["physics"]["Mref"])
-        * solution.parameters["adimensionalization"]["density_scale"]
-        * solution.parameters["adimensionalization"]["temperature_scale"]
-        * solution.parameters["adimensionalization"]["charge_scale"]
-    )
-    return calculate_pi_cons(state, p0, solution.metadata.indices.conservative)
+    return calculate_pi_cons(state, _pressure_scale(solution), solution.metadata.indices.conservative)
 
 
 def grad_ti(solution, r, z, coordinate):
@@ -321,16 +336,10 @@ def grad_pi(solution, r, z, coordinate):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    p0 = (
-        (2 / 3 / solution.parameters["physics"]["Mref"])
-        * solution.parameters["adimensionalization"]["density_scale"]
-        * solution.parameters["adimensionalization"]["temperature_scale"]
-        * solution.parameters["adimensionalization"]["charge_scale"]
-    )
     return calculate_grad_pi_cons(
         state,
         gradient,
-        p0,
+        _pressure_scale(solution),
         solution.parameters["adimensionalization"]["length_scale"],
         solution._cons_idx,
     )[0][idx]
@@ -340,9 +349,7 @@ def grad_ti_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution.interpolators.field[0](r, z)
-    bz = solution.interpolators.field[1](r, z)
-    bt = solution.interpolators.field[2](r, z)
+    br, bz, bt = _sample_field_components(solution, r, z)
     return calculate_grad_Ti_par_cons(
         state,
         gradient,
@@ -380,9 +387,7 @@ def grad_te_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution.interpolators.field[0](r, z)
-    bz = solution.interpolators.field[1](r, z)
-    bt = solution.interpolators.field[2](r, z)
+    br, bz, bt = _sample_field_components(solution, r, z)
     return calculate_grad_Te_par_cons(
         state,
         gradient,
@@ -398,8 +403,7 @@ def grad_te_par(solution, r, z):
 
 def particle_flux_par(solution, r, z):
     prep_ops.ensure_interpolators(solution)
-    state = np.zeros([1, solution.neq])
-    state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]](r, z)
+    state = _sample_selected_state(solution, r, z, b"Gamma")
     return calculate_parallel_flux_cons(
         state,
         solution.parameters["adimensionalization"]["density_scale"]
@@ -428,25 +432,14 @@ def ion_heat_flux_par_cond(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution.interpolators.field[0](r, z)
-    bz = solution.interpolators.field[1](r, z)
-    bt = solution.interpolators.field[2](r, z)
+    br, bz, bt = _sample_field_components(solution, r, z)
     return calculate_parallel_ion_heat_flux_par_cond_cons(
         state,
         gradient,
         br,
         bz,
         bt,
-        solution.parameters["physics"]["diff_pari"]
-        / (
-            solution.parameters["adimensionalization"]["time_scale"] ** 3
-            * solution.parameters["adimensionalization"]["temperature_scale"] ** (7 / 2)
-            / (
-                solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["length_scale"] ** 4
-            )
-            / solution.parameters["adimensionalization"]["mass_scale"]
-        ),
+        _parallel_conductivity(solution, "diff_pari"),
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
         solution.parameters["adimensionalization"]["length_scale"],
@@ -459,9 +452,7 @@ def ion_heat_flux_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution.interpolators.field[0](r, z)
-    bz = solution.interpolators.field[1](r, z)
-    bt = solution.interpolators.field[2](r, z)
+    br, bz, bt = _sample_field_components(solution, r, z)
     return calculate_parallel_ion_heat_flux_par_cons(
         state,
         gradient,
@@ -469,16 +460,7 @@ def ion_heat_flux_par(solution, r, z):
         bz,
         bt,
         solution.parameters["adimensionalization"]["density_scale"],
-        solution.parameters["physics"]["diff_pari"]
-        / (
-            solution.parameters["adimensionalization"]["time_scale"] ** 3
-            * solution.parameters["adimensionalization"]["temperature_scale"] ** (7 / 2)
-            / (
-                solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["length_scale"] ** 4
-            )
-            / solution.parameters["adimensionalization"]["mass_scale"]
-        ),
+        _parallel_conductivity(solution, "diff_pari"),
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
         solution.parameters["adimensionalization"]["charge_scale"],
@@ -509,25 +491,14 @@ def electron_heat_flux_par_cond(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution.interpolators.field[0](r, z)
-    bz = solution.interpolators.field[1](r, z)
-    bt = solution.interpolators.field[2](r, z)
+    br, bz, bt = _sample_field_components(solution, r, z)
     return calculate_parallel_electron_heat_flux_par_cond_cons(
         state,
         gradient,
         br,
         bz,
         bt,
-        solution.parameters["physics"]["diff_pare"]
-        / (
-            solution.parameters["adimensionalization"]["time_scale"] ** 3
-            * solution.parameters["adimensionalization"]["temperature_scale"] ** (7 / 2)
-            / (
-                solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["length_scale"] ** 4
-            )
-            / solution.parameters["adimensionalization"]["mass_scale"]
-        ),
+        _parallel_conductivity(solution, "diff_pare"),
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
         solution.parameters["adimensionalization"]["length_scale"],
@@ -540,9 +511,7 @@ def electron_heat_flux_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
         return 0
-    br = solution.interpolators.field[0](r, z)
-    bz = solution.interpolators.field[1](r, z)
-    bt = solution.interpolators.field[2](r, z)
+    br, bz, bt = _sample_field_components(solution, r, z)
     return calculate_parallel_electron_heat_flux_par_cons(
         state,
         gradient,
@@ -550,16 +519,7 @@ def electron_heat_flux_par(solution, r, z):
         bz,
         bt,
         solution.parameters["adimensionalization"]["density_scale"],
-        solution.parameters["physics"]["diff_pare"]
-        / (
-            solution.parameters["adimensionalization"]["time_scale"] ** 3
-            * solution.parameters["adimensionalization"]["temperature_scale"] ** (7 / 2)
-            / (
-                solution.parameters["adimensionalization"]["density_scale"]
-                * solution.parameters["adimensionalization"]["length_scale"] ** 4
-            )
-            / solution.parameters["adimensionalization"]["mass_scale"]
-        ),
+        _parallel_conductivity(solution, "diff_pare"),
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["physics"]["Mref"],
         solution.parameters["adimensionalization"]["charge_scale"],
@@ -609,16 +569,13 @@ def grad_B(solution, r, z, component, coordinate):
 
 
 def Q_e_loss_iz(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "Eiz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide Eiz atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "Eiz")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_sink_due_to_iz_cons(
         state,
-        solution.additional_parameters.atomic["Eiz"],
+        atomic["Eiz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -628,16 +585,13 @@ def Q_e_loss_iz(solution, r, z):
 
 
 def Q_e_loss_rec(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "Erec" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide Erec atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "Erec")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_sink_due_to_rec_cons(
         state,
-        solution.additional_parameters.atomic["Erec"],
+        atomic["Erec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -647,16 +601,13 @@ def Q_e_loss_rec(solution, r, z):
 
 
 def Q_e_gain_rec(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "rec" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide recombination atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "rec")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_gain_due_to_rec_cons(
         state,
-        solution.additional_parameters.atomic["rec"],
+        atomic["rec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -666,20 +617,15 @@ def Q_e_gain_rec(solution, r, z):
 
 
 def Q_e_loss_tot(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "Eiz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide Eiz atomic settings for the simulation")
-    if "Erec" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide Erec atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "Eiz", "Erec", "rec")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_electron_total_loss_cons(
         state,
-        solution.additional_parameters.atomic["Eiz"],
-        solution.additional_parameters.atomic["Erec"],
-        solution.additional_parameters.atomic["rec"],
+        atomic["Eiz"],
+        atomic["Erec"],
+        atomic["rec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -689,16 +635,13 @@ def Q_e_loss_tot(solution, r, z):
 
 
 def Q_i_gain_iz(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide ionization atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "iz")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_gain_due_to_iz_cons(
         state,
-        solution.additional_parameters.atomic["iz"],
+        atomic["iz"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -709,16 +652,13 @@ def Q_i_gain_iz(solution, r, z):
 
 
 def Q_i_loss_rec(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "rec" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide recombination atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "rec")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_sink_due_to_rec_cons(
         state,
-        solution.additional_parameters.atomic["rec"],
+        atomic["rec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -728,16 +668,13 @@ def Q_i_loss_rec(solution, r, z):
 
 
 def Q_i_loss_cx(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "cx" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "cx")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_sink_due_to_cx_cons(
         state,
-        solution.additional_parameters.atomic["cx"],
+        atomic["cx"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -748,22 +685,15 @@ def Q_i_loss_cx(solution, r, z):
 
 
 def Q_i_loss_tot(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide ionization atomic settings for the simulation")
-    if "rec" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide recombination atomic settings for the simulation")
-    if "cx" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide charge exchange atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "iz", "rec", "cx")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_ion_total_loss_cons(
         state,
-        solution.additional_parameters.atomic["iz"],
-        solution.additional_parameters.atomic["rec"],
-        solution.additional_parameters.atomic["cx"],
+        atomic["iz"],
+        atomic["rec"],
+        atomic["cx"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
@@ -778,28 +708,17 @@ def Q_i_loss_tot(solution, r, z):
 
 
 def Q_loss_tot(solution, r, z):
-    if solution.additional_parameters.atomic is None:
-        raise ValueError("Please, provide atomic settings for the simulation")
-    if "iz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide ionization atomic settings for the simulation")
-    if "rec" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide recombination atomic settings for the simulation")
-    if "cx" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide charge exchange atomic settings for the simulation")
-    if "Eiz" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide Eiz atomic settings for the simulation")
-    if "Erec" not in solution.additional_parameters.atomic.keys():
-        raise ValueError("Please, provide Erec atomic settings for the simulation")
+    atomic = _require_atomic_keys(solution, "iz", "rec", "cx", "Eiz", "Erec")
     state = _sample_state(solution, r, z)
     if state[0, 0] == 0:
         return 0
     return calculate_total_loss_cons(
         state,
-        solution.additional_parameters.atomic["iz"],
-        solution.additional_parameters.atomic["rec"],
-        solution.additional_parameters.atomic["cx"],
-        solution.additional_parameters.atomic["Eiz"],
-        solution.additional_parameters.atomic["Erec"],
+        atomic["iz"],
+        atomic["rec"],
+        atomic["cx"],
+        atomic["Eiz"],
+        atomic["Erec"],
         solution.parameters["adimensionalization"]["temperature_scale"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution.parameters["physics"]["Mref"],
