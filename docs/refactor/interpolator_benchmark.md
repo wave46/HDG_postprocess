@@ -1,8 +1,8 @@
 # Interpolator Benchmark Baseline
 
-This note captures the pre-refactor timing baseline for
-[benchmark_interpolators.py](/home/ikudashev/Documents/Github/HDG_postprocess/scripts/benchmark_interpolators.py).
-It is intended as the comparison point for the upcoming structural cleanup and any later optimization pass in
+This note keeps the current benchmark baseline for
+[benchmark_interpolators.py](/home/ikudashev/Documents/Github/HDG_postprocess/scripts/benchmark_interpolators.py)
+and serves as the comparison point for the next optimization pass in
 [interpolators.py](/home/ikudashev/Documents/Github/HDG_postprocess/hdg_postprocess/routines/interpolators.py).
 
 ## Command
@@ -15,76 +15,93 @@ python scripts/benchmark_interpolators.py --scenario legacy_first --repeat 4 --u
 
 ## Workload definition
 
-- `value_unique`: scalar interpolation at 2000 unique interior points
-- `value_repeated`: scalar interpolation over a 64-point repeated set
-- `gradient_unique`: gradient interpolation at 2000 unique interior points
-- `gradient_repeated`: gradient interpolation over a 64-point repeated set
-- `mixed_unique`: value and gradient evaluated at the same 2000 unique points
-- `mixed_repeated`: value and gradient evaluated over the same 64-point repeated set
+- `*_cold`: first pass over a cleared cache
+- `*_warm`: immediate second pass over the same cached points
+- `*_mixed`: the multi-pass average over `repeat` traversals after a cache clear
 
-The benchmark clears the shared interpolator point cache before each workload, so each timing starts from a cold cache and is comparable across modes.
+The benchmark uses the real solution-loading and `define_interpolators()` path, so locator work is included.
 
-## Baseline results
+## Current baseline
 
 Scenario: `legacy_first`
 
+### Cold passes
+
 ```text
-value_unique_seconds=0.841197
-value_unique_queries=8000
-value_unique_queries_per_second=9510.26
+value_unique_cold_seconds=0.841032
+value_unique_cold_queries_per_second=2378.03
 
-value_repeated_seconds=0.027640
-value_repeated_queries=256
-value_repeated_queries_per_second=9261.89
+value_repeated_cold_seconds=0.027907
+value_repeated_cold_queries_per_second=2293.31
 
-gradient_unique_seconds=0.872835
-gradient_unique_queries=8000
-gradient_unique_queries_per_second=9165.54
+gradient_unique_cold_seconds=0.859970
+gradient_unique_cold_queries_per_second=2325.66
 
-gradient_repeated_seconds=0.027536
-gradient_repeated_queries=256
-gradient_repeated_queries_per_second=9297.05
+gradient_repeated_cold_seconds=0.028112
+gradient_repeated_cold_queries_per_second=2276.59
 
-mixed_unique_seconds=0.880760
-mixed_unique_queries=8000
-mixed_unique_queries_per_second=9083.07
+mixed_unique_cold_seconds=0.896586
+mixed_unique_cold_queries_per_second=2230.68
 
-mixed_repeated_seconds=0.029209
-mixed_repeated_queries=256
-mixed_repeated_queries_per_second=8764.43
+mixed_repeated_cold_seconds=0.032009
+mixed_repeated_cold_queries_per_second=1999.46
 ```
 
-## Notes
+### Warm passes
 
-- These measurements include the current exact-point cache logic.
-- Because the cache is cleared before each workload, the repeated-point timings here are not a fully warm-cache best case; they represent the current cold-start behavior of each workload family.
-- The `queries_per_second` values for `*_unique` and `*_repeated` stay fairly close because both workloads contain a mix of cold and warm cache lookups. The repeated workloads are much shorter in absolute time only because they execute far fewer total queries, not because the benchmark is measuring a separately pre-warmed steady-state cache.
-- Locator time is part of the measured interpolation path because the benchmark uses the real `define_interpolators()` setup and live element lookup.
+```text
+value_unique_warm_seconds=0.005853
+value_unique_warm_queries_per_second=341696.17
 
-## After first structural cleanup
+value_repeated_warm_seconds=0.000187
+value_repeated_warm_queries_per_second=342388.75
+
+gradient_unique_warm_seconds=0.010783
+gradient_unique_warm_queries_per_second=185484.64
+
+gradient_repeated_warm_seconds=0.000379
+gradient_repeated_warm_queries_per_second=168714.95
+
+mixed_unique_warm_seconds=0.017174
+mixed_unique_warm_queries_per_second=116454.57
+
+mixed_repeated_warm_seconds=0.000614
+mixed_repeated_warm_queries_per_second=104270.21
+```
+
+### Mixed multi-pass results
+
+```text
+value_unique_mixed_seconds=0.872814
+value_unique_mixed_queries_per_second=9165.75
+
+value_repeated_mixed_seconds=0.029157
+value_repeated_mixed_queries_per_second=8780.04
+
+gradient_unique_mixed_seconds=0.889470
+gradient_unique_mixed_queries_per_second=8994.12
+
+gradient_repeated_mixed_seconds=0.031468
+gradient_repeated_mixed_queries_per_second=8135.29
+
+mixed_unique_mixed_seconds=1.037080
+mixed_unique_mixed_queries_per_second=7713.96
+
+mixed_repeated_mixed_seconds=0.035390
+mixed_repeated_mixed_queries_per_second=7233.64
+```
+
+## Main interpretation
+
+- Warm cached calls are dramatically faster than cold calls.
+- The old mixed throughput numbers make unique and repeated workloads look more similar than they really are, because they average cold and warm phases together.
+- For value interpolation, warm cached throughput is roughly two orders of magnitude higher than cold throughput.
+- Gradient and mixed calls also benefit strongly from caching, but they still do more work on the warm path than value-only interpolation.
+
+## Structural refactor note
 
 Commit: `dcf279c` (`Refactor interpolator cache flow`)
 
-This first pass only removed duplication between `evaluate()` and `gradient()` and routed both through a shared point-preparation path. It made the code easier to follow, but it was not an optimization pass yet.
+The first structural cleanup of `SoledgeHDG2DInterpolator` made the code easier to read and removed duplicated logic between `evaluate()` and `gradient()`, but it was slightly slower on the hot path. The likely reason is extra helper and dictionary-access overhead introduced by the cleaner structure.
 
-Measured on the same command and scenario:
-
-```text
-value_unique_seconds=0.912147
-value_unique_queries=8000
-value_unique_queries_per_second=8770.52
-
-gradient_unique_seconds=0.933171
-gradient_unique_queries=8000
-gradient_unique_queries_per_second=8572.92
-
-mixed_unique_seconds=0.923666
-mixed_unique_queries=8000
-mixed_unique_queries_per_second=8661.14
-```
-
-Interpretation:
-
-- the slowdown is small but real
-- the likely cause is extra helper and dictionary-access overhead in the hot path
-- this is acceptable for the structural pass because the next step is a focused optimization pass on the cleaned-up code path
+That slowdown is acceptable for now because this file is now easier to optimize safely in the next pass.

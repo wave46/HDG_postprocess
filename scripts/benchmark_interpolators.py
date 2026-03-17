@@ -82,6 +82,14 @@ def benchmark_callable(fn, points, repeat):
     return elapsed, len(points) * repeat
 
 
+def benchmark_single_pass(fn, points):
+    start = time.perf_counter()
+    for point in points:
+        fn(*point)
+    elapsed = time.perf_counter() - start
+    return elapsed, len(points)
+
+
 def clear_interpolator_cache(interpolator):
     interpolator._hashed_shape_functions.clear()
     interpolator._hashed_shape_functions_dx.clear()
@@ -102,6 +110,14 @@ def format_result(name, elapsed, queries):
     print(f"{name}_seconds={elapsed:.6f}")
     print(f"{name}_queries={queries}")
     print(f"{name}_queries_per_second={qps:.2f}")
+
+
+def run_cold_warm_pair(name, fn, points):
+    cold_elapsed, cold_queries = benchmark_single_pass(fn, points)
+    format_result(f"{name}_cold", cold_elapsed, cold_queries)
+
+    warm_elapsed, warm_queries = benchmark_single_pass(fn, points)
+    format_result(f"{name}_warm", warm_elapsed, warm_queries)
 
 
 def main():
@@ -126,30 +142,32 @@ def main():
     print(f"unique_points={len(unique_points)}")
     print(f"repeated_points={len(repeated_points)}")
 
-    clear_interpolator_cache(value_interpolator)
-    elapsed, queries = benchmark_callable(value_interpolator.evaluate, unique_points, args.repeat)
-    format_result("value_unique", elapsed, queries)
-
-    clear_interpolator_cache(value_interpolator)
-    elapsed, queries = benchmark_callable(value_interpolator.evaluate, repeated_points, args.repeat)
-    format_result("value_repeated", elapsed, queries)
-
-    clear_interpolator_cache(value_interpolator)
-    elapsed, queries = benchmark_callable(value_interpolator.gradient, unique_points, args.repeat)
-    format_result("gradient_unique", elapsed, queries)
-
-    clear_interpolator_cache(value_interpolator)
-    elapsed, queries = benchmark_callable(value_interpolator.gradient, repeated_points, args.repeat)
-    format_result("gradient_repeated", elapsed, queries)
-
     mixed = mixed_value_gradient(value_interpolator)
-    clear_interpolator_cache(value_interpolator)
-    elapsed, queries = benchmark_callable(mixed, unique_points, args.repeat)
-    format_result("mixed_unique", elapsed, queries)
 
-    clear_interpolator_cache(value_interpolator)
-    elapsed, queries = benchmark_callable(mixed, repeated_points, args.repeat)
-    format_result("mixed_repeated", elapsed, queries)
+    for workload_name, fn in (
+        ("value_unique", value_interpolator.evaluate),
+        ("value_repeated", value_interpolator.evaluate),
+        ("gradient_unique", value_interpolator.gradient),
+        ("gradient_repeated", value_interpolator.gradient),
+        ("mixed_unique", mixed),
+        ("mixed_repeated", mixed),
+    ):
+        points = unique_points if "unique" in workload_name else repeated_points
+        clear_interpolator_cache(value_interpolator)
+        run_cold_warm_pair(workload_name, fn, points)
+
+    for workload_name, fn in (
+        ("value_unique", value_interpolator.evaluate),
+        ("value_repeated", value_interpolator.evaluate),
+        ("gradient_unique", value_interpolator.gradient),
+        ("gradient_repeated", value_interpolator.gradient),
+        ("mixed_unique", mixed),
+        ("mixed_repeated", mixed),
+    ):
+        points = unique_points if "unique" in workload_name else repeated_points
+        clear_interpolator_cache(value_interpolator)
+        elapsed, queries = benchmark_callable(fn, points, args.repeat)
+        format_result(f"{workload_name}_mixed", elapsed, queries)
 
 
 if __name__ == "__main__":
