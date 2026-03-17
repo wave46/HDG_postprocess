@@ -42,8 +42,17 @@ def _rhon_view(solutions, cons_idx):
     return solutions[..., cons_idx[b"rhon"]]
 
 
-def _particle_source(solutions, sigma, n0, cons_idx):
-    return n0**2 * solutions[..., 0] * _rhon_view(solutions, cons_idx) * sigma
+def _reaction_source(density_a, density_b, sigma):
+    return density_a * density_b * sigma
+
+
+def _plasma_neutral_reaction_source(solutions, sigma, n0, cons_idx):
+    return _reaction_source(n0 * solutions[..., 0], n0 * _rhon_view(solutions, cons_idx), sigma)
+
+
+def _electron_electron_reaction_source(solutions, sigma, n0, cons_idx):
+    electron_density = n0 * _rho_view(solutions, cons_idx)
+    return _reaction_source(electron_density, electron_density, sigma)
 
 def compute_iz_rate_NRL(te,te_min):
 
@@ -376,7 +385,7 @@ def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref,cons_idx):
     todo make indexing not hardcoded
     """
     sigma_iz = calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref)
-    return _particle_source(solutions, sigma_iz, n0, cons_idx)
+    return _plasma_neutral_reaction_source(solutions, sigma_iz, n0, cons_idx)
 
 def calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,cons_idx):
     """
@@ -384,7 +393,7 @@ def calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,
     """
     sigma_iz = calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref)
     ti = calculate_Ti_cons(solutions,T0,Mref,cons_idx)
-    return 1.5 * kb * _particle_source(solutions, sigma_iz, n0, cons_idx) * R_E * ti
+    return 1.5 * kb * _plasma_neutral_reaction_source(solutions, sigma_iz, n0, cons_idx) * R_E * ti
 
 def calculate_ion_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,E0):
     """
@@ -399,7 +408,7 @@ def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,c
     """
     sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
     u = calculate_u_cons(solutions,u0,cons_idx)
-    return 0.5 * mi * _particle_source(solutions, sigma_cx, n0, cons_idx) * u**2
+    return 0.5 * mi * _plasma_neutral_reaction_source(solutions, sigma_cx, n0, cons_idx) * u**2
 
 def calculate_ion_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_parameters,T0,n0,Mref,R_E,kb,mi,E0,u0,cons_idx):
     """
@@ -417,7 +426,7 @@ def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,k
     calculates electron losses due to ionization for given conservative solutions
     """
     sigma_Eiz = calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref)
-    return kb * _particle_source(solutions, sigma_Eiz, n0, cons_idx)
+    return kb * _plasma_neutral_reaction_source(solutions, sigma_Eiz, n0, cons_idx)
 
 def calculate_electron_sink_due_to_cooling_factor_cons(solutions,cooling_parameters,impurity_concentration,T0,n0,Mref,kb):
     """
@@ -431,14 +440,14 @@ def calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref
     calculates electron losses due to recombination for given conservative solutions
     """
     sigma_Erec = calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref)
-    return kb * n0**2 * _rho_view(solutions, cons_idx) ** 2 * sigma_Erec
+    return kb * _electron_electron_reaction_source(solutions, sigma_Erec, n0, cons_idx)
 
 def calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb,cons_idx):
     """
     calculates electron gains due to recombination for given conservative solutions
     """
     sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
-    return 13.6 * kb * n0**2 * _rho_view(solutions, cons_idx) ** 2 * sigma_rec
+    return 13.6 * kb * _electron_electron_reaction_source(solutions, sigma_rec, n0, cons_idx)
 
 def calculate_electron_total_loss_cons(solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb,cons_idx):
     """
@@ -478,4 +487,4 @@ def calculate_cx_source_cons(solutions,cx_parameters,T0,n0,Mref,cons_idx):
     todo make indexing not hardcoded
     """
     sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
-    return _particle_source(solutions, sigma_cx, n0, cons_idx)
+    return _plasma_neutral_reaction_source(solutions, sigma_cx, n0, cons_idx)
