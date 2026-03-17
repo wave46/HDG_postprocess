@@ -252,7 +252,7 @@ def calculate_grad_pi_cons(solutions,gradients,p0,L0,cons_idx):
     sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
     rho = _sol(sol, b'rho', cons_idx)
     gamma = _sol(sol, b'Gamma', cons_idx)
-    res = _grad(grad, b'nEi', cons_idx)
+    res = _grad(grad, b'nEi', cons_idx).copy()
     res -= _grad(grad, b'Gamma', cons_idx) * (gamma / rho)[:, None]
     res += 0.5 * _grad(grad, b'rho', cons_idx) * (gamma**2 / rho**2)[:, None]
     res *= p0 / L0
