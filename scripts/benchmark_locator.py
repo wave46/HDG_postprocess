@@ -53,6 +53,26 @@ def benchmark_callable(name, fn, points, repeat):
     return {"name": name, "seconds": elapsed, "queries": len(points) * repeat}
 
 
+def benchmark_native_locator(native_locator_cls, mesh, element_numbers, points, repeat, leaf_size):
+    build_start = time.perf_counter()
+    native_locator = native_locator_cls(
+        mesh.global_state.vertices,
+        mesh.derived_geometry.connectivity_big,
+        element_numbers,
+        limit=False,
+        default_value=-1,
+        leaf_size=leaf_size,
+    )
+    native_build_seconds = time.perf_counter() - build_start
+    native_result = benchmark_callable("native", native_locator, points, repeat)
+    return {
+        "leaf_size": leaf_size,
+        "build_seconds": native_build_seconds,
+        "query_seconds": native_result["seconds"],
+        "total_seconds": native_build_seconds + native_result["seconds"],
+    }
+
+
 def maybe_load_native_locator():
     try:
         module = importlib.import_module("hdg_postprocess.locator")
@@ -64,7 +84,13 @@ def maybe_load_native_locator():
 def main():
     parser = argparse.ArgumentParser(description="Benchmark Exact2DMeshFunction against raysect Discrete2DMesh.")
     parser.add_argument("--scenario", default="legacy_mesh_west", help="Scenario id from tests/baseline_manifest.json")
-    parser.add_argument("--repeat", type=int, default=3, help="How many times to traverse the query set.")
+    parser.add_argument("--repeat", type=int, default=30, help="How many times to traverse the query set.")
+    parser.add_argument("--leaf-size", type=int, default=8, help="Leaf size for the native tree locator.")
+    parser.add_argument(
+        "--leaf-sweep",
+        default="",
+        help="Comma-separated native leaf sizes to benchmark, e.g. 4,8,16,32.",
+    )
     args = parser.parse_args()
 
     manifest = load_manifest()
@@ -101,23 +127,43 @@ def main():
         print("native_locator=unavailable")
         return
 
-    build_start = time.perf_counter()
-    native_locator = native_locator_cls(
-        mesh.global_state.vertices,
-        mesh.derived_geometry.connectivity_big,
-        element_numbers,
-        limit=False,
-        default_value=-1,
-    )
-    native_build_seconds = time.perf_counter() - build_start
-    native_result = benchmark_callable("native", native_locator, points, args.repeat)
-    print(f"native_build_seconds={native_build_seconds:.6f}")
-    print(f"native_seconds={native_result['seconds']:.6f}")
-    print(f"native_total_seconds={native_build_seconds + native_result['seconds']:.6f}")
-    if raysect_result["seconds"] > 0:
-        print(f"speed_ratio_native_over_raysect={native_result['seconds'] / raysect_result['seconds']:.6f}")
-    if raysect_build_seconds > 0:
-        print(f"build_ratio_native_over_raysect={native_build_seconds / raysect_build_seconds:.6f}")
+    leaf_sizes = [args.leaf_size]
+    if args.leaf_sweep:
+        leaf_sizes = [int(value) for value in args.leaf_sweep.split(",") if value.strip()]
+
+    native_results = [
+        benchmark_native_locator(
+            native_locator_cls,
+            mesh,
+            element_numbers,
+            points,
+            args.repeat,
+            leaf_size,
+        )
+        for leaf_size in leaf_sizes
+    ]
+
+    for native_result in native_results:
+        prefix = "native" if len(native_results) == 1 else f"native_leaf_{native_result['leaf_size']}"
+        print(f"{prefix}_build_seconds={native_result['build_seconds']:.6f}")
+        print(f"{prefix}_seconds={native_result['query_seconds']:.6f}")
+        print(f"{prefix}_total_seconds={native_result['total_seconds']:.6f}")
+        if raysect_result["seconds"] > 0:
+            print(
+                f"{prefix}_speed_ratio_native_over_raysect="
+                f"{native_result['query_seconds'] / raysect_result['seconds']:.6f}"
+            )
+        if raysect_build_seconds > 0:
+            print(
+                f"{prefix}_build_ratio_native_over_raysect="
+                f"{native_result['build_seconds'] / raysect_build_seconds:.6f}"
+            )
+
+    if len(native_results) > 1:
+        best_total = min(native_results, key=lambda result: result["total_seconds"])
+        best_query = min(native_results, key=lambda result: result["query_seconds"])
+        print(f"best_native_leaf_by_total={best_total['leaf_size']}")
+        print(f"best_native_leaf_by_query={best_query['leaf_size']}")
 
 
 if __name__ == "__main__":
