@@ -8,7 +8,7 @@ import scipy.io
 
 from hdg_postprocess.formats import load_from_file
 
-from helpers import scenario_map
+from helpers import require_scenario_data, scenario_map
 
 
 def _load_reference_element(path):
@@ -36,6 +36,7 @@ def _load_reference_element(path):
 def test_solution_plotting_smoke_and_mesh_linewidth(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["embedded_k_model"]
+    require_scenario_data(cfg)
 
     sol = load_from_file.load_HDG_solution_from_file(
         cfg["solution_path"],

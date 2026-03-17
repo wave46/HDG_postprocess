@@ -3,7 +3,7 @@ import scipy.io
 
 from hdg_postprocess.formats import load_from_file
 
-from helpers import generate_baselines, scenario_map
+from helpers import generate_baselines, require_scenario_data, scenario_map
 
 
 def _load_reference_element(path):
@@ -31,6 +31,7 @@ def _load_reference_element(path):
 def test_container_state_sync_physical_and_equilibrium(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["embedded_k_model"]
+    require_scenario_data(cfg)
 
     sol = load_from_file.load_HDG_solution_from_file(
         cfg["solution_path"],
@@ -72,6 +73,7 @@ def test_container_state_sync_physical_and_equilibrium(manifest_path):
 def test_container_state_sync_neutral_derived_fields(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
 
     sol = load_from_file.load_HDG_solution_from_file(
         cfg["solution_path"],
@@ -103,6 +105,7 @@ def test_container_state_sync_neutral_derived_fields(manifest_path):
 def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
 
     sol = load_from_file.load_HDG_solution_from_file(
         cfg["solution_path"],
@@ -149,6 +152,7 @@ def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
 def test_container_state_sync_sources_and_totals(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
 
     sol = load_from_file.load_HDG_solution_from_file(
         cfg["solution_path"],
@@ -191,6 +195,7 @@ def test_container_state_sync_sources_and_totals(manifest_path):
 def test_container_state_sync_representations(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
 
     sol = load_from_file.load_HDG_solution_from_file(
         cfg["solution_path"],

@@ -5,7 +5,7 @@ import scipy.io
 
 from hdg_postprocess.formats import load_from_file
 
-from helpers import generate_baselines, scenario_map
+from helpers import generate_baselines, require_scenario_data, scenario_map
 
 
 def _load_reference_element(path):
@@ -49,6 +49,7 @@ def _load_solution(cfg):
 def test_pointwise_accessors_match_embedded_k_baseline(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["embedded_k_model"]
+    require_scenario_data(cfg)
     baseline = json.load(open("tests/baselines/embedded_k_model.json"))
 
     sol = _load_solution(cfg)
@@ -75,6 +76,7 @@ def test_pointwise_accessors_match_embedded_k_baseline(manifest_path):
 def test_pointwise_source_and_field_accessors_are_finite(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
     baseline = json.load(open("tests/baselines/power_balance_with_cooling.json"))
 
     sol = _load_solution(cfg)

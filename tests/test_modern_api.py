@@ -10,12 +10,13 @@ from hdg_postprocess.api import (
     make_turbulence_parameters,
 )
 
-from helpers import generate_baselines, load_baseline, scenario_map
+from helpers import generate_baselines, load_baseline, require_scenario_data, scenario_map
 
 
 def test_modern_solution_api(manifest_path, baselines_dir):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
     baseline = load_baseline(baselines_dir, "power_balance_with_cooling")
 
     solution = load_solution(
@@ -95,6 +96,7 @@ def test_modern_solution_api(manifest_path, baselines_dir):
 def test_modern_mesh_api(manifest_path, baselines_dir):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["legacy_mesh_west"]
+    require_scenario_data(cfg)
     baseline = load_baseline(baselines_dir, "legacy_mesh_west")
 
     mesh = load_mesh(cfg["mesh_path"], cfg["mesh_base"], cfg["n_partitions"])
@@ -109,6 +111,7 @@ def test_modern_mesh_api(manifest_path, baselines_dir):
 def test_setup_helpers_compose_with_solution_api(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["embedded_k_model"]
+    require_scenario_data(cfg)
 
     solution = load_solution(
         cfg["solution_path"],

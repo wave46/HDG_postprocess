@@ -3,11 +3,14 @@ import json
 from hdg_postprocess.io import detect_mesh_format, detect_solution_format, load_mesh_data, load_solution_data
 from silx.io.dictdump import h5todict
 
-from helpers import scenario_map
+from helpers import require_scenario_data, scenario_map
 
 
 def test_detect_solution_and_mesh_formats(manifest_path):
     scenarios = scenario_map(manifest_path)
+    require_scenario_data(scenarios["legacy_first"])
+    require_scenario_data(scenarios["embedded_k_model"])
+    require_scenario_data(scenarios["legacy_mesh_west"])
 
     legacy_solution = h5todict(
         f"{scenarios['legacy_first']['solution_path']}{scenarios['legacy_first']['solution_base']}_1_8.h5"
@@ -29,6 +32,7 @@ def test_detect_solution_and_mesh_formats(manifest_path):
 def test_normalized_solution_data_matches_manifest_configuration(manifest_path):
     scenarios = scenario_map(manifest_path)
     config = scenarios["power_balance_no_heating"]
+    require_scenario_data(config)
 
     solution_data = load_solution_data(
         config["solution_path"],
@@ -49,6 +53,7 @@ def test_normalized_solution_data_matches_manifest_configuration(manifest_path):
 def test_normalized_mesh_data_contains_parallel_metadata(manifest_path):
     scenarios = scenario_map(manifest_path)
     config = scenarios["legacy_mesh_west"]
+    require_scenario_data(config)
 
     mesh_data = load_mesh_data(
         config["mesh_path"],

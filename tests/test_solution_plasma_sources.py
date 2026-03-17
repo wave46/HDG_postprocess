@@ -3,7 +3,7 @@ import scipy.io
 
 from hdg_postprocess.formats import load_from_file
 
-from helpers import generate_baselines, load_baseline, scenario_map
+from helpers import generate_baselines, load_baseline, require_scenario_data, scenario_map
 
 
 def _load_reference_element(path):
@@ -31,6 +31,7 @@ def _load_reference_element(path):
 def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
     baseline = load_baseline(baselines_dir, "power_balance_with_cooling")
 
     sol = load_from_file.load_HDG_solution_from_file(
