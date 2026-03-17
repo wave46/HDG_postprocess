@@ -12,3 +12,5 @@ hdg_postprocess.egg-info/SOURCES.txt
 demos/data/*
 .venv*
 .vscode
+hdg_postprocess/routines/_interpolators_fast.c
+hdg_postprocess/routines/_interpolators_fast.*.so

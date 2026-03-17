@@ -1,5 +1,14 @@
 import numpy as np
 
+try:
+    from hdg_postprocess.routines._interpolators_fast import (
+        orthopoly2d_deriv_xieta_scalar as _fast_orthopoly2d_deriv_xieta,
+        orthopoly2d_scalar as _fast_orthopoly2d,
+    )
+except ImportError:
+    _fast_orthopoly2d_deriv_xieta = None
+    _fast_orthopoly2d = None
+
 class SoledgeHDG2DInterpolator():
 
     def __init__(
@@ -156,7 +165,10 @@ class SoledgeHDG2DInterpolator():
             element_type,
         )
         if element_type == "triangle":
-            p, pdx, pdy = orthopoly2D_deriv_xieta(xieta[0], xieta[1], p_order)
+            if _fast_orthopoly2d_deriv_xieta is not None:
+                p, pdx, pdy = _fast_orthopoly2d_deriv_xieta(xieta[0], xieta[1], p_order)
+            else:
+                p, pdx, pdy = orthopoly2D_deriv_xieta(xieta[0], xieta[1], p_order)
             shape_functions = p @ inv_vandermonde
             Nx = pdx @ inv_vandermonde
             Ny = pdy @ inv_vandermonde
@@ -232,7 +244,10 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
     xieta0 = xieta_element(x,y,vertices_element,eltype)
     # back projection
     if eltype == 'triangle':
-        [x_back,y_back] = (orthopoly2D(xieta0[0], xieta0[1], p_order)@inv_vandermonde)@ vertices_element
+        if _fast_orthopoly2d is not None:
+            [x_back,y_back] = (_fast_orthopoly2d(xieta0[0], xieta0[1], p_order)@inv_vandermonde)@ vertices_element
+        else:
+            [x_back,y_back] = (orthopoly2D(xieta0[0], xieta0[1], p_order)@inv_vandermonde)@ vertices_element
     elif eltype == 'quadrilateral':
         shape_functions = shapefunctions_quads(xieta0[0], xieta0[1], p_order,inv_vandermonde)
         [x_back,y_back] = shape_functions[:,0]@vertices_element
@@ -243,7 +258,10 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
             if np.hypot(x_back-x, y_back-y) < scale:
                 return xieta0
             if eltype == 'triangle':
-                _,dp_dxi,dp_deta = orthopoly2D_deriv_xieta(xieta0[0], xieta0[1],p_order)
+                if _fast_orthopoly2d_deriv_xieta is not None:
+                    _,dp_dxi,dp_deta = _fast_orthopoly2d_deriv_xieta(xieta0[0], xieta0[1], p_order)
+                else:
+                    _,dp_dxi,dp_deta = orthopoly2D_deriv_xieta(xieta0[0], xieta0[1],p_order)
                 Nx = (dp_dxi@inv_vandermonde)
                 Ny = (dp_deta@inv_vandermonde)
             elif eltype == 'quadrilateral':
@@ -266,7 +284,10 @@ def xieta_element_precise (x,y,vertices_element,p_order,inv_vandermonde,eltype):
             xieta0[0] = xieta0[0] + inv_j00 * rhs0 + inv_j01 * rhs1
             xieta0[1] = xieta0[1] + inv_j10 * rhs0 + inv_j11 * rhs1
             if eltype == 'triangle':
-                [x_back,y_back] = (orthopoly2D(xieta0[0], xieta0[1], p_order)@inv_vandermonde)@ vertices_element
+                if _fast_orthopoly2d is not None:
+                    [x_back,y_back] = (_fast_orthopoly2d(xieta0[0], xieta0[1], p_order)@inv_vandermonde)@ vertices_element
+                else:
+                    [x_back,y_back] = (orthopoly2D(xieta0[0], xieta0[1], p_order)@inv_vandermonde)@ vertices_element
             elif eltype == 'quadrilateral':
                 shape_functions = shapefunctions_quads(xieta0[0], xieta0[1], p_order,inv_vandermonde)
                 [x_back,y_back] = shape_functions[:,0]@vertices_element

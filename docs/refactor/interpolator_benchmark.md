@@ -10,7 +10,7 @@ and serves as the comparison point for the next optimization pass in
 ```bash
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate tofu-cherab
-python scripts/benchmark_interpolators.py --scenario legacy_first --repeat 4 --unique-points 2000 --repeated-points 64
+python scripts/benchmark_interpolators.py
 ```
 
 ## Workload definition
@@ -25,70 +25,76 @@ The benchmark uses the real solution-loading and `define_interpolators()` path, 
 
 Scenario: `legacy_first`
 
+Current compact defaults:
+
+```bash
+python scripts/benchmark_interpolators.py
+```
+
 ### Cold passes
 
 ```text
-value_unique_cold_seconds=0.833692
-value_unique_cold_queries_per_second=2398.97
+value_unique_cold_seconds=0.054540
+value_unique_cold_queries_per_second=9167.63
 
-value_repeated_cold_seconds=0.028252
-value_repeated_cold_queries_per_second=2265.29
+value_repeated_cold_seconds=0.002949
+value_repeated_cold_queries_per_second=10850.30
 
-gradient_unique_cold_seconds=0.837308
-gradient_unique_cold_queries_per_second=2388.61
+gradient_unique_cold_seconds=0.052103
+gradient_unique_cold_queries_per_second=9596.41
 
-gradient_repeated_cold_seconds=0.027898
-gradient_repeated_cold_queries_per_second=2294.06
+gradient_repeated_cold_seconds=0.003386
+gradient_repeated_cold_queries_per_second=9449.86
 
-mixed_unique_cold_seconds=0.850703
-mixed_unique_cold_queries_per_second=2351.00
+mixed_unique_cold_seconds=0.053358
+mixed_unique_cold_queries_per_second=9370.65
 
-mixed_repeated_cold_seconds=0.026952
-mixed_repeated_cold_queries_per_second=2374.58
+mixed_repeated_cold_seconds=0.003355
+mixed_repeated_cold_queries_per_second=9538.74
 ```
 
 ### Warm passes
 
 ```text
-value_unique_warm_seconds=0.004909
-value_unique_warm_queries_per_second=407411.64
+value_unique_warm_seconds=0.001469
+value_unique_warm_queries_per_second=340483.03
 
-value_repeated_warm_seconds=0.000186
-value_repeated_warm_queries_per_second=343783.03
+value_repeated_warm_seconds=0.000087
+value_repeated_warm_queries_per_second=366901.11
 
-gradient_unique_warm_seconds=0.008468
-gradient_unique_warm_queries_per_second=236190.03
+gradient_unique_warm_seconds=0.002467
+gradient_unique_warm_queries_per_second=202711.79
 
-gradient_repeated_warm_seconds=0.000326
-gradient_repeated_warm_queries_per_second=196078.41
+gradient_repeated_warm_seconds=0.000230
+gradient_repeated_warm_queries_per_second=139312.14
 
-mixed_unique_warm_seconds=0.013230
-mixed_unique_warm_queries_per_second=151166.67
+mixed_unique_warm_seconds=0.003722
+mixed_unique_warm_queries_per_second=134331.33
 
-mixed_repeated_warm_seconds=0.000459
-mixed_repeated_warm_queries_per_second=139303.64
+mixed_repeated_warm_seconds=0.000352
+mixed_repeated_warm_queries_per_second=90882.76
 ```
 
 ### Mixed multi-pass results
 
 ```text
-value_unique_mixed_seconds=0.827175
-value_unique_mixed_queries_per_second=9671.47
+value_unique_mixed_seconds=0.049582
+value_unique_mixed_queries_per_second=20168.49
 
-value_repeated_mixed_seconds=0.027209
-value_repeated_mixed_queries_per_second=9408.55
+value_repeated_mixed_seconds=0.003152
+value_repeated_mixed_queries_per_second=20304.38
 
-gradient_unique_mixed_seconds=0.860517
-gradient_unique_mixed_queries_per_second=9296.74
+gradient_unique_mixed_seconds=0.054168
+gradient_unique_mixed_queries_per_second=18460.94
 
-gradient_repeated_mixed_seconds=0.027210
-gradient_repeated_mixed_queries_per_second=9408.39
+gradient_repeated_mixed_seconds=0.003683
+gradient_repeated_mixed_queries_per_second=17378.45
 
-mixed_unique_mixed_seconds=0.886476
-mixed_unique_mixed_queries_per_second=9024.50
+mixed_unique_mixed_seconds=0.059342
+mixed_unique_mixed_queries_per_second=16851.55
 
-mixed_repeated_mixed_seconds=0.029839
-mixed_repeated_mixed_queries_per_second=8579.24
+mixed_repeated_mixed_seconds=0.003773
+mixed_repeated_mixed_queries_per_second=16964.69
 ```
 
 ## Main interpretation
@@ -97,20 +103,22 @@ mixed_repeated_mixed_queries_per_second=8579.24
 - The old mixed throughput numbers make unique and repeated workloads look more similar than they really are, because they average cold and warm phases together.
 - For value interpolation, warm cached throughput is roughly two orders of magnitude higher than cold throughput.
 - Gradient and mixed calls also benefit strongly from caching, but they still do more work on the warm path than value-only interpolation.
-- After the structural cleanup, the safe optimization passes recovered the earlier mixed-path regression for the main unique-point workloads and kept warm cached performance strong.
+- After the structural cleanup, the safe optimization passes recovered the earlier mixed-path regression.
+- The first compiled triangle-scalar kernel pass then improved cold-path throughput by roughly a factor of 4 for the compact benchmark defaults.
 
 ## Refactor note
 
 - `dcf279c` (`Refactor interpolator cache flow`) made the class cleaner but slightly slower.
 - `58a770b` (`Optimize interpolator fast path`) recovered most of the hot-path regression and improved warm cached calls noticeably.
 - The current benchmark numbers also include the follow-up allocation-reduction pass in `xieta_element()`, `xieta_element_precise()`, and `_compute_shape_data()`.
+- The current benchmark numbers also include an optional Cython fast path in `hdg_postprocess.routines._interpolators_fast` for the triangle-scalar orthogonal polynomial routines.
 
 ## Likely remaining bottlenecks
 
-The cold-path cost is still dominated by the miss-side mathematical work, especially:
+With the compiled polynomial path in place, the cold-path cost is now dominated more clearly by:
 
 - `xieta_element_precise()`
-- `orthopoly2D_deriv_xieta()` / `orthopoly2D_deriv_rst()`
-- `jacobi()`
+- `_compute_shape_data()`
+- the remaining NumPy dot/Jacobian work around the compiled polynomial kernels
 
-Those are good candidates for compiled acceleration later if more speed is needed. The failed pure-Python iterative `jacobi()` experiment was a useful sign here: this part of the stack is performance-sensitive enough that further gains may be better pursued with Cython or another compiled path rather than more aggressive Python-level rewrites.
+The next best compiled target is probably the local-coordinate solve in `xieta_element_precise()`. The profile after the first Cython pass shows that the polynomial routines are no longer the dominant cost center, which is exactly the shift we wanted to see.

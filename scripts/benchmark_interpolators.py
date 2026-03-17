@@ -123,9 +123,9 @@ def run_cold_warm_pair(name, fn, points):
 def main():
     parser = argparse.ArgumentParser(description="Benchmark current interpolator value and gradient workloads.")
     parser.add_argument("--scenario", default="legacy_first", help="Solution scenario id from tests/baseline_manifest.json")
-    parser.add_argument("--repeat", type=int, default=4, help="How many times to traverse each point set.")
-    parser.add_argument("--unique-points", type=int, default=2000, help="Number of unique points to sample.")
-    parser.add_argument("--repeated-points", type=int, default=64, help="Number of points in the repeated cache-friendly set.")
+    parser.add_argument("--repeat", type=int, default=2, help="How many times to traverse each point set.")
+    parser.add_argument("--unique-points", type=int, default=500, help="Number of unique points to sample.")
+    parser.add_argument("--repeated-points", type=int, default=32, help="Number of points in the repeated cache-friendly set.")
     args = parser.parse_args()
 
     manifest = load_manifest()
