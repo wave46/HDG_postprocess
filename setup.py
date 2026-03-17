@@ -1,9 +1,8 @@
-from setuptools import setup, find_packages, Extension
-from Cython.Build import cythonize
 import sys
+
+from Cython.Build import cythonize
+from setuptools import Extension, find_packages, setup
 import numpy
-import os
-import os.path as path
 
 force = False
 profile = False
@@ -16,27 +15,25 @@ if "--profile" in sys.argv:
     profile = True
     del sys.argv[sys.argv.index("--profile")]
 
-compilation_includes = [".", numpy.get_include()]
-
-setup_path = path.dirname(path.abspath(__file__))
-
-# build extension list
-extensions = []
-for root, dirs, files in os.walk(setup_path):
-    for file in files:
-        if path.splitext(file)[1] == ".pyx":
-            pyx_file = path.relpath(path.join(root, file), setup_path)
-            module = path.splitext(pyx_file)[0].replace("/", ".")
-            extensions.append(Extension(module, [pyx_file], include_dirs=compilation_includes),)
-
 if profile:
     directives = {"profile": True}
 else:
     directives = {}
 
 
+def cython_extensions():
+    include_dirs = [".", numpy.get_include()]
+    module_names = [
+        "hdg_postprocess.core.mesh.locator",
+        "hdg_postprocess.routines._interpolators_fast",
+    ]
+    return [
+        Extension(module_name, [f"{module_name.replace('.', '/')}.pyx"], include_dirs=include_dirs)
+        for module_name in module_names
+    ]
+
+
 setup(
     packages=find_packages(),
-    namespace_packages=['hdg_postprocess'],
-    ext_modules=cythonize(extensions, force=force, compiler_directives=directives)
+    ext_modules=cythonize(cython_extensions(), force=force, compiler_directives=directives),
 )
