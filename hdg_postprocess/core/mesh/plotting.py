@@ -82,7 +82,7 @@ def plot_raw_meshes(mesh, data=None, ax=None):
 
 
 def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity=None,
-                   n_levels=100, limits=None, ticks=None, tick_labels=None, cmap="jet", linewidth=1.0):
+                   n_levels=100, limits=None, ticks=None, tick_labels=None, cmap="jet", linewidth=0.1):
     _ensure_full_mesh(mesh)
 
     if ax is None:
