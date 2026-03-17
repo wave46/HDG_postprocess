@@ -39,6 +39,10 @@ For a lighter entry point than the full demo notebooks, start with:
 
 The longer runnable examples remain in [demos](demos).
 
+## Demo data
+
+Some workflows depend on local auxiliary data such as reference-element files and atomic tables. Those assets are not required for the core package layout, and they can be shared on request when you need to run the full demo or benchmark workflows.
+
 ## Modern additive API
 
 The legacy API remains supported:
