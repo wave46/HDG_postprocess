@@ -14,7 +14,7 @@ def calculate_variables_along_line(solution, r_line, z_line, variable_list):
     requested_getters = [(variable, variable_getters[variable]) for variable in variable_list]
     for i, (r, z) in enumerate(zip(r_line, z_line)):
         for variable, getter in requested_getters:
-            result[variable][i] = getter(r, z)
+            result[variable][i] = _line_scalar_value(getter(r, z))
     return result
 
 
@@ -115,3 +115,12 @@ def define_interpolators(solution):
         interpolators.field.append(SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.magnetic_field[:, :, i]))
     interpolators.qcyl = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.qcyl)
     solution._psi_interpolator = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.poloidal_flux)
+
+
+def _line_scalar_value(value):
+    array = np.asarray(value)
+    if array.ndim == 0:
+        return array.item()
+    if array.size == 1:
+        return array.reshape(()).item()
+    raise ValueError(f"Line sampling expects scalar-valued getters, got shape {array.shape}")

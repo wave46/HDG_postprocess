@@ -36,14 +36,7 @@ else:
 
 
 setup(
-    name="hdg_postprocess",
-    version="0.0.1",
-    description="Postprocessing tools for SOLEDGE-HDG solutions",
-    long_description=open(path.join(setup_path, "README.md"), encoding="utf-8").read(),
-    long_description_content_type="text/markdown",
     packages=find_packages(),
     namespace_packages=['hdg_postprocess'],
-    include_package_data=True,
-    python_requires=">=3.8",
     ext_modules=cythonize(extensions, force=force, compiler_directives=directives)
 )
