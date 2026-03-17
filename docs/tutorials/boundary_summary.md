@@ -45,12 +45,17 @@ Typical profile access:
 wall["r"]
 wall["z"]
 wall["te"]
+wall["te_skeleton"]
 wall["ti"]
+wall["ti_skeleton"]
 wall["n"]
+wall["n_skeleton"]
 wall["b_n"]
 ```
 
 These arrays are already ordered along the assembled wall path, so they are ready for direct profile plotting.
+
+In most wall-facing analyses, the `*_skeleton` variants are the more natural quantities to use because they come from the trace solution stored on the mesh skeleton. The non-skeleton values are usually very close, but they come from the element-interior conservative state evaluated on the boundary representation rather than from the trace variable itself.
 
 ## Identify a nearby boundary face
 
@@ -67,15 +72,6 @@ idx = solution.mesh.boundary.nearest_face_index(
 ```
 
 This is useful when you want to mark or slice a particular wall region in a notebook without keeping a local helper function around.
-
-## Compare with power balance
-
-`power_balance()` and `boundary_summary()` are related, but they answer different questions:
-
-- `power_balance()` integrates global volumetric gains and losses
-- `boundary_summary()` builds an ordered wall profile and the boundary loss terms associated with it
-
-That is why they are documented separately.
 
 ## Related docs
 
