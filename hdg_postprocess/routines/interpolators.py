@@ -36,10 +36,18 @@ class SoledgeHDG2DInterpolator():
         self._hashed_shape_functions_dy = {}
 
     def evaluate(self, x, y):
-        key, element_number = self._prepare_point(x, y)
+        key = (x, y)
+        hashed_shape_functions = self._hashed_shape_functions
+        try:
+            shape_functions = hashed_shape_functions[key]
+            element_number = self._hashed_element[key]
+        except KeyError:
+            element_number = self._cache_miss(x, y, key)
+            if element_number == -1:
+                return self._default_value
+            shape_functions = hashed_shape_functions[key]
         if element_number == -1:
             return self._default_value
-        shape_functions = self._hashed_shape_functions[key]
         element_data = self._vertex_data[element_number, :]
         return np.dot(shape_functions, element_data)
 
@@ -48,16 +56,28 @@ class SoledgeHDG2DInterpolator():
         calculates gradient with the gradients of shape functions
         using its own hash
         """
-        key, element_number = self._prepare_point(x, y)
-        result = np.array([0.0, 0.0])
+        key = (x, y)
+        hashed_shape_functions_dx = self._hashed_shape_functions_dx
+        hashed_shape_functions_dy = self._hashed_shape_functions_dy
+        try:
+            shape_functions_dx = hashed_shape_functions_dx[key]
+            shape_functions_dy = hashed_shape_functions_dy[key]
+            element_number = self._hashed_element[key]
+        except KeyError:
+            element_number = self._cache_miss(x, y, key)
+            if element_number == -1:
+                return np.array([0.0, 0.0])
+            shape_functions_dx = hashed_shape_functions_dx[key]
+            shape_functions_dy = hashed_shape_functions_dy[key]
         if element_number == -1:
-            return result
-        shape_functions_dx = self._hashed_shape_functions_dx[key]
-        shape_functions_dy = self._hashed_shape_functions_dy[key]
+            return np.array([0.0, 0.0])
         element_data = self._vertex_data[element_number, :]
-        result[0] = np.dot(shape_functions_dx, element_data)
-        result[1] = np.dot(shape_functions_dy, element_data)
-        return result
+        return np.array(
+            [
+                np.dot(shape_functions_dx, element_data),
+                np.dot(shape_functions_dy, element_data),
+            ]
+        )
 
     def __call__(self, x, y):
         """
@@ -112,17 +132,6 @@ class SoledgeHDG2DInterpolator():
 
     def __reduce__(self):
         return self.__new__, (self.__class__, ), self.__getstate__()
-
-    def _cache_key(self, x, y):
-        return (x, y)
-
-    def _prepare_point(self, x, y):
-        key = self._cache_key(x, y)
-        if key not in self._hashed_shape_functions:
-            element_number = self._cache_miss(x, y, key)
-        else:
-            element_number = self._hashed_element[key]
-        return key, element_number
 
     def _cache_miss(self, x, y, key):
         element_number = int(self._element_number(x, y))
