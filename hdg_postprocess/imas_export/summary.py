@@ -152,6 +152,9 @@ def build_summary_ids(solution, metadata: IMASExportMetadata):
         summary.machine = metadata.machine
 
     extracted = extract_solution_summary_metadata(solution)
+    extracted["export_shot"] = int(metadata.shot)
+    extracted["export_run"] = int(metadata.run)
+    extracted["export_occurrence"] = int(metadata.occurrence)
     extracted["effective_energy_transfer"] = float(metadata.effective_energy_transfer)
     summary.ids_properties.comment = _build_ids_comment(metadata, extracted)
     if metadata.comment:

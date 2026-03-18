@@ -27,10 +27,11 @@ Inside that one file, write:
 This keeps each exported file conceptually clean:
 
 - one steady-state simulation -> one file
-- one puff-scan point -> one file
+- one puff scan -> one file, with one IDS occurrence per scan point
 - one time-resolved snapshot -> one file
 
 For a puff scan, keep the same `shot` and increment `run`.
+The current project convention is to bundle the scan into one `.nc` file by using one IDS occurrence per scan point.
 For full-discharge snapshots, you can still keep the same `shot` and use `run` or file naming to distinguish snapshots, depending on how you want to organize the dataset on disk.
 
 ## One Steady-State Solution
@@ -78,13 +79,13 @@ write_imas_netcdf(
 
 ## Puff Scan for One Shot
 
-For a puff scan, keep the same `shot` and increment `run`.
-Write one `.nc` file per scan point.
-Keep `occurrence = 0` unless you intentionally write multiple occurrences of the same IDS inside one run.
+For a puff scan, keep the same `shot` and change `run` for each scan point.
+Store the whole scan in one `.nc` file and use one IDS occurrence per scan point.
 
 ```python
 base_shot = 60527
-for run, solname in enumerate(
+scan_path = "build/puff_scan.nc"
+for run_in_scan, solname in enumerate(
     [
         "solution_west_scan_puff_01",
         "solution_west_scan_puff_02",
@@ -102,16 +103,33 @@ for run, solname in enumerate(
     )
 
     metadata = IMASExportMetadata(
-        description=f"Puff scan case {run}",
+        description=f"Puff scan case {run_in_scan}",
         shot=base_shot,
-        run=run,
+        run=run_in_scan,
+        occurrence=run_in_scan - 1,
         time=0.0,
         effective_energy_transfer=1.0,
         machine="WEST",
     )
 
     grid = RectangularGrid2D.from_solution_bounds(solution, dr=0.005, dz=0.005)
-    write_imas_netcdf(solution, f"build/puff_scan_run_{run:02d}.nc", metadata, grid, file_mode="w")
+    write_imas_netcdf(
+        solution,
+        scan_path,
+        metadata,
+        grid,
+        file_mode="w" if run_in_scan == 1 else "a",
+    )
+```
+
+When reading the scan back, use the same occurrence number across the IDSs:
+
+```python
+with imas.DBEntry("build/puff_scan.nc", "r") as entry:
+    occurrence = 1
+    summary = entry.get("summary", occurrence)
+    equilibrium = entry.get("equilibrium", occurrence)
+    plasma = entry.get("plasma_profiles", occurrence)
 ```
 
 ## Full Discharge or Time-Resolved Snapshots
@@ -169,6 +187,6 @@ For cluster use, the usual pattern is:
 1. prepare one Python environment with `imas-python` and `hdg_postprocess`
 2. loop over solution folders or snapshot names
 3. choose `shot` / `run` explicitly
-4. write one netCDF file per exported case
+4. write one netCDF file per exported case or per bundled scan
 
 That keeps the export script simple and makes it easy to transfer the resulting `.nc` files to other users.
