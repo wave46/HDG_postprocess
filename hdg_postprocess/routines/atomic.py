@@ -1,6 +1,58 @@
 import numpy as np
 from .plasma import calculate_Ti_cons, calculate_u_cons
-from .tools import softplus,double_softplus
+
+
+def _flatten_solution_nodes(solutions):
+    if solutions.ndim > 2:
+        shape = solutions.shape[:2]
+        return solutions.reshape(shape[0] * shape[1], solutions.shape[2]), shape
+    return solutions, None
+
+
+def _reshape_node_values(values, shape):
+    if shape is None:
+        return values
+    return values.reshape(shape)
+
+
+def _te_from_internal_energy(solutions, T0, Mref, energy_idx):
+    return T0 * 2 / 3 / Mref * solutions[:, energy_idx] / solutions[:, 0]
+
+
+def _te_from_total_energy(solutions, T0, Mref):
+    return T0 * 2 / 3 / Mref * (
+        solutions[:, 2] / solutions[:, 0] - 0.5 * solutions[:, 1] ** 2 / solutions[:, 0] ** 2
+    )
+
+
+def _masked_te_ne_from_internal_energy(solutions, T0, n0, Mref, tol, energy_idx=3):
+    te = np.full_like(solutions[:, 0], 1e-10)
+    ne = np.full_like(solutions[:, 0], n0 * 1e-20)
+    good_idx = (solutions[:, 0] > tol) & (solutions[:, energy_idx] > tol)
+    te[good_idx] = _te_from_internal_energy(solutions[good_idx], T0, Mref, energy_idx)
+    ne[good_idx] = n0 * solutions[good_idx, 0]
+    return te, ne
+
+
+def _rho_view(solutions, cons_idx):
+    return solutions[..., cons_idx[b"rho"]]
+
+
+def _rhon_view(solutions, cons_idx):
+    return solutions[..., cons_idx[b"rhon"]]
+
+
+def _reaction_source(density_a, density_b, sigma):
+    return density_a * density_b * sigma
+
+
+def _plasma_neutral_reaction_source(solutions, sigma, n0, cons_idx):
+    return _reaction_source(n0 * solutions[..., 0], n0 * _rhon_view(solutions, cons_idx), sigma)
+
+
+def _electron_electron_reaction_source(solutions, sigma, n0, cons_idx):
+    electron_density = n0 * _rho_view(solutions, cons_idx)
+    return _reaction_source(electron_density, electron_density, sigma)
 
 def compute_iz_rate_NRL(te,te_min):
 
@@ -194,40 +246,22 @@ def calculate_rec_rate_cons(solutions,parameters,T0,n0,Mref,tol=1e-20):
     """
     database = parameters['database']
     
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape     
-        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    solutions, shape = _flatten_solution_nodes(solutions)
     if (database == "AMJUEL 2.1.8JH") or (database == "AMJUEL 2.1.8a"):
         alpha = parameters['alpha']
         te_min = parameters['te_min']
         te_max = parameters['te_max']
         ne_min = parameters['ne_min']
         ne_max = parameters['ne_max']
-        te = np.zeros_like(solutions[:,0])
-        ne = np.zeros_like(solutions[:,0])
-        #good U1 and U4
-        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
-
-        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
-        ne[good_idx] = n0*solutions[good_idx,0]
-        te[~good_idx] = 1e-10
-        ne[~good_idx] = n0*1e-20
+        te, ne = _masked_te_ne_from_internal_energy(solutions, T0, n0, Mref, tol)
         res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
         
     elif database == "NRL":
         te_min = parameters['te_min']
-        te = np.zeros_like(solutions[:,0])
-        solutions_corrected = solutions.copy()
-        solutions_corrected[:,0]= np.maximum(solutions_corrected[:,0],1e-20)
-        solutions_corrected[:,3]= np.maximum(solutions_corrected[:,3],1e-20)
-        te =  T0*2/3/Mref*solutions[:,3]/solutions[:,0]
+        te = _te_from_internal_energy(solutions, T0, Mref, 3)
 
         res = compute_rec_rate_NRL(te,te_min)
-        
-    if dimensions is not None:
-            res = res.reshape(dimensions[0],dimensions[1])
-    return res  
+    return _reshape_node_values(res, shape)
 
 def calculate_cx_rate(te,parameters):
     """
@@ -251,21 +285,14 @@ def calculate_cx_rate_cons(solutions,parameters,T0,Mref,tol=1e-20):
     alpha = parameters['alpha']
     te_min = parameters['te_min']
     te_max = parameters['te_max']
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape     
-        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    solutions, shape = _flatten_solution_nodes(solutions)
 
     if database == "OpenADAS expanded":
-        te = np.zeros_like(solutions[:,0])
-        #good U1 and U4
-        te = T0*2/3/Mref*(solutions[:,2]/solutions[:,0]-0.5*solutions[:,1]**2/solutions[:,0]**2)
+        te = _te_from_total_energy(solutions, T0, Mref)
         te = np.maximum(te,1e-10)
 
         res= eirene_fit_1D(te,alpha,te_min,te_max)
-        if dimensions is not None:
-            res = res.reshape(dimensions[0],dimensions[1])
-        return res
+        return _reshape_node_values(res, shape)
 
 def calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref,tol=1e-20):
     """
@@ -277,28 +304,14 @@ def calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref,tol=1e-20):
     te_max = iz_parameters['te_max']
     ne_min = iz_parameters['ne_min']
     ne_max = iz_parameters['ne_max']
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape     
-        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    solutions, shape = _flatten_solution_nodes(solutions)
     if database == "AMJUEL 2.1.5JH":
-        te = np.zeros_like(solutions[:,0])
-        ne = np.zeros_like(solutions[:,0])
-        #good U1 and U4
-        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
-
-        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
-        ne[good_idx] = n0*solutions[good_idx,0]
-        te[~good_idx] = 1e-10
-        ne[~good_idx] = n0*1e-20
+        te, ne = _masked_te_ne_from_internal_energy(solutions, T0, n0, Mref, tol)
         res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
     elif database == "NRL":
-        te = np.zeros_like(solutions[:,0])
-        te = T0*2/3/Mref*solutions[:,3]/solutions[:,0]
+        te = _te_from_internal_energy(solutions, T0, Mref, 3)
         res = compute_iz_rate_NRL (te, te_min)
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_node_values(res, shape)
 
 def calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref,tol=1e-20):
     """
@@ -310,26 +323,13 @@ def calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref,tol=1e-20):
     te_max = Eiz_parameters['te_max']
     ne_min = Eiz_parameters['ne_min']
     ne_max = Eiz_parameters['ne_max']
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape     
-        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    solutions, shape = _flatten_solution_nodes(solutions)
     if database == "AMJUEL 2.1.5JH":
-        te = np.zeros_like(solutions[:,0])
-        ne = np.zeros_like(solutions[:,0])
-        #good U1 and U4
-        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
-
-        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
-        ne[good_idx] = n0*solutions[good_idx,0]
-        te[~good_idx] = 1e-10
-        ne[~good_idx] = n0*1e-20
+        te, ne = _masked_te_ne_from_internal_energy(solutions, T0, n0, Mref, tol)
         res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
     elif database == "NRL":
         raise ValueError('NRL database not implemented for Eiz')
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_node_values(res, shape)
 
 def calculate_cooling_factor_cons(solutions,cooling_parameters,T0,Mref,kb,tol=1e-20):
     """
@@ -339,27 +339,18 @@ def calculate_cooling_factor_cons(solutions,cooling_parameters,T0,Mref,kb,tol=1e
     alpha = cooling_parameters['alpha']
     te_min = cooling_parameters['te_min']
     te_max = cooling_parameters['te_max']
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape     
-        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    solutions, shape = _flatten_solution_nodes(solutions)
     
     if database == "ADAS":
-        te = np.zeros_like(solutions[:,0])
-
-        #good U1 and U4
-        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
-
-        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
-        te[~good_idx] = 1e-10
+        te = np.full_like(solutions[:, 0], 1e-10)
+        good_idx = (solutions[:, 0] > tol) & (solutions[:, 3] > tol)
+        te[good_idx] = _te_from_internal_energy(solutions[good_idx], T0, Mref, 3)
 
         res = eirene_fit_1D(te,alpha,te_min,te_max)
     elif database == "NRL":
         raise ValueError('NRL database not implemented for cooling factor')
     
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res#/kb
+    return _reshape_node_values(res, shape)#/kb
 
 def calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref,tol=1e-20):
     """
@@ -371,26 +362,13 @@ def calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref,tol=1e-20):
     te_max = Erec_parameters['te_max']
     ne_min = Erec_parameters['ne_min']
     ne_max = Erec_parameters['ne_max']
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape     
-        solutions = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
+    solutions, shape = _flatten_solution_nodes(solutions)
     if (database == "AMJUEL 2.1.8JH") or (database == "AMJUEL 2.1.8a"):
-        te = np.zeros_like(solutions[:,0])
-        ne = np.zeros_like(solutions[:,0])
-        #good U1 and U4
-        good_idx = (solutions[:,0].flatten()>tol)&(solutions[:,3].flatten()>tol)
-
-        te[good_idx] = T0*2/3/Mref*solutions[good_idx,3]/solutions[good_idx,0]
-        ne[good_idx] = n0*solutions[good_idx,0]
-        te[~good_idx] = 1e-10
-        ne[~good_idx] = n0*1e-20
+        te, ne = _masked_te_ne_from_internal_energy(solutions, T0, n0, Mref, tol)
         res = eirene_fit(np.vstack([te,ne]),alpha,te_min,te_max,ne_min,ne_max)
     elif database == "NRL":
         raise ValueError('NRL database not implemented for Erec')
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_node_values(res, shape)
 
 def calculate_iz_source(te,ne,nn,iz_parameters):
     """
@@ -406,13 +384,8 @@ def calculate_iz_source_cons(solutions,iz_parameters,T0,n0,Mref,cons_idx):
     calculates ionization source for given conservative solutions
     todo make indexing not hardcoded
     """
-
     sigma_iz = calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref)
-    if len(solutions.shape)>2:
-        res = n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_iz
-    else:
-        res =n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_iz
-    return res
+    return _plasma_neutral_reaction_source(solutions, sigma_iz, n0, cons_idx)
 
 def calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,cons_idx):
     """
@@ -420,22 +393,14 @@ def calculate_ion_gain_due_to_iz_cons(solutions,iz_parameters,T0,n0,Mref,R_E,kb,
     """
     sigma_iz = calculate_iz_rate_cons(solutions,iz_parameters,T0,n0,Mref)
     ti = calculate_Ti_cons(solutions,T0,Mref,cons_idx)
-    if len(solutions.shape)>2:
-        res = 1.5*kb*n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_iz*R_E*ti
-    else:
-        res = 1.5*kb*n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_iz*R_E*ti
-    return res
+    return 1.5 * kb * _plasma_neutral_reaction_source(solutions, sigma_iz, n0, cons_idx) * R_E * ti
 
 def calculate_ion_sink_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,E0):
     """
     calculates ion losses due to recombination for given conservative solutions
     """
     sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
-    if len(solutions.shape)>2:
-        res = E0*n0**2*solutions[:,:,0]*solutions[:,:,2]*sigma_rec
-    else:
-        res = E0*n0**2*solutions[:,0]*solutions[:,2]*sigma_rec
-    return res
+    return E0 * n0**2 * solutions[..., 0] * solutions[..., 2] * sigma_rec
 
 def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,cons_idx):
     """
@@ -443,11 +408,7 @@ def calculate_ion_sink_due_to_cx_cons(solutions,cx_parameters,T0,n0,Mref,u0,mi,c
     """
     sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
     u = calculate_u_cons(solutions,u0,cons_idx)
-    if len(solutions.shape)>2:
-        res = 0.5*mi*n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*u**2*sigma_cx
-    else:
-        res = 0.5*mi*n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*u**2*sigma_cx
-    return res
+    return 0.5 * mi * _plasma_neutral_reaction_source(solutions, sigma_cx, n0, cons_idx) * u**2
 
 def calculate_ion_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_parameters,T0,n0,Mref,R_E,kb,mi,E0,u0,cons_idx):
     """
@@ -465,44 +426,28 @@ def calculate_electron_sink_due_to_iz_cons(solutions,Eiz_parameters,T0,n0,Mref,k
     calculates electron losses due to ionization for given conservative solutions
     """
     sigma_Eiz = calculate_Eiz_rate_cons(solutions,Eiz_parameters,T0,n0,Mref)
-    if len(solutions.shape)>2:
-        res = kb*n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_Eiz
-    else:
-        res = kb*n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_Eiz
-    return res
+    return kb * _plasma_neutral_reaction_source(solutions, sigma_Eiz, n0, cons_idx)
 
 def calculate_electron_sink_due_to_cooling_factor_cons(solutions,cooling_parameters,impurity_concentration,T0,n0,Mref,kb):
     """
     calculates electron losses due to cooling factor for given conservative solutions
     """
     cooling_factor = calculate_cooling_factor_cons(solutions,cooling_parameters,T0,Mref,kb)
-    if len(solutions.shape)>2:
-        res = kb*n0**2*solutions[:,:,0]**2*cooling_factor*impurity_concentration
-    else:
-        res = kb*n0**2*solutions[:,0]**2*cooling_factor*impurity_concentration
-    return res
+    return kb * n0**2 * solutions[..., 0] ** 2 * cooling_factor * impurity_concentration
 
-def calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb):
+def calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb,cons_idx):
     """
     calculates electron losses due to recombination for given conservative solutions
     """
     sigma_Erec = calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref)
-    if len(solutions.shape)>2:
-        res = kb*n0**2*solutions[:,:,0]**2*sigma_Erec
-    else:
-        res = kb*n0**2*solutions[:,0]**2*sigma_Erec
-    return res
+    return kb * _electron_electron_reaction_source(solutions, sigma_Erec, n0, cons_idx)
 
-def calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb):
+def calculate_electron_gain_due_to_rec_cons(solutions,rec_parameters,T0,n0,Mref,kb,cons_idx):
     """
     calculates electron gains due to recombination for given conservative solutions
     """
     sigma_rec = calculate_rec_rate_cons(solutions,rec_parameters,T0,n0,Mref)
-    if len(solutions.shape)>2:
-        res = 13.6*kb*n0**2*solutions[:,:,0]**2*sigma_rec
-    else:
-        res = 13.6*kb*n0**2*solutions[:,0]**2*sigma_rec
-    return res
+    return 13.6 * kb * _electron_electron_reaction_source(solutions, sigma_rec, n0, cons_idx)
 
 def calculate_electron_total_loss_cons(solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb,cons_idx):
     """
@@ -520,7 +465,9 @@ def calculate_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_paramete
     calculates total losses for given conservative solutions
     """
     ion_total_loss = calculate_ion_total_loss_cons(solutions,iz_parameters,rec_parameters,cx_parameters,T0,n0,Mref,R_E,kb,mi,E0,u0,cons_idx)
-    electron_total_loss = calculate_electron_total_loss_cons(solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb)
+    electron_total_loss = calculate_electron_total_loss_cons(
+        solutions,Eiz_parameters,Erec_parameters,rec_parameters,T0,n0,Mref,kb,cons_idx
+    )
 
     res = ion_total_loss+electron_total_loss
     return res
@@ -539,11 +486,5 @@ def calculate_cx_source_cons(solutions,cx_parameters,T0,n0,Mref,cons_idx):
     calculates charge-exchange source for given conservative solutions
     todo make indexing not hardcoded
     """
-
     sigma_cx = calculate_cx_rate_cons(solutions,cx_parameters,T0,Mref)
-    if len(solutions.shape)>2:
-        res = n0**2*solutions[:,:,0]*solutions[:,:,cons_idx[b'rhon']]*sigma_cx
-    else:
-        res =n0**2*solutions[:,0]*solutions[:,cons_idx[b'rhon']]*sigma_cx
-    return res
-
+    return _plasma_neutral_reaction_source(solutions, sigma_cx, n0, cons_idx)

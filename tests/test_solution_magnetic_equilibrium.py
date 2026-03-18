@@ -1,0 +1,55 @@
+import numpy as np
+import scipy.io
+
+from hdg_postprocess.formats import load_from_file
+
+from helpers import require_scenario_data, scenario_map
+
+
+def _load_reference_element(path):
+    ref_elem = scipy.io.loadmat(path)
+    key = "refEl" if "refEl" in ref_elem else "referenceelement"
+    ref_dic = {}
+    ref_dic["IPcoordinates"] = ref_elem[key][0, 0][0]
+    ref_dic["IPweights"] = ref_elem[key][0, 0][1][:, 0]
+    ref_dic["N"] = ref_elem[key][0, 0][2]
+    ref_dic["Nxi"] = ref_elem[key][0, 0][3]
+    ref_dic["Neta"] = ref_elem[key][0, 0][4]
+    ref_dic["IPcoordinates1d"] = ref_elem[key][0, 0][5]
+    ref_dic["IPweights1d"] = ref_elem[key][0, 0][6]
+    ref_dic["N1d"] = ref_elem[key][0, 0][7]
+    ref_dic["N1dxi"] = ref_elem[key][0, 0][8]
+    ref_dic["faceNodes"] = ref_elem[key][0, 0][9] - 1
+    ref_dic["innerNodes"] = ref_elem[key][0, 0][10]
+    ref_dic["faceNodes1d"] = ref_elem[key][0, 0][11] - 1
+    ref_dic["NodesCoord"] = ref_elem[key][0, 0][12]
+    ref_dic["NodesCoord1d"] = ref_elem[key][0, 0][13]
+    ref_dic["degree"] = ref_elem[key][0, 0][14]
+    return ref_dic
+
+
+def test_solution_magnetic_equilibrium_surface(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["embedded_k_model"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+
+    sol.equilibrium.define_axis()
+    sol.equilibrium.define_minor_radii("glob")
+    sol.equilibrium.define_qcyl("simple")
+
+    axis_flux = sol.views.simple.equilibrium.poloidal_flux.min()
+    axis_candidates = sol.mesh.global_state.vertices[np.where(sol.views.simple.equilibrium.poloidal_flux == axis_flux)][0]
+
+    assert np.isclose(sol.summary.equilibrium.axis.r, axis_candidates[0])
+    assert np.isclose(sol.summary.equilibrium.axis.z, axis_candidates[1])
+    assert sol.views.glob.equilibrium.a.shape[:2] == sol.views.glob.solution.conservative.shape[:2]
+    assert sol.views.simple.equilibrium.qcyl.shape[0] == sol.mesh.global_state.vertices.shape[0]

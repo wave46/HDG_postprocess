@@ -1,0 +1,25 @@
+{
+  "scenarios": [
+    {
+      "id": "legacy_first",
+      "path": "tests/baselines/legacy_first.json"
+    },
+    {
+      "id": "legacy_mesh_west",
+      "path": "tests/baselines/legacy_mesh_west.json"
+    },
+    {
+      "id": "embedded_k_model",
+      "path": "tests/baselines/embedded_k_model.json"
+    },
+    {
+      "id": "power_balance_no_heating",
+      "path": "tests/baselines/power_balance_no_heating.json"
+    },
+    {
+      "id": "power_balance_with_cooling",
+      "path": "tests/baselines/power_balance_with_cooling.json"
+    }
+  ],
+  "version": 1
+}

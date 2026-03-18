@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "notes": [
+    "Circular demo solution files are referenced by notebooks but are not present in this repository checkout.",
+    "Baseline generation uses representative scenarios from each dataset family currently available on disk."
+  ],
+  "scenarios": [
+    {
+      "id": "legacy_first",
+      "kind": "solution",
+      "format_family": "legacy_partitioned_external_mesh",
+      "solution_path": "demos/data/solutions/first/",
+      "solution_base": "Sol2D_West_NoHole_Nel81446_P_DPe0.100E+01_DPai0.314E+06_DPae0.105E+08",
+      "mesh_path": "demos/data/meshes/",
+      "mesh_base": "West_NoHole_Nel81446_P",
+      "n_partitions": 8,
+      "reference_element": "demos/data/reference_elements/reference_triangle_P4.mat",
+      "point_sample_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M",
+        "grad_ti",
+        "grad_ti_par"
+      ],
+      "profile_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M"
+      ]
+    },
+    {
+      "id": "legacy_mesh_west",
+      "kind": "mesh",
+      "format_family": "partitioned_external_mesh",
+      "mesh_path": "demos/data/meshes/",
+      "mesh_base": "West_NoHole_Nel81446_P",
+      "n_partitions": 8,
+      "reference_element": "demos/data/reference_elements/reference_triangle_P4.mat",
+      "element_probe": [
+        2.948,
+        -0.469
+      ]
+    },
+    {
+      "id": "embedded_k_model",
+      "kind": "solution",
+      "format_family": "embedded_mesh_single_file",
+      "solution_path": "demos/data/solutions/k_equation_new_version_of_the_code/",
+      "solution_base": "Sol2D_WEST_60527_P8_DPe0.400E-01_DPai0.314E+06_DPae0.105E+08",
+      "n_partitions": 1,
+      "reference_element": "demos/data/reference_elements/reference_triangle_P8.mat",
+      "point_sample_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M",
+        "k"
+      ],
+      "profile_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M",
+        "k"
+      ]
+    },
+    {
+      "id": "power_balance_no_heating",
+      "kind": "solution",
+      "format_family": "embedded_mesh_single_file",
+      "solution_path": "demos/data/solutions/power_balance_boundary_checks/",
+      "solution_base": "solution_west_no_heating_no_cooling_factor",
+      "n_partitions": 1,
+      "reference_element": "demos/data/reference_elements/reference_triangle_P8.mat",
+      "with_atomic_setup": true,
+      "radiation_model": "none",
+      "r_e_override": 0.0,
+      "point_sample_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M"
+      ],
+      "profile_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M"
+      ],
+      "power_balance": true,
+      "boundary_summary": true
+    },
+    {
+      "id": "power_balance_with_cooling",
+      "kind": "solution",
+      "format_family": "embedded_mesh_single_file",
+      "solution_path": "demos/data/solutions/power_balance_boundary_checks/",
+      "solution_base": "solution_west_heating_cooling_factor",
+      "n_partitions": 1,
+      "reference_element": "demos/data/reference_elements/reference_triangle_P8.mat",
+      "with_atomic_setup": true,
+      "radiation_model": "nitrogen_cooling",
+      "r_e_override": 1.0,
+      "point_sample_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M"
+      ],
+      "profile_variables": [
+        "n",
+        "ti",
+        "te",
+        "nn",
+        "M"
+      ],
+      "power_balance": true,
+      "boundary_summary": true
+    }
+  ]
+}

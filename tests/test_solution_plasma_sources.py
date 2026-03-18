@@ -1,0 +1,69 @@
+import numpy as np
+import scipy.io
+
+from hdg_postprocess.formats import load_from_file
+
+from helpers import generate_baselines, load_baseline, require_scenario_data, scenario_map
+
+
+def _load_reference_element(path):
+    ref_elem = scipy.io.loadmat(path)
+    key = "refEl" if "refEl" in ref_elem else "referenceelement"
+    ref_dic = {}
+    ref_dic["IPcoordinates"] = ref_elem[key][0, 0][0]
+    ref_dic["IPweights"] = ref_elem[key][0, 0][1][:, 0]
+    ref_dic["N"] = ref_elem[key][0, 0][2]
+    ref_dic["Nxi"] = ref_elem[key][0, 0][3]
+    ref_dic["Neta"] = ref_elem[key][0, 0][4]
+    ref_dic["IPcoordinates1d"] = ref_elem[key][0, 0][5]
+    ref_dic["IPweights1d"] = ref_elem[key][0, 0][6]
+    ref_dic["N1d"] = ref_elem[key][0, 0][7]
+    ref_dic["N1dxi"] = ref_elem[key][0, 0][8]
+    ref_dic["faceNodes"] = ref_elem[key][0, 0][9] - 1
+    ref_dic["innerNodes"] = ref_elem[key][0, 0][10]
+    ref_dic["faceNodes1d"] = ref_elem[key][0, 0][11] - 1
+    ref_dic["NodesCoord"] = ref_elem[key][0, 0][12]
+    ref_dic["NodesCoord1d"] = ref_elem[key][0, 0][13]
+    ref_dic["degree"] = ref_elem[key][0, 0][14]
+    return ref_dic
+
+
+def test_solution_plasma_sources_surface(manifest_path, baselines_dir):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+    baseline = load_baseline(baselines_dir, "power_balance_with_cooling")
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    _ = sol.mesh.geometry.gauss_volumes
+    sol.sources.ohmic("gauss")
+    sol.sources.electron_sink_iz("gauss")
+    sol.sources.ion_gain_iz("gauss")
+    sol.sources.cooling_factor("simple")
+    sol.sources.cx("full")
+
+    assert np.isclose(
+        np.sum(sol.views.gauss.sources.ohmic_source * sol.mesh.derived_geometry.gauss_volumes), baseline["power_balance"]["ohmic_heating"]
+    )
+    assert np.isclose(
+        np.sum(sol.views.gauss.sources.electron_sink_iz * sol.mesh.derived_geometry.gauss_volumes), baseline["power_balance"]["electron_sink_iz"]
+    )
+    assert np.isclose(
+        np.sum(sol.views.gauss.sources.ion_gain_iz * sol.mesh.derived_geometry.gauss_volumes), baseline["power_balance"]["ion_gain_iz"]
+    )
+    assert sol.views.simple.sources.cooling_factor.shape[0] == baseline["mesh"]["nvertices_glob"]
+    assert sol.views.glob.sources.cx_source.shape[0] == baseline["mesh"]["nelems_glob"]

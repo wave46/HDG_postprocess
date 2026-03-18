@@ -1,0 +1,24 @@
+[build-system]
+requires = [
+    "setuptools>=64",
+    "wheel",
+    "Cython",
+    "numpy",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hdg_postprocess"
+version = "0.0.1"
+description = "Postprocessing tools for SOLEDGE-HDG solutions"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "silx",
+]
+
+[tool.setuptools]
+include-package-data = true

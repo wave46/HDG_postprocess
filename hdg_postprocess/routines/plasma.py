@@ -1,16 +1,116 @@
 import numpy as np
 
+
+def _flatten_solution_nodes(solutions):
+    if solutions.ndim > 2:
+        shape = solutions.shape[:2]
+        return solutions.reshape(shape[0] * shape[1], solutions.shape[2]), shape
+    return solutions, None
+
+
+def _flatten_gradient_nodes(gradients):
+    if gradients.ndim > 3:
+        shape = gradients.shape[:2]
+        return gradients.reshape(shape[0] * shape[1], gradients.shape[2], gradients.shape[3]), shape
+    return gradients, None
+
+
+def _flatten_solution_gradient_nodes(solutions, gradients):
+    grad, shape = _flatten_gradient_nodes(gradients)
+    if shape is None:
+        return solutions, grad, None
+    sol = solutions.reshape(shape[0] * shape[1], solutions.shape[2])
+    return sol, grad, shape
+
+
+def _flatten_scalar_field(field):
+    if field.ndim > 1:
+        shape = field.shape[:2]
+        return field.reshape(shape[0] * shape[1]), shape
+    return field, None
+
+
+def _flatten_parallel_inputs(Br, Bz, Bt):
+    Br_flat, shape = _flatten_scalar_field(Br)
+    Bz_flat, _ = _flatten_scalar_field(Bz)
+    Bt_flat, _ = _flatten_scalar_field(Bt)
+    return Br_flat, Bz_flat, Bt_flat, shape
+
+
+def _reshape_scalar(values, shape):
+    if shape is None:
+        return values
+    return values.reshape(shape)
+
+
+def _reshape_vector(values, shape):
+    if shape is None:
+        return values
+    return values.reshape(shape[0], shape[1], values.shape[1])
+
+
+def _sol(solutions, key, cons_idx):
+    return solutions[:, cons_idx[key]]
+
+
+def _grad(gradients, key, cons_idx):
+    return gradients[:, cons_idx[key], :]
+
+
+def _ratio_gradient(grad_numerator, grad_denominator, numerator, denominator):
+    return grad_numerator / denominator[:, None] - grad_denominator * (
+        numerator / denominator**2
+    )[:, None]
+
+
+def _field_aligned_components(Br, Bz, Bt):
+    norm = np.sqrt(Br**2 + Bz**2 + Bt**2)
+    return Br / norm, Bz / norm
+
+
+def _parallel_gradient(gradient, Br, Bz, Bt):
+    br, bz = _field_aligned_components(Br, Bz, Bt)
+    return gradient[:, 0] * br + gradient[:, 1] * bz
+
+
+def _flatten_solution_with_fields(solutions, Br, Bz, Bt):
+    sol, shape = _flatten_solution_nodes(solutions)
+    Br_flat, Bz_flat, Bt_flat, _ = _flatten_parallel_inputs(Br, Bz, Bt)
+    return sol, Br_flat, Bz_flat, Bt_flat, shape
+
+
+def _flatten_solution_gradient_with_fields(solutions, gradients, Br, Bz, Bt):
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    Br_flat, Bz_flat, Bt_flat, _ = _flatten_parallel_inputs(Br, Bz, Bt)
+    return sol, grad, Br_flat, Bz_flat, Bt_flat, shape
+
+
+def _flatten_wall_inputs(solutions, gradients, diffusion, Br, Bz, Bt, normals):
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    Br_flat, Bz_flat, Bt_flat, _ = _flatten_parallel_inputs(Br, Bz, Bt)
+    normals_flat, _ = _flatten_vector_field_impl(normals)
+    diffusion_flat, _ = _flatten_scalar_field(diffusion)
+    return sol, grad, diffusion_flat, Br_flat, Bz_flat, Bt_flat, normals_flat, shape
+
+
+def _flatten_vector_field_impl(field):
+    if field.ndim > 2:
+        shape = field.shape[:2]
+        return field.reshape(shape[0] * shape[1], field.shape[2]), shape
+    return field, None
+
+
+def _wall_parallel_projection(Br, Bz, Bt, normals):
+    br, bz = _field_aligned_components(Br, Bz, Bt)
+    bn = br * normals[:, 0] + bz * normals[:, 1]
+    return br, bz, bn
+
 def calculate_plasma_resistivity_cons(solutions,Mref,mD,n0,L0,t0,ohmic_coef,Zeff):
     """
     calculates plasma resistivity based on conservatives values
     """
-
-    if len(solutions.shape)>2:
-        eta = Zeff*ohmic_coef*n0*mD*L0**2/t0**3/(2/3/Mref*solutions[:,:,3]/solutions[:,:,0])**(3/2)
-    else:
-        eta = Zeff*ohmic_coef*n0*mD*L0**2/t0**3/(2/3/Mref*solutions[:,3]/solutions[:,0])**(3/2)
-
-    return eta
+    temperature = 2 / 3 / Mref * solutions[..., 3] / solutions[..., 0]
+    return Zeff * ohmic_coef * n0 * mD * L0**2 / t0**3 / temperature ** (3 / 2)
 
 def calculate_ohmic_source_cons(solutions,jtor,Mref,mD,n0,L0,t0,ohmic_coef,Zeff):
     """
@@ -54,406 +154,214 @@ def calculate_n_cons(solutions,n0,cons_idx):
     """
     calculates plasma density value based on conservatives values
     """
-    if len(solutions.shape)>2:
-        res = solutions[:,:,cons_idx[b'rho']]*n0
-    else:
-        res = solutions[:,cons_idx[b'rho']]*n0
-    return res
+    return solutions[..., cons_idx[b'rho']] * n0
 
 def calculate_grad_n_cons(gradients,n0,L0,cons_idx):
     """
     calculates gradient of plasma density value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-    else:
-        grad = gradients.copy()
-
-    res = grad[:,cons_idx[b'rho'],:]*n0/L0
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
-    return res
+    grad, shape = _flatten_gradient_nodes(gradients)
+    res = _grad(grad, b'rho', cons_idx) * n0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_nn_cons(solutions,n0,cons_idx):
     """
     calculates plasma density value based on conservatives values
     """
-    if len(solutions.shape)>2:
-        res = solutions[:,:,cons_idx[b'rhon']]*n0
-    else:
-        res = solutions[:,cons_idx[b'rhon']]*n0
-    return res
+    return solutions[..., cons_idx[b'rhon']] * n0
 
 def calculate_grad_nn_cons(gradients,n0,L0,cons_idx):
     """
     calculates gradient of neutral density value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-    else:
-        grad = gradients.copy()
-
-    res = grad[:,cons_idx[b'rhon'],:]*n0/L0
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
-    return res
+    grad, shape = _flatten_gradient_nodes(gradients)
+    res = _grad(grad, b'rhon', cons_idx) * n0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_u_cons(solutions,u0,cons_idx):
     """
     calculates parallel velocity value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
-    res = u0*sol[:,cons_idx[b'Gamma']]/sol[:,cons_idx[b'rho']]
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    res = u0 * _sol(sol, b'Gamma', cons_idx) / _sol(sol, b'rho', cons_idx)
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_u_cons(solutions,gradients,u0,L0,cons_idx):
     """
     calculates gradient of plasma velocity value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-
-    res = (grad[:,cons_idx[b'rho'],:]*(-1*sol[:,cons_idx[b'Gamma']][:,None]/sol[:,cons_idx[b'rho']][:,None]**2)+
-          grad[:,cons_idx[b'Gamma'],:]/sol[:,cons_idx[b'rho']][:,None])*u0/L0
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
-    return res
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    rho = _sol(sol, b'rho', cons_idx)
+    gamma = _sol(sol, b'Gamma', cons_idx)
+    res = _ratio_gradient(_grad(grad, b'Gamma', cons_idx), _grad(grad, b'rho', cons_idx), gamma, rho)
+    res *= u0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_Ei_cons(solutions,E0,cons_idx):
     """
     calculates ion energy value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-    res = E0*sol[:,cons_idx[b'nEi']]/sol[:,cons_idx[b'rho']]
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    res = E0 * _sol(sol, b'nEi', cons_idx) / _sol(sol, b'rho', cons_idx)
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_Ei_cons(solutions,gradients,E0,L0,cons_idx):
     """
     calculates gradient of ion energy value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-
-    res = (grad[:,cons_idx[b'rho'],:]*(-1*sol[:,cons_idx[b'nEi']][:,None]/sol[:,cons_idx[b'rho']][:,None]**2)+
-          grad[:,cons_idx[b'nEi'],:]/sol[:,cons_idx[b'rho']][:,None])*E0/L0
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
-    return res
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    rho = _sol(sol, b'rho', cons_idx)
+    nEi = _sol(sol, b'nEi', cons_idx)
+    res = _ratio_gradient(_grad(grad, b'nEi', cons_idx), _grad(grad, b'rho', cons_idx), nEi, rho)
+    res *= E0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_Ee_cons(solutions,E0,cons_idx):
     """
     calculates electron energy value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
-    res = E0*sol[:,cons_idx[b'nEe']]/sol[:,cons_idx[b'rho']]
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    res = E0 * _sol(sol, b'nEe', cons_idx) / _sol(sol, b'rho', cons_idx)
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_Ee_cons(solutions,gradients,E0,L0,cons_idx):
     """
     calculates gradient of electron energy value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-
-    res = (grad[:,cons_idx[b'rho'],:]*(-1*sol[:,cons_idx[b'nEe']][:,None]/sol[:,cons_idx[b'rho']][:,None]**2)+
-          grad[:,cons_idx[b'nEe'],:]/sol[:,cons_idx[b'rho']][:,None])*E0/L0
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
-    return res
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    rho = _sol(sol, b'rho', cons_idx)
+    nEe = _sol(sol, b'nEe', cons_idx)
+    res = _ratio_gradient(_grad(grad, b'nEe', cons_idx), _grad(grad, b'rho', cons_idx), nEe, rho)
+    res *= E0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_pi_cons(solutions,p0,cons_idx):
     """
     calculates ion pressure value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
-    res = p0*(sol[:,cons_idx[b'nEi']]-0.5*sol[:,cons_idx[b'Gamma']]**2/sol[:,cons_idx[b'rho']])
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    rho = _sol(sol, b'rho', cons_idx)
+    gamma = _sol(sol, b'Gamma', cons_idx)
+    res = p0 * (_sol(sol, b'nEi', cons_idx) - 0.5 * gamma**2 / rho)
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_pi_cons(solutions,gradients,p0,L0,cons_idx):
     """
     calculates gradient of ion pressure value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-
-    res = grad[:,cons_idx[b'nEi'],:]
-    res -= grad[:,cons_idx[b'Gamma'],:]*sol[:,cons_idx[b'Gamma']][:,None]/sol[:,cons_idx[b'rho']][:,None]
-    res += 0.5*grad[:,cons_idx[b'rho'],:]*sol[:,cons_idx[b'Gamma']][:,None]**2/sol[:,cons_idx[b'rho']][:,None]**2
-    res *= p0/L0
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
-    return res
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    rho = _sol(sol, b'rho', cons_idx)
+    gamma = _sol(sol, b'Gamma', cons_idx)
+    res = _grad(grad, b'nEi', cons_idx).copy()
+    res -= _grad(grad, b'Gamma', cons_idx) * (gamma / rho)[:, None]
+    res += 0.5 * _grad(grad, b'rho', cons_idx) * (gamma**2 / rho**2)[:, None]
+    res *= p0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_pe_cons(solutions,p0,cons_idx):
     """
     calculates electron pressure value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
-    res = p0*(sol[:,cons_idx[b'nEe']])
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    res = p0 * _sol(sol, b'nEe', cons_idx)
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_pe_cons(gradients,p0,L0,cons_idx):
     """
     calculates gradient of electron pressure value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-    else:
-        grad = gradients.copy()
-
-    res = grad[:,cons_idx[b'nEe'],:]
-    res *= p0/L0
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[2],dimensions[3])
-    return res
+    grad, shape = _flatten_gradient_nodes(gradients)
+    res = _grad(grad, b'nEe', cons_idx) * p0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_pdyn_cons(solutions,p0,E0,cons_idx):
     """
     calculates dynamic pressure value based on conservatives values
     kb(Ti+Te)+mD*u**2, first is dimensionalized by p0, second by m0*n0*u0**2
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
+    sol, shape = _flatten_solution_nodes(solutions)
     pe = calculate_pe_cons(sol,1,cons_idx)
     pi = calculate_pi_cons(sol,1,cons_idx)
     u = calculate_u_cons(sol,1,cons_idx)
     n = calculate_n_cons(sol,1,cons_idx)
     res = p0*(pe+pi)+E0*n*u**2
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_Ti_cons(solutions,T0,Mref,cons_idx):
     """
     calculates ion temperature value based on conservatives values
 
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
-    res = 2/3/Mref*T0*(sol[:,cons_idx[b'nEi']]/sol[:,cons_idx[b'rho']]-
-              0.5*sol[:,cons_idx[b'Gamma']]**2/sol[:,cons_idx[b'rho']]**2)
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    rho = _sol(sol, b'rho', cons_idx)
+    gamma = _sol(sol, b'Gamma', cons_idx)
+    res = 2 / 3 / Mref * T0 * (_sol(sol, b'nEi', cons_idx) / rho - 0.5 * gamma**2 / rho**2)
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_Ti_cons(solutions,gradients,T0,Mref,L0,cons_idx):
     """
     calculates gradient of ion temerature value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-    #grad(Ti) = T0/L0*2/3/Mref*(grad(U1)*(U2**2/U1**3-U3/U1**2)+grad(U2)*(-1*U2/U1**2)+grad(U3)/U1)
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    rho = _sol(sol, b'rho', cons_idx)
+    gamma = _sol(sol, b'Gamma', cons_idx)
+    nEi = _sol(sol, b'nEi', cons_idx)
 
-    res = grad[:,cons_idx[b'nEi'],:]/sol[:,cons_idx[b'rho']][:,None]
-    res += grad[:,cons_idx[b'rho'],:]*(sol[:,cons_idx[b'Gamma']]**2/sol[:,cons_idx[b'rho']]**3-
-                                       sol[:,cons_idx[b'nEi']]/sol[:,cons_idx[b'rho']]**2)[:,None]
-    res -= grad[:,cons_idx[b'Gamma'],:]*(sol[:,cons_idx[b'Gamma']]/sol[:,cons_idx[b'rho']]**2)[:,None]
-    res *= 2/3/Mref*T0/L0
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
-    return res
+    res = _grad(grad, b'nEi', cons_idx) / rho[:, None]
+    res += _grad(grad, b'rho', cons_idx) * ((gamma**2 / rho**3) - (nEi / rho**2))[:, None]
+    res -= _grad(grad, b'Gamma', cons_idx) * (gamma / rho**2)[:, None]
+    res *= 2 / 3 / Mref * T0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_grad_Ti_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx):
     """
     calculates parallel gradient of ion temerature value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        Br_res = Br.flatten()
-        Bz_res = Bz.flatten()
-        Bt_res = Bt.flatten()
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-        Br_res = Br.copy()
-        Bz_res = Bz.copy()
-        Bt_res = Bt.copy()
-    #grad(Ti)_par = (grad(Ti),b)
-
-    grad_ti = calculate_grad_Ti_cons(sol,grad,T0,Mref,L0,cons_idx)
-    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-
-    res = grad_ti[:,0]*br + grad_ti[:,1]*bz 
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    grad, shape = _flatten_gradient_nodes(gradients)
+    Br_res, Bz_res, Bt_res, _ = _flatten_parallel_inputs(Br, Bz, Bt)
+    grad_ti = calculate_grad_Ti_cons(solutions, grad, T0, Mref, L0, cons_idx)
+    res = _parallel_gradient(grad_ti, Br_res, Bz_res, Bt_res)
+    return _reshape_scalar(res, shape)
 
 def calculate_Te_cons(solutions,T0,Mref,cons_idx):
     """
     calculates electron temperature value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
-    res = 2/3/Mref*T0*(sol[:,cons_idx[b'nEe']]/sol[:,cons_idx[b'rho']])
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    res = 2 / 3 / Mref * T0 * (_sol(sol, b'nEe', cons_idx) / _sol(sol, b'rho', cons_idx))
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_Te_cons(solutions,gradients,T0,Mref,L0,cons_idx):
     """
     calculates gradient of electron temerature value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-
-    res = (grad[:,cons_idx[b'rho'],:]*(-1*sol[:,cons_idx[b'nEe']][:,None]/sol[:,cons_idx[b'rho']][:,None]**2)+
-          grad[:,cons_idx[b'nEe'],:]/sol[:,cons_idx[b'rho']][:,None])*T0/L0*2/3/Mref
-
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
-    return res
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    rho = _sol(sol, b'rho', cons_idx)
+    nEe = _sol(sol, b'nEe', cons_idx)
+    res = _ratio_gradient(_grad(grad, b'nEe', cons_idx), _grad(grad, b'rho', cons_idx), nEe, rho)
+    res *= T0 / L0 * 2 / 3 / Mref
+    return _reshape_vector(res, shape)
 
 def calculate_grad_Te_par_cons(solutions,gradients,Br,Bz,Bt,T0,Mref,L0,cons_idx):
     """
     calculates parallel gradient of electron temerature value based on conservatives values
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        Br_res = Br.flatten()
-        Bz_res = Bz.flatten()
-        Bt_res = Bt.flatten()
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-        Br_res = Br.copy()
-        Bz_res = Bz.copy()
-        Bt_res = Bt.copy()
-    #grad(Ti)_par = (grad(Ti),b)
-
-    grad_te = calculate_grad_Te_cons(sol,grad,T0,Mref,L0,cons_idx)
-    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-
-    res = grad_te[:,0]*br + grad_te[:,1]*bz 
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    grad, shape = _flatten_gradient_nodes(gradients)
+    Br_res, Bz_res, Bt_res, _ = _flatten_parallel_inputs(Br, Bz, Bt)
+    grad_te = calculate_grad_Te_cons(solutions, grad, T0, Mref, L0, cons_idx)
+    res = _parallel_gradient(grad_te, Br_res, Bz_res, Bt_res)
+    return _reshape_scalar(res, shape)
 
 def calculate_cs_cons(solutions,u0,cons_idx):
     """
     calculates sound speed of the plasma value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-    #cs = sqrt(2/3*(U3+U4-1/2*U2**2/U1)/U1)
-
-    res = u0*np.sqrt(2/3*(sol[:,cons_idx[b'nEi']]+sol[:,cons_idx[b'nEe']]-
-                     0.5*sol[:,cons_idx[b'Gamma']]**2/sol[:,cons_idx[b'rho']])/sol[:,cons_idx[b'rho']])
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    rho = _sol(sol, b'rho', cons_idx)
+    gamma = _sol(sol, b'Gamma', cons_idx)
+    thermal = _sol(sol, b'nEi', cons_idx) + _sol(sol, b'nEe', cons_idx) - 0.5 * gamma**2 / rho
+    res = u0 * np.sqrt(2 / 3 * thermal / rho)
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_cs_cons(solutions,gradients,u0,L0,cons_idx):
     """
@@ -462,61 +370,36 @@ def calculate_grad_cs_cons(solutions,gradients,u0,L0,cons_idx):
     grad(cs) = u0/L0/2/(cs/u0)*(2/3)*(grad(U1)*(-U3/U1**2-U4/U1**2+U2**2/U1**3)+
                                       grad(U2)*(-U2/U1**2)+grad(U3)/U1+grad(U4)/U1)
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
+    rho = _sol(sol, b'rho', cons_idx)
+    gamma = _sol(sol, b'Gamma', cons_idx)
+    nEi = _sol(sol, b'nEi', cons_idx)
+    nEe = _sol(sol, b'nEe', cons_idx)
+    cs = calculate_cs_cons(sol, u0, cons_idx) / u0
 
-    cs = calculate_cs_cons(sol,u0,cons_idx)/u0
-
-    res = grad[:,cons_idx[b'rho'],:]*((sol[:,cons_idx[b'Gamma']]**2/sol[:,cons_idx[b'rho']]-
-                                      (sol[:,cons_idx[b'nEe']]+sol[:,cons_idx[b'nEi']]))/sol[:,cons_idx[b'rho']])[:,None]
-    res -= grad[:,cons_idx[b'Gamma'],:]*(sol[:,cons_idx[b'Gamma']]/sol[:,cons_idx[b'rho']]**2)[:,None]
-    res += (grad[:,cons_idx[b'nEi'],:]+grad[:,cons_idx[b'nEe'],:])/sol[:,cons_idx[b'rho']][:,None]
-    res *=(1/3/cs[:,None])
-    res *= u0*L0
-
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
-    return res
+    res = _grad(grad, b'rho', cons_idx) * ((gamma**2 / rho - (nEe + nEi)) / rho**2)[:, None]
+    res -= _grad(grad, b'Gamma', cons_idx) * (gamma / rho**2)[:, None]
+    res += (_grad(grad, b'nEi', cons_idx) + _grad(grad, b'nEe', cons_idx)) / rho[:, None]
+    res *= (1 / 3 / cs[:, None])
+    res *= u0 / L0
+    return _reshape_vector(res, shape)
 
 def calculate_M_cons(solutions,cons_idx):
     """
     calculates Mach number value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-    #cs = sqrt(2/3*(U3+U4-1/2*U2**2/U1)/U1)
+    sol, shape = _flatten_solution_nodes(solutions)
     u = calculate_u_cons(sol,1,cons_idx)
     cs = calculate_cs_cons(sol,1,cons_idx)
     res = u/cs
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_grad_M_cons(solutions,gradients,L0,cons_idx):
     """
     calculates gradient of Mach number value based on conservatives values
 
     """
-    dimensions = None
-    if len(gradients.shape)>3:
-        dimensions = gradients.shape
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        grad = gradients.copy()
-        sol = solutions.copy()
-
+    sol, grad, shape = _flatten_solution_gradient_nodes(solutions, gradients)
     cs = calculate_cs_cons(sol,1,cons_idx)[:,None]
     grad_cs = calculate_grad_cs_cons(sol,grad,1,1,cons_idx)
     u = calculate_u_cons(sol,1,cons_idx)[:,None]
@@ -524,11 +407,7 @@ def calculate_grad_M_cons(solutions,gradients,L0,cons_idx):
 
     res = grad_u/cs-grad_cs*u/cs**2
     res /= L0
-
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1],dimensions[3])
-    return res
+    return _reshape_vector(res, shape)
 
 def calculate_k_cons(solutions,k0,cons_idx):
     """
@@ -620,65 +499,35 @@ def calculate_parallel_flux_cons(solutions,gamma0,cons_idx):
     """
     calculates parallel velocity value based on conservatives values
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
-    res = gamma0*sol[:,cons_idx[b'Gamma']]
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    sol, shape = _flatten_solution_nodes(solutions)
+    res = gamma0 * _sol(sol, b'Gamma', cons_idx)
+    return _reshape_scalar(res, shape)
 
 def calculate_parallel_ion_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,mD,u0,cons_idx):
     """
     calculates parallel convective ion heat flux value based on conservatives values
     q_ipar = (5/2*kb*n*Ti+1/2*mD*n*u**2)u
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
+    sol, shape = _flatten_solution_nodes(solutions)
     u = calculate_u_cons(sol,u0,cons_idx)
     ti = calculate_Ti_cons(sol,T0,Mref,cons_idx)
     n = calculate_n_cons(sol,n0,cons_idx)
     res = n*u*(5/2*kb*ti+0.5*mD*u**2)
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_parallel_ion_heat_flux_par_cond_cons(solutions,gradients,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx):
     """
     calculates parallel conductive ion heat flux value based on conservatives values
     q_ipar = - kappa_par_i*Ti**(5/2)*dTi/dl = q0*Ti**(5/2)*dTi/dl
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = gradients.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-    else:
-        sol = solutions.copy()
-        grad = gradients.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-
+    sol, grad, Br_res, Bz_res, Bt_res, shape = _flatten_solution_gradient_with_fields(
+        solutions, gradients, Br, Bz, Bt
+    )
     ti = calculate_Ti_cons(sol,T0,Mref,cons_idx)
     ti = np.minimum(Tmax,ti)
     grad_ti_par = calculate_grad_Ti_par_cons(sol,grad,Br_res,Bz_res,Bt_res,T0,Mref,L0,cons_idx)
     res = -q0*ti**(5/2)*grad_ti_par
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 
 def calculate_parallel_ion_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,n0,q0,T0,Mref,kb,mD,u0,L0,Tmax,cons_idx):
@@ -686,28 +535,14 @@ def calculate_parallel_ion_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,n0,q0
     calculates parallel conductive ion heat flux value based on conservatives values
     q_ipar = q_parcond+q_iparconv
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-    else:
-        sol = solutions.copy()
-        grad = gradients.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-
+    sol, grad, Br_res, Bz_res, Bt_res, shape = _flatten_solution_gradient_with_fields(
+        solutions, gradients, Br, Bz, Bt
+    )
     q_iconv = calculate_parallel_ion_heat_flux_par_conv_cons(sol,n0,T0,Mref,kb,mD,u0,cons_idx)
     q_icond = calculate_parallel_ion_heat_flux_par_cond_cons(sol,grad,Br_res,Bz_res,Bt_res,q0,T0,Mref,L0,Tmax,cons_idx)
 
     res = q_iconv+q_icond
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 
 def calculate_parallel_electron_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,u0,cons_idx):
@@ -715,48 +550,26 @@ def calculate_parallel_electron_heat_flux_par_conv_cons(solutions,n0,T0,Mref,kb,
     calculates parallel convective electron heat flux value based on conservatives values
     q_epar = (5/2*kb*n*Te)u
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-    else:
-        sol = solutions.copy()
-
+    sol, shape = _flatten_solution_nodes(solutions)
     u = calculate_u_cons(sol,u0,cons_idx)
     te= calculate_Te_cons(sol,T0,Mref,cons_idx)
     n = calculate_n_cons(sol,n0,cons_idx)
     res = n*u*(5/2*kb*te)
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_parallel_electron_heat_flux_par_cond_cons(solutions,gradients,Br,Bz,Bt,q0,T0,Mref,L0,Tmax,cons_idx):
     """
     calculates parallel conductive electron heat flux value based on conservatives values
     q_epar = - kappa_par_e*Te**(5/2)*dTe/dl= q0*Te**(5/2)*dTe/dl
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = gradients.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-    else:
-        sol = solutions.copy()
-        grad = gradients.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-
+    sol, grad, Br_res, Bz_res, Bt_res, shape = _flatten_solution_gradient_with_fields(
+        solutions, gradients, Br, Bz, Bt
+    )
     te = calculate_Te_cons(sol,T0,Mref,cons_idx)
     te = np.minimum(Tmax,te)
     grad_te_par = calculate_grad_Te_par_cons(sol,grad,Br_res,Bz_res,Bt_res,T0,Mref,L0,cons_idx)
     res = -q0*te**(5/2)*grad_te_par
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 
 def calculate_parallel_electron_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,n0,q0,T0,Mref,kb,u0,L0,Tmax,cons_idx):
@@ -764,207 +577,83 @@ def calculate_parallel_electron_heat_flux_par_cons(solutions,gradients,Br,Bz,Bt,
     calculates parallel conductive electron heat flux value based on conservatives values
     q_epar = q_parcond+q_iparconv
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = gradients.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-    else:
-        sol = solutions.copy()
-        grad = gradients.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-
+    sol, grad, Br_res, Bz_res, Bt_res, shape = _flatten_solution_gradient_with_fields(
+        solutions, gradients, Br, Bz, Bt
+    )
     q_econv = calculate_parallel_electron_heat_flux_par_conv_cons(sol,n0,T0,Mref,kb,u0,cons_idx)
     q_econd = calculate_parallel_electron_heat_flux_par_cond_cons(sol,grad,Br_res,Bz_res,Bt_res,q0,T0,Mref,L0,Tmax,cons_idx)
 
     res = q_econv+q_econd
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_particle_perp_flux_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,n0,L0,cons_idx):
     """
     calculates perpendicular particle flux on the wall with normal n value based on conservatives values
     diffusion dimensional (assuming Dperp only)
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = gradients.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
-        diffusion_res = diffusion.reshape(diffusion.shape[0]*diffusion.shape[1])
-    else:
-        sol = solutions.copy()
-        grad = gradients.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-        n_res = n.copy()
-        diffusion_res = diffusion.copy()
-
+    _, grad, diffusion_res, Br_res, Bz_res, Bt_res, n_res, shape = _flatten_wall_inputs(
+        solutions, gradients, diffusion, Br, Bz, Bt, n
+    )
     grad_n = calculate_grad_n_cons(grad,n0,L0,cons_idx)
-
-    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bn = br*n_res[:,0]+bz*n_res[:,1]
+    br, bz, bn = _wall_parallel_projection(Br_res, Bz_res, Bt_res, n_res)
 
     res = -1*diffusion_res*(grad_n[:,0]*n_res[:,0]+grad_n[:,1]*n_res[:,1]-grad_n[:,0]*bn*br-grad_n[:,1]*bn*bz)
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_perp_ion_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,n0,E0,L0,cons_idx):
     """
     calculates perpendicular ion heat flux on the wall with normal n value based on conservatives values
     diffusion dimensional (assuming Dperp only)
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = gradients.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
-        diffusion_res = diffusion.reshape(diffusion.shape[0]*diffusion.shape[1])
-    else:
-        sol = solutions.copy()
-        grad = gradients.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-        n_res = n.copy()
-        diffusion_res = diffusion.copy()
-
-    
-
-    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bn = br*n_res[:,0]+bz*n_res[:,1]
-    grad_nEi = grad[:,cons_idx[b'nEi']]
+    _, grad, diffusion_res, Br_res, Bz_res, Bt_res, n_res, shape = _flatten_wall_inputs(
+        solutions, gradients, diffusion, Br, Bz, Bt, n
+    )
+    br, bz, bn = _wall_parallel_projection(Br_res, Bz_res, Bt_res, n_res)
+    grad_nEi = _grad(grad, b'nEi', cons_idx)
 
     res = -1*diffusion_res*(grad_nEi[:,0]*n_res[:,0]+grad_nEi[:,1]*n_res[:,1]-grad_nEi[:,0]*bn*br-grad_nEi[:,1]*bn*bz)*n0*E0/L0
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_perp_electron_heat_wall_cons(solutions,gradients,diffusion,Br,Bz,Bt,n,n0,E0,L0,cons_idx):
     """
     calculates perpendicular ion heat flux on the wall with normal n value based on conservatives values
     diffusion dimensional (assuming Dperp only)
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = gradients.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        grad = gradients.reshape(gradients.shape[0]*gradients.shape[1],gradients.shape[2],gradients.shape[3])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
-        diffusion_res = diffusion.reshape(diffusion.shape[0]*diffusion.shape[1])
-    else:
-        sol = solutions.copy()
-        grad = gradients.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-        n_res = n.copy()
-        diffusion_res = diffusion.copy()
-
-    
-
-    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bn = br*n_res[:,0]+bz*n_res[:,1]
-    grad_nEe = grad[:,cons_idx[b'nEe']]
+    _, grad, diffusion_res, Br_res, Bz_res, Bt_res, n_res, shape = _flatten_wall_inputs(
+        solutions, gradients, diffusion, Br, Bz, Bt, n
+    )
+    br, bz, bn = _wall_parallel_projection(Br_res, Bz_res, Bt_res, n_res)
+    grad_nEe = _grad(grad, b'nEe', cons_idx)
 
     res = -1*diffusion_res*(grad_nEe[:,0]*n_res[:,0]+grad_nEe[:,1]*n_res[:,1]-grad_nEe[:,0]*bn*br-grad_nEe[:,1]*bn*bz)*n0*E0/L0
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_ion_heat_flux_wall_bc_cons(solutions,gamma_i,Br,Bz,Bt,n,n0,u0,T0,Mref,kb,mD,cons_idx):
     """
     calculates ion heat flux on the wall with normal n value based on conservatives values
     diffusion dimensional (assuming Dperp only)
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
-    else:
-        sol = solutions.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-        n_res = n.copy()
-    
-
+    sol, Br_res, Bz_res, Bt_res, shape = _flatten_solution_with_fields(solutions, Br, Bz, Bt)
+    n_res, _ = _flatten_vector_field_impl(n)
     ni = calculate_n_cons(sol,n0,cons_idx)
     u = calculate_u_cons(sol,u0,cons_idx)
     ti = calculate_Ti_cons(sol,T0,Mref,cons_idx)
-    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bn = br*n_res[:,0]+bz*n_res[:,1]
+    _, _, bn = _wall_parallel_projection(Br_res, Bz_res, Bt_res, n_res)
 
     res = (gamma_i*u*ni*ti*kb+0.5*ni*mD*u**3)*bn
-
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
+    return _reshape_scalar(res, shape)
 
 def calculate_electron_heat_flux_wall_bc_cons(solutions,gamma_e,Br,Bz,Bt,n,n0,u0,T0,Mref,kb,cons_idx):
     """
     calculates electron heat flux on the wall with normal n value based on conservatives values
     diffusion dimensional (assuming Dperp only)
     """
-    dimensions = None
-    if len(solutions.shape)>2:
-        dimensions = solutions.shape
-        sol = solutions.reshape(solutions.shape[0]*solutions.shape[1],solutions.shape[2])
-        Br_res = Br.reshape(Br.shape[0]*Br.shape[1])
-        Bz_res = Bz.reshape(Bz.shape[0]*Bz.shape[1])
-        Bt_res = Bt.reshape(Bt.shape[0]*Bt.shape[1])
-        n_res = n.reshape(n.shape[0]*n.shape[1],n.shape[2])
-    else:
-        sol = solutions.copy()
-        Br_res =Br.copy()
-        Bz_res =Bz.copy()
-        Bt_res =Bt.copy()
-        n_res = n.copy()
-    
-
+    sol, Br_res, Bz_res, Bt_res, shape = _flatten_solution_with_fields(solutions, Br, Bz, Bt)
+    n_res, _ = _flatten_vector_field_impl(n)
     ne = calculate_n_cons(sol,n0,cons_idx)
     u = calculate_u_cons(sol,u0,cons_idx)
     te = calculate_Te_cons(sol,T0,Mref,cons_idx)
-    br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bn = br*n_res[:,0]+bz*n_res[:,1]
+    _, _, bn = _wall_parallel_projection(Br_res, Bz_res, Bt_res, n_res)
 
     res = gamma_e*u*ne*te*bn*kb
-
-
-    if dimensions is not None:
-        res = res.reshape(dimensions[0],dimensions[1])
-    return res
-
-
+    return _reshape_scalar(res, shape)

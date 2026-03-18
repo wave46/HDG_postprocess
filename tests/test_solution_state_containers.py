@@ -1,0 +1,241 @@
+import numpy as np
+import scipy.io
+
+from hdg_postprocess.formats import load_from_file
+
+from helpers import generate_baselines, require_scenario_data, scenario_map
+
+
+def _load_reference_element(path):
+    ref_elem = scipy.io.loadmat(path)
+    key = "refEl" if "refEl" in ref_elem else "referenceelement"
+    ref_dic = {}
+    ref_dic["IPcoordinates"] = ref_elem[key][0, 0][0]
+    ref_dic["IPweights"] = ref_elem[key][0, 0][1][:, 0]
+    ref_dic["N"] = ref_elem[key][0, 0][2]
+    ref_dic["Nxi"] = ref_elem[key][0, 0][3]
+    ref_dic["Neta"] = ref_elem[key][0, 0][4]
+    ref_dic["IPcoordinates1d"] = ref_elem[key][0, 0][5]
+    ref_dic["IPweights1d"] = ref_elem[key][0, 0][6]
+    ref_dic["N1d"] = ref_elem[key][0, 0][7]
+    ref_dic["N1dxi"] = ref_elem[key][0, 0][8]
+    ref_dic["faceNodes"] = ref_elem[key][0, 0][9] - 1
+    ref_dic["innerNodes"] = ref_elem[key][0, 0][10]
+    ref_dic["faceNodes1d"] = ref_elem[key][0, 0][11] - 1
+    ref_dic["NodesCoord"] = ref_elem[key][0, 0][12]
+    ref_dic["NodesCoord1d"] = ref_elem[key][0, 0][13]
+    ref_dic["degree"] = ref_elem[key][0, 0][14]
+    return ref_dic
+
+
+def test_container_state_sync_physical_and_equilibrium(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["embedded_k_model"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+
+    sol.assembly.full()
+    sol.assembly.simple()
+    sol.fields.initialize_physical("both")
+    sol.equilibrium.define_axis()
+    sol.equilibrium.define_minor_radii(view="glob")
+    sol.equilibrium.define_minor_radii(view="simple")
+    sol.equilibrium.define_qcyl(view="glob")
+    sol.equilibrium.define_qcyl(view="simple")
+    sol.additional_parameters.set_turbulence(
+        {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0},
+        sol.parameters["adimensionalization"],
+    )
+    sol.turbulence.dk("full")
+    sol.turbulence.dk("simple")
+
+    assert sol.summary.equilibrium.axis.r is not None
+    assert sol.summary.equilibrium.axis.z is not None
+    assert sol.views.glob.equilibrium.a is not None
+    assert sol.views.simple.equilibrium.a is not None
+    assert sol.views.glob.equilibrium.qcyl is not None
+    assert sol.views.simple.equilibrium.qcyl is not None
+    assert sol.views.simple.solution.physical is not None
+    assert sol.views.glob.solution.conservative is not None
+    assert sol.views.glob.gradient.physical is not None
+    assert sol.views.simple.derived.dk is not None
+    assert sol.views.glob.derived.dk is not None
+
+
+def test_container_state_sync_neutral_derived_fields(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    sol.assembly.full()
+    sol.assembly.simple()
+    sol.neutrals.dnn("simple")
+    sol.neutrals.dnn("simple", with_nn_collision=True)
+    sol.neutrals.mfp("simple")
+
+    assert sol.views.simple.derived.dnn is not None
+    assert sol.views.simple.derived.dnn_with_nn_collision is not None
+    assert sol.views.simple.derived.mfp is not None
+    assert sol.views.glob.derived.dnn_with_nn_collision is not None
+
+
+def test_aux_state_sync_parameters_rates_and_interpolators(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+
+    atomic_parameters = generate_baselines._make_atomic_params(cfg["radiation_model"])
+    dnn_parameters = generate_baselines._make_dnn_params()
+    dk_parameters = {"dk_min": 1e-6, "dk_max": 1e2, "dk_min_adim": 0.0, "dk_max_adim": 0.0}
+
+    sol.additional_parameters.set_atomic(atomic_parameters)
+    sol.additional_parameters.set_neutral_diffusion(dnn_parameters, sol.parameters["adimensionalization"])
+    sol.additional_parameters.set_turbulence(dk_parameters, sol.parameters["adimensionalization"])
+
+    sol.assembly.full()
+    sol.assembly.simple()
+    sol.sources.ionization_rate("simple")
+    sol.sources.recombination_rate("simple")
+    sol.sources.cx_rate("simple")
+    sol.equilibrium.define_axis()
+    sol.equilibrium.define_minor_radii(view="glob")
+    sol.equilibrium.define_qcyl(view="glob")
+    sol.sample.define_interpolators()
+
+    assert sol.additional_parameters.atomic is atomic_parameters
+    assert sol.additional_parameters.neutral_diffusion is dnn_parameters
+    assert sol.additional_parameters.turbulence is dk_parameters
+    assert sol.additional_parameters.neutral_diffusion["dnn_max_adim"] == dnn_parameters["dnn_max_adim"]
+    assert sol.additional_parameters.turbulence["dk_max_adim"] == dk_parameters["dk_max_adim"]
+    assert sol.atomic_rates.ionization_simple is not None
+    assert sol.atomic_rates.recombination_simple is not None
+    assert sol.atomic_rates.cx_simple is not None
+    assert sol.interpolators.sample is not None
+    assert sol.interpolators.solution is not None
+    assert sol.interpolators.gradient is not None
+    assert sol.interpolators.field is not None
+    assert sol.interpolators.qcyl is not None
+
+
+def test_container_state_sync_sources_and_totals(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    sol.assembly.full()
+    sol.assembly.simple()
+    sol.sources.ionization("simple")
+    sol.sources.electron_sink_rec("simple")
+    sol.sources.cx("simple")
+    sol.analysis.power_balance()
+
+    assert sol.summary.sources.ion_gain_iz_total is not None
+    assert sol.summary.sources.electron_sink_iz_total is not None
+    assert sol.summary.sources.ohmic_source_total is not None
+    assert sol.views.glob.sources.ionization_source is not None
+    assert sol.views.simple.sources.ionization_source is not None
+    assert sol.views.glob.sources.electron_sink_rec is not None
+    assert sol.views.simple.sources.electron_sink_rec is not None
+    assert sol.views.gauss.sources.electron_sink_rec is not None
+    assert sol.views.glob.sources.cx_source is not None
+    assert sol.views.simple.sources.cx_source is not None
+    assert sol.views.gauss.sources.ohmic_source is not None
+    assert sol.summary.boundary.profile is not None
+    assert sol.summary.boundary.ion_energy_sheath_loss_total is not None
+    assert sol.summary.boundary.electron_energy_sheath_loss_total is not None
+
+
+def test_container_state_sync_representations(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+
+    sol.assembly.full()
+    sol.assembly.simple()
+    sol.assembly.boundary()
+    sol.assembly.gauss()
+    sol.assembly.boundary_gauss(np.unique(sol.raw.boundary_infos[0]["boundary_flags"]))
+
+    assert sol.views.simple.solution.conservative is not None
+    assert sol.views.simple.gradient.conservative is not None
+    assert sol.views.simple.equilibrium.magnetic_field is not None
+    assert sol.views.simple.equilibrium.jtor is not None
+    assert sol.views.simple.equilibrium.poloidal_flux is not None
+    assert sol.views.glob.equilibrium.magnetic_field is not None
+    assert sol.views.glob.equilibrium.magnetic_field_unit is not None
+    assert sol.views.glob.equilibrium.jtor is not None
+    assert sol.views.glob.equilibrium.poloidal_flux is not None
+    assert sol.views.gauss.solution.conservative is not None
+    assert sol.views.gauss.gradient.conservative is not None
+    assert sol.views.gauss.equilibrium.magnetic_field is not None
+    assert sol.views.gauss.equilibrium.magnetic_field_unit is not None
+    assert sol.views.gauss.equilibrium.jtor is not None
+    assert sol.views.gauss.equilibrium.poloidal_flux is not None
+    assert sol.views.boundary.solution.conservative is not None
+    assert sol.views.boundary.solution_skeleton.conservative is not None
+    assert sol.views.boundary.gradient.conservative is not None
+    assert sol.views.boundary.equilibrium.magnetic_field is not None
+    assert sol.views.boundary.equilibrium.magnetic_field_unit is not None
+    assert sol.views.boundary.equilibrium.poloidal_flux is not None
+    assert sol.views.boundary_gauss.solution.conservative is not None
+    assert sol.views.boundary_gauss.solution_skeleton.conservative is not None
+    assert sol.views.boundary_gauss.gradient.conservative is not None
+    assert sol.views.boundary_gauss.equilibrium.magnetic_field is not None
+    assert sol.views.boundary_gauss.equilibrium.magnetic_field_unit is not None
+    assert sol.views.boundary_gauss.equilibrium.poloidal_flux is not None
