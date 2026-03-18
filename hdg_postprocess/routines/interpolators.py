@@ -150,33 +150,15 @@ class SoledgeHDG2DInterpolator():
         return self.__new__, (self.__class__, ), self.__getstate__()
 
     def _cache_miss(self, x, y, key):
-        element_number = int(self._element_number(x, y))
-        self._hashed_element[key] = element_number
-        if element_number == -1:
-            self._hashed_shape_functions[key] = [0]
-            if self._limit:
-                raise ValueError("Requested value outside mesh bounds.")
-            return -1
-        shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
-        self._hashed_shape_functions[key] = shape_functions
-        self._hashed_shape_functions_dx[key] = shape_functions_dx
-        self._hashed_shape_functions_dy[key] = shape_functions_dy
-        return element_number
+        return self._cache_miss_common(x, y, key, cache_gradients=True)
 
     def _cache_miss_value(self, x, y, key):
-        element_number = int(self._element_number(x, y))
-        self._hashed_element[key] = element_number
-        if element_number == -1:
-            self._hashed_shape_functions[key] = [0]
-            if self._limit:
-                raise ValueError("Requested value outside mesh bounds.")
-            return -1
-
-        shape_functions, _, _ = self._compute_shape_data(x, y, element_number)
-        self._hashed_shape_functions[key] = shape_functions
-        return element_number
+        return self._cache_miss_common(x, y, key, cache_gradients=False)
 
     def _cache_miss_gradient(self, x, y, key):
+        return self._cache_miss_common(x, y, key, cache_gradients=True)
+
+    def _cache_miss_common(self, x, y, key, *, cache_gradients):
         element_number = int(self._element_number(x, y))
         self._hashed_element[key] = element_number
         if element_number == -1:
@@ -187,8 +169,9 @@ class SoledgeHDG2DInterpolator():
 
         shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
         self._hashed_shape_functions[key] = shape_functions
-        self._hashed_shape_functions_dx[key] = shape_functions_dx
-        self._hashed_shape_functions_dy[key] = shape_functions_dy
+        if cache_gradients:
+            self._hashed_shape_functions_dx[key] = shape_functions_dx
+            self._hashed_shape_functions_dy[key] = shape_functions_dy
         return element_number
 
     def _compute_shape_data(self, x, y, element_number):
