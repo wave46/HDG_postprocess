@@ -100,3 +100,29 @@ def write_imas_netcdf(
         if include_plasma_profiles:
             written["plasma_profiles"] = put_plasma_profiles(entry, solution, metadata, grid)
     return written
+
+
+def write_imas_scan_case_netcdf(
+    solution,
+    path,
+    metadata: IMASExportMetadata,
+    grid,
+    *,
+    create=False,
+    include_summary=True,
+    include_equilibrium=True,
+    include_plasma_profiles=True,
+):
+    """Write one scan point into a bundled netCDF-backed DBEntry using its occurrence index."""
+
+    file_mode = "w" if create else "a"
+    return write_imas_netcdf(
+        solution,
+        path,
+        metadata,
+        grid,
+        file_mode=file_mode,
+        include_summary=include_summary,
+        include_equilibrium=include_equilibrium,
+        include_plasma_profiles=include_plasma_profiles,
+    )

@@ -45,6 +45,7 @@ from hdg_postprocess.imas_export import (
     IMASExportMetadata,
     RectangularGrid2D,
     write_imas_netcdf,
+    write_imas_scan_case_netcdf,
 )
 
 solution = load_solution(
@@ -113,12 +114,12 @@ for run_in_scan, solname in enumerate(
     )
 
     grid = RectangularGrid2D.from_solution_bounds(solution, dr=0.005, dz=0.005)
-    write_imas_netcdf(
+    write_imas_scan_case_netcdf(
         solution,
         scan_path,
         metadata,
         grid,
-        file_mode="w" if run_in_scan == 1 else "a",
+        create=(run_in_scan == 1),
     )
 ```
 

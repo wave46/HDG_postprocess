@@ -2,6 +2,7 @@ from .api import (
     solution_time_seconds,
     write_equilibrium_netcdf,
     write_imas_netcdf,
+    write_imas_scan_case_netcdf,
     write_plasma_profiles_netcdf,
     write_summary_netcdf,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "solution_time_seconds",
     "write_equilibrium_netcdf",
     "write_imas_netcdf",
+    "write_imas_scan_case_netcdf",
     "write_plasma_profiles_netcdf",
     "write_summary_netcdf",
 ]
