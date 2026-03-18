@@ -51,7 +51,7 @@ class SoledgeHDG2DInterpolator():
             shape_functions = hashed_shape_functions[key]
             element_number = self._hashed_element[key]
         except KeyError:
-            element_number = self._cache_miss(x, y, key)
+            element_number = self._cache_miss_value(x, y, key)
             if element_number == -1:
                 return self._default_value
             shape_functions = hashed_shape_functions[key]
@@ -73,7 +73,7 @@ class SoledgeHDG2DInterpolator():
             shape_functions_dy = hashed_shape_functions_dy[key]
             element_number = self._hashed_element[key]
         except KeyError:
-            element_number = self._cache_miss(x, y, key)
+            element_number = self._cache_miss_gradient(x, y, key)
             if element_number == -1:
                 return np.array([0.0, 0.0])
             shape_functions_dx = hashed_shape_functions_dx[key]
@@ -157,6 +157,34 @@ class SoledgeHDG2DInterpolator():
             if self._limit:
                 raise ValueError("Requested value outside mesh bounds.")
             return -1
+        shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
+        self._hashed_shape_functions[key] = shape_functions
+        self._hashed_shape_functions_dx[key] = shape_functions_dx
+        self._hashed_shape_functions_dy[key] = shape_functions_dy
+        return element_number
+
+    def _cache_miss_value(self, x, y, key):
+        element_number = int(self._element_number(x, y))
+        self._hashed_element[key] = element_number
+        if element_number == -1:
+            self._hashed_shape_functions[key] = [0]
+            if self._limit:
+                raise ValueError("Requested value outside mesh bounds.")
+            return -1
+
+        shape_functions, _, _ = self._compute_shape_data(x, y, element_number)
+        self._hashed_shape_functions[key] = shape_functions
+        return element_number
+
+    def _cache_miss_gradient(self, x, y, key):
+        element_number = int(self._element_number(x, y))
+        self._hashed_element[key] = element_number
+        if element_number == -1:
+            self._hashed_shape_functions[key] = [0]
+            if self._limit:
+                raise ValueError("Requested value outside mesh bounds.")
+            return -1
+
         shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
         self._hashed_shape_functions[key] = shape_functions
         self._hashed_shape_functions_dx[key] = shape_functions_dx
