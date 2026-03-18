@@ -10,6 +10,19 @@ The first exporter writes three IDSs into one netCDF-backed `DBEntry`:
 
 The current 2D representation is a rectangular cylindrical `(R, Z)` GGD mesh generated on the writer side.
 
+## Current Export Contract
+
+The current IMAS adapter already supports three practical patterns:
+
+- one steady-state case -> one `.nc` file
+- one bundled scan -> one `.nc` file with one IDS occurrence per simulation
+- one full discharge -> one `.nc` file with time arrays and multiple GGD payloads
+
+Two small implementation details are worth knowing up front:
+
+- `RectangularGrid2D.from_solution_bounds(...)` now assembles the full mesh automatically when a legacy multi-partition case has not yet recombined its global mesh vertices
+- unchanged meshes can now reuse the shared sample-interpolator geometry cache across separately loaded solutions, which helps repeated scan/discharge exports at the same `(R, Z)` sampling points
+
 ## Recommended File Layout
 
 For the current exporter, the recommended unit is:
@@ -30,8 +43,8 @@ This keeps each exported file conceptually clean:
 - one puff scan -> one file, with one IDS occurrence per scan point
 - one full discharge -> one file, with multiple time entries in `equilibrium` and `plasma_profiles`
 
-For a puff scan, keep the same `shot` and increment `run`.
-The current project convention is to bundle the scan into one `.nc` file by using one IDS occurrence per scan point.
+For a puff scan, keep the same `shot`, keep `run=0`, and use one IDS occurrence per scan point.
+The current project convention is to bundle the scan into one `.nc` file by using one IDS occurrence per simulation.
 For a full discharge, keep one `shot`, one `run`, one `occurrence`, and export the ordered snapshot list into one time-resolved `DBEntry`.
 
 ## One Steady-State Solution
@@ -78,6 +91,8 @@ write_imas_netcdf(
     file_mode="w",
 )
 ```
+
+For legacy multi-partition solutions, `RectangularGrid2D.from_solution_bounds(...)` now takes care of assembling the full mesh before reading global vertex bounds, so you do not need an extra mesh-recombination step just to build the export grid.
 
 ## Puff Scan for One Shot
 
@@ -188,6 +203,27 @@ write_discharge_imas_netcdf(
 
 Use `solution_time_seconds` only when the stored solver time is physically meaningful for the exported discharge.
 If you need a stricter rule, pass your own `time_getter` callable instead.
+
+## Performance Notes
+
+The current exporter is correct and reasonably reusable, but it is not lightweight on large grids.
+
+The main costs are:
+
+- building the explicit GGD node/edge/cell topology for both `equilibrium` and `plasma_profiles`
+- evaluating equilibrium fields on every `(R, Z)` sample point
+- evaluating plasma fields, which currently still goes through the pointwise line-sampling path
+
+Recent improvements already in the current branch:
+
+- equilibrium export now uses batched interpolator evaluation on the valid grid points instead of repeated single-point calls from the exporter loop
+- unchanged meshes can reuse the shared sample-interpolator geometry cache across separately loaded solutions
+
+Still worth keeping in mind:
+
+- the interpolator geometry cache is currently unbounded
+- plasma export is still slower than equilibrium export because it samples derived variables through the pointwise layer
+- `dr=dz=0.005` on a large WEST mesh produces a very large GGD topology, so coarser grids or cropped domains can reduce export time substantially
 
 ## Inspecting the Written File
 

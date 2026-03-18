@@ -1,6 +1,8 @@
 # IMAS Discharge Export Plan
 
-This note sketches the next IMAS export mode after the current snapshot-oriented writer.
+This note sketched the next IMAS export mode after the initial snapshot-oriented writer.
+
+That discharge export mode is now implemented.
 
 The goal is to export a full discharge represented by multiple SOLEDGE-HDG snapshot files into one IMAS netCDF-backed `DBEntry`.
 
@@ -20,11 +22,11 @@ The current snapshot exporter already writes:
 
 but only for one snapshot at a time.
 
-The discharge exporter should extend that to time-resolved IDS content.
+The implemented discharge exporter extends that to time-resolved IDS content.
 
 ## Proposed API
 
-Suggested public entrypoint:
+Implemented public entrypoint:
 
 ```python
 write_discharge_imas_netcdf(
@@ -49,9 +51,10 @@ Where:
 - `metadata`
   - one shared `IMASExportMetadata` object for the discharge/run
 - `grid`
-  - one shared rectangular GGD grid
+  - either one shared rectangular GGD grid
+  - or one rectangular GGD grid per snapshot when the mesh changes during the discharge
 
-The time values for the snapshots should come from:
+The time values for the snapshots should usually come from:
 
 - `solution_time_seconds(solution)`
 
@@ -96,7 +99,7 @@ Use one `plasma_profiles` IDS with:
 
 ## Implementation notes
 
-1. Build and validate one shared grid once.
+1. Build and validate either one shared grid or one grid per snapshot.
 2. Sort snapshots by time if requested.
 3. Reuse the current snapshot field-mapping logic for each time index.
 4. Keep the same node subset conventions as the current rectangular-GGD exporter.
@@ -106,7 +109,7 @@ The netCDF backend is better suited to writing the assembled IDSs once than to r
 
 ## Success criterion
 
-The first discharge-export milestone is:
+The current discharge-export milestone is:
 
 - multiple HDG snapshot files
 - one IMAS `.nc` file
