@@ -10,9 +10,33 @@ The first exporter writes three IDSs into one netCDF-backed `DBEntry`:
 
 The current 2D representation is a rectangular cylindrical `(R, Z)` GGD mesh generated on the writer side.
 
+## Recommended File Layout
+
+For the current exporter, the recommended unit is:
+
+- one simulation case or one simulation snapshot
+- one netCDF-backed IMAS `DBEntry`
+- one `.nc` file
+
+Inside that one file, write:
+
+- `summary`
+- `equilibrium`
+- `plasma_profiles`
+
+This keeps each exported file conceptually clean:
+
+- one steady-state simulation -> one file
+- one puff-scan point -> one file
+- one time-resolved snapshot -> one file
+
+For a puff scan, keep the same `shot` and increment `run`.
+For full-discharge snapshots, you can still keep the same `shot` and use `run` or file naming to distinguish snapshots, depending on how you want to organize the dataset on disk.
+
 ## One Steady-State Solution
 
-Use an explicit user-provided time for a single steady-state snapshot unless the solution time is known to be physically meaningful for your case.
+Use an explicit user-provided time for a single steady-state snapshot.
+For steady runs, the solver `Current_time` is usually not the physical experiment time you want to expose in IMAS.
 
 ```python
 from hdg_postprocess.api import load_reference_element, load_solution
@@ -55,6 +79,7 @@ write_imas_netcdf(
 ## Puff Scan for One Shot
 
 For a puff scan, keep the same `shot` and increment `run`.
+Write one `.nc` file per scan point.
 Keep `occurrence = 0` unless you intentionally write multiple occurrences of the same IDS inside one run.
 
 ```python
@@ -91,7 +116,8 @@ for run, solname in enumerate(
 
 ## Full Discharge or Time-Resolved Snapshots
 
-For a time-dependent simulation, reuse the dimensionalized time stored in the solution.
+For a time-dependent simulation, reuse the dimensionalized time stored in the solution only when that time is physically meaningful for the exported case.
+In practice, this means non-steady moving-equilibrium / time-resolved snapshots rather than steady-state solutions.
 
 ```python
 from hdg_postprocess.imas_export import solution_time_seconds

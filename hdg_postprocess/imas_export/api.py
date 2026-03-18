@@ -6,14 +6,35 @@ from .plasma_profiles import put_plasma_profiles
 from .summary import put_summary
 
 
-def solution_time_seconds(solution):
-    """Return the dimensional solution time in seconds when available."""
+def _as_python_scalar(value):
+    try:
+        import numpy as np
+    except ImportError:  # pragma: no cover
+        np = None
 
+    if np is not None:
+        if isinstance(value, np.ndarray):
+            if value.shape == ():
+                return value.item()
+            if value.size == 1:
+                return value.reshape(-1)[0].item()
+            return value.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+    return value
+
+
+def solution_time_seconds(solution, *, allow_steady=False):
+    """Return the dimensional solution time in seconds when it is meaningful for export."""
+
+    switches = solution.parameters.get("switches", {})
+    if not allow_steady and "steady" in switches and bool(_as_python_scalar(switches["steady"])):
+        return None
     time_group = solution.parameters.get("time", {})
     adim = solution.parameters.get("adimensionalization", {})
     if "Current_time" not in time_group or "time_scale" not in adim:
         return None
-    return float(time_group["Current_time"]) * float(adim["time_scale"])
+    return float(_as_python_scalar(time_group["Current_time"])) * float(_as_python_scalar(adim["time_scale"]))
 
 
 def write_summary_netcdf(solution, path, metadata: IMASExportMetadata, *, file_mode="x"):
