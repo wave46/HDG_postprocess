@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 
 import numpy as np
 
@@ -28,6 +29,17 @@ class RectangularGrid2D:
     z_min: float
     z_max: float
     nz: int
+
+    @classmethod
+    def from_solution_bounds(cls, solution, *, dr=0.003, dz=0.003, padding=0.0):
+        vertices = solution.mesh.global_state.vertices
+        r_min = float(vertices[:, 0].min()) - padding
+        r_max = float(vertices[:, 0].max()) + padding
+        z_min = float(vertices[:, 1].min()) - padding
+        z_max = float(vertices[:, 1].max()) + padding
+        nr = max(2, int(math.ceil((r_max - r_min) / dr)) + 1)
+        nz = max(2, int(math.ceil((z_max - z_min) / dz)) + 1)
+        return cls(r_min=r_min, r_max=r_max, nr=nr, z_min=z_min, z_max=z_max, nz=nz)
 
     def axes(self):
         r_axis = np.linspace(self.r_min, self.r_max, self.nr)

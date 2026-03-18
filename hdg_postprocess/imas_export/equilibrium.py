@@ -52,7 +52,16 @@ def _equilibrium_metadata(solution, metadata, grid):
         "grid_z_range_m": [grid.z_min, grid.z_max],
         "poloidal_flux_export_note": (
             metadata.poloidal_flux_convention
-            or "Poloidal flux is exported exactly as stored in the HDG solution; normalization may depend on solver version."
+            or (
+                "Poloidal flux is exported exactly as stored in the HDG solution; "
+                "normalization and sign may depend on solver version, so the person "
+                "doing the IMAS export should verify the convention."
+            )
+        ),
+        "j_phi_export_note": (
+            "Exported j_phi currently comes from the HDG Jtor field; in current usage "
+            "this is typically the Ohmic contribution, and the person doing the IMAS "
+            "export should verify the sign convention."
         ),
     }
     if solution.summary.equilibrium.axis.r is not None and solution.summary.equilibrium.axis.z is not None:
