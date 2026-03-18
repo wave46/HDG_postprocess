@@ -8,20 +8,54 @@ def ensure_sampling_cache(solution):
     return solution.interpolators
 
 
-def evaluate_interpolator_on_grid(interpolator, r_grid, z_grid):
+def evaluate_interpolator_on_grid(interpolator, r_grid, z_grid, *, locator=None, outside_value=np.nan):
     """Evaluate one cached point interpolator on a rectangular mesh."""
 
     values = np.empty_like(r_grid, dtype=float)
     for index in np.ndindex(r_grid.shape):
-        values[index] = interpolator(r_grid[index], z_grid[index])
+        r_value = r_grid[index]
+        z_value = z_grid[index]
+        if locator is not None and int(locator(r_value, z_value)) == -1:
+            values[index] = outside_value
+            continue
+        values[index] = interpolator(r_value, z_value)
     return values
 
 
-def evaluate_variables_on_grid(solution, r_grid, z_grid, variables):
+def evaluate_interpolators_on_grid(interpolators, r_grid, z_grid, *, locator=None, outside_value=np.nan):
+    """Evaluate several cached point interpolators on a rectangular mesh in one pass."""
+
+    values = {name: np.empty_like(r_grid, dtype=float) for name in interpolators}
+    for index in np.ndindex(r_grid.shape):
+        r_value = r_grid[index]
+        z_value = z_grid[index]
+        if locator is not None and int(locator(r_value, z_value)) == -1:
+            for name in interpolators:
+                values[name][index] = outside_value
+            continue
+        for name, interpolator in interpolators.items():
+            values[name][index] = interpolator(r_value, z_value)
+    return values
+
+
+def evaluate_variables_on_grid(solution, r_grid, z_grid, variables, *, locator=None, outside_value=np.nan):
     """Evaluate named point-sampled variables on a grid via the flattened line sampler."""
 
     sampled = solution.sample.line(r_grid.reshape(-1), z_grid.reshape(-1), list(variables))
-    return {name: np.asarray(values).reshape(r_grid.shape) for name, values in sampled.items()}
+    reshaped = {name: np.asarray(values).reshape(r_grid.shape) for name, values in sampled.items()}
+    if locator is None:
+        return reshaped
+
+    outside_mask = np.zeros(r_grid.shape, dtype=bool)
+    for index in np.ndindex(r_grid.shape):
+        outside_mask[index] = int(locator(r_grid[index], z_grid[index])) == -1
+    if not np.any(outside_mask):
+        return reshaped
+    for name in reshaped:
+        values = reshaped[name].astype(float, copy=True)
+        values[outside_mask] = outside_value
+        reshaped[name] = values
+    return reshaped
 
 
 def equilibrium_interpolators(solution):
