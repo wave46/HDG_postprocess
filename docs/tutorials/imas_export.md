@@ -138,6 +138,10 @@ with imas.DBEntry("build/puff_scan.nc", "r") as entry:
 
 For a full discharge, load the ordered list of snapshot files and export them into one `.nc` file.
 This mode expects one physically meaningful time value per snapshot.
+You may pass either:
+
+- one shared rectangular grid
+- or one rectangular grid per snapshot if the mesh changes during the discharge
 
 ```python
 from hdg_postprocess.imas_export import solution_time_seconds, write_discharge_imas_netcdf
@@ -169,12 +173,15 @@ metadata = IMASExportMetadata(
     machine="WEST",
 )
 
-grid = RectangularGrid2D.from_solution_bounds(solutions[0], dr=0.005, dz=0.005)
+grids = [
+    RectangularGrid2D.from_solution_bounds(solution, dr=0.005, dz=0.005)
+    for solution in solutions
+]
 write_discharge_imas_netcdf(
     solutions,
     "build/full_discharge.nc",
     metadata,
-    grid,
+    grids,
     file_mode="w",
     time_getter=solution_time_seconds,
 )

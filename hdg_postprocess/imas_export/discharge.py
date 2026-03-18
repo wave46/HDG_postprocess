@@ -4,21 +4,39 @@ import numpy as np
 
 from .config import IMASExportMetadata, RectangularGrid2D
 from .equilibrium import _equilibrium_metadata
-from .evaluate import evaluate_variables_on_grid, equilibrium_interpolators, evaluate_interpolators_on_grid
-from .ggd_geometry import populate_rectangular_grid_ggd, populate_rectangular_grid_ggd_array
+from .evaluate import evaluate_interpolators_on_grid, evaluate_variables_on_grid, equilibrium_interpolators
+from .ggd_geometry import populate_rectangular_grid_ggd_entry
 from .summary import _build_ids_comment, extract_solution_summary_metadata
 
 
-def _normalize_snapshot_times(solutions, *, sort_by_time, time_getter):
+def _normalize_snapshot_grids(solutions, grid):
+    if isinstance(grid, RectangularGrid2D):
+        return [grid] * len(solutions)
+    grids = list(grid)
+    if len(grids) != len(solutions):
+        raise ValueError(
+            "When exporting a full discharge with time-varying grids, the grid sequence "
+            "must have the same length as the solution sequence."
+        )
+    for index, one_grid in enumerate(grids):
+        if not isinstance(one_grid, RectangularGrid2D):
+            raise TypeError(
+                f"Grid {index} is not a RectangularGrid2D instance. "
+                "The full-discharge exporter currently supports rectangular (R,Z) GGD grids."
+            )
+    return grids
+
+
+def _normalize_timed_snapshots(solutions, grids, *, sort_by_time, time_getter):
     timed = []
-    for index, solution in enumerate(solutions):
+    for index, (solution, grid) in enumerate(zip(solutions, grids)):
         time_value = time_getter(solution)
         if time_value is None:
             raise ValueError(
                 "Full-discharge export requires physically meaningful times for every snapshot. "
                 f"Snapshot {index} does not provide one."
             )
-        timed.append((float(time_value), solution))
+        timed.append((float(time_value), solution, grid))
     if sort_by_time:
         timed.sort(key=lambda item: item[0])
     return timed
@@ -68,14 +86,10 @@ def _build_discharge_summary_ids(solutions, metadata, times):
     return summary
 
 
-def _populate_equilibrium_timeslice(solution, ts, time_value, grid, metadata):
+def _sample_equilibrium_fields(solution, grid):
     solution.assembly.full()
     solution.assembly.simple()
     solution.equilibrium.define_axis()
-
-    ts.time = float(time_value)
-    ts.ggd.resize(1)
-    ggd = ts.ggd[0]
 
     r_grid, z_grid = grid.mesh()
     interpolators = equilibrium_interpolators(solution)
@@ -95,76 +109,100 @@ def _populate_equilibrium_timeslice(solution, ts, time_value, grid, metadata):
         locator=locator,
         outside_value=np.nan,
     )
-    psi_values = sampled["psi"].reshape(-1)
-    br_values = sampled["br"].reshape(-1)
-    bz_values = sampled["bz"].reshape(-1)
-    bphi_values = sampled["bphi"].reshape(-1)
-    r_values = r_grid.reshape(-1)
-    z_values = z_grid.reshape(-1)
-
-    def _store_ggd_field(field_name, values):
-        field = getattr(ggd, field_name)
-        field.resize(1)
-        field[0].grid_index = 1
-        field[0].grid_subset_index = 1
-        field[0].values = values
-
-    _store_ggd_field("r", r_values)
-    _store_ggd_field("z", z_values)
-    _store_ggd_field("psi", psi_values)
-    _store_ggd_field("b_field_r", br_values)
-    _store_ggd_field("b_field_z", bz_values)
-    _store_ggd_field("b_field_phi", bphi_values)
-    if interpolators["jphi"] is not None:
-        _store_ggd_field("j_phi", sampled["jphi"].reshape(-1))
 
     axis = solution.summary.equilibrium.axis
-    if axis.r is not None and axis.z is not None:
-        ts.global_quantities.magnetic_axis.r = float(axis.r)
-        ts.global_quantities.magnetic_axis.z = float(axis.z)
-
+    psi_values = sampled["psi"].reshape(-1)
     finite_psi = psi_values[np.isfinite(psi_values)]
-    if finite_psi.size:
-        ts.global_quantities.psi_axis = float(np.nanmin(finite_psi))
+    return {
+        "r": r_grid.reshape(-1),
+        "z": z_grid.reshape(-1),
+        "psi": psi_values,
+        "b_field_r": sampled["br"].reshape(-1),
+        "b_field_z": sampled["bz"].reshape(-1),
+        "b_field_phi": sampled["bphi"].reshape(-1),
+        "j_phi": sampled["jphi"].reshape(-1) if "jphi" in sampled else None,
+        "axis_r": float(axis.r) if axis.r is not None else None,
+        "axis_z": float(axis.z) if axis.z is not None else None,
+        "psi_axis": float(np.nanmin(finite_psi)) if finite_psi.size else None,
+    }
 
 
-def build_discharge_equilibrium_ids(timed_solutions, metadata: IMASExportMetadata, grid: RectangularGrid2D):
+def _store_equilibrium_field(field_container, values, *, grid_index):
+    field_container.resize(1)
+    field_container[0].grid_index = int(grid_index)
+    field_container[0].grid_subset_index = 1
+    field_container[0].values = values
+
+
+def _fill_equilibrium_timeslice(ts, sampled_fields, *, time_value, grid_index):
+    ts.time = float(time_value)
+    ts.ggd.resize(1)
+    ggd = ts.ggd[0]
+
+    _store_equilibrium_field(ggd.r, sampled_fields["r"], grid_index=grid_index)
+    _store_equilibrium_field(ggd.z, sampled_fields["z"], grid_index=grid_index)
+    _store_equilibrium_field(ggd.psi, sampled_fields["psi"], grid_index=grid_index)
+    _store_equilibrium_field(ggd.b_field_r, sampled_fields["b_field_r"], grid_index=grid_index)
+    _store_equilibrium_field(ggd.b_field_z, sampled_fields["b_field_z"], grid_index=grid_index)
+    _store_equilibrium_field(ggd.b_field_phi, sampled_fields["b_field_phi"], grid_index=grid_index)
+    if sampled_fields["j_phi"] is not None:
+        _store_equilibrium_field(ggd.j_phi, sampled_fields["j_phi"], grid_index=grid_index)
+
+    if sampled_fields["axis_r"] is not None and sampled_fields["axis_z"] is not None:
+        ts.global_quantities.magnetic_axis.r = sampled_fields["axis_r"]
+        ts.global_quantities.magnetic_axis.z = sampled_fields["axis_z"]
+    if sampled_fields["psi_axis"] is not None:
+        ts.global_quantities.psi_axis = sampled_fields["psi_axis"]
+
+
+def build_discharge_equilibrium_ids(timed_solutions, metadata: IMASExportMetadata):
     import imas
 
-    first_time, first_solution = timed_solutions[0]
-    times = np.asarray([time_value for time_value, _ in timed_solutions], dtype=float)
+    first_time, first_solution, first_grid = timed_solutions[0]
+    times = np.asarray([time_value for time_value, _, _ in timed_solutions], dtype=float)
 
     eq = imas.IDSFactory().equilibrium()
     eq.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
     eq.time = times
-    populate_rectangular_grid_ggd(eq, grid, float(first_time))
-    eq.time_slice.resize(len(timed_solutions))
+    eq.grids_ggd.resize(len(timed_solutions))
+    for grid_index, (time_value, _, grid) in enumerate(timed_solutions, start=1):
+        populate_rectangular_grid_ggd_entry(
+            eq.grids_ggd[grid_index - 1],
+            grid,
+            float(time_value),
+            grid_name="rectangular_rz",
+            grid_index=grid_index,
+        )
 
-    for index, (time_value, solution) in enumerate(timed_solutions):
-        _populate_equilibrium_timeslice(solution, eq.time_slice[index], time_value, grid, metadata)
+    eq.time_slice.resize(len(timed_solutions))
+    for index, (time_value, solution, grid) in enumerate(timed_solutions):
+        sampled_fields = _sample_equilibrium_fields(solution, grid)
+        _fill_equilibrium_timeslice(eq.time_slice[index], sampled_fields, time_value=time_value, grid_index=index + 1)
 
     eq.code.name = "SOLEDGE-HDG"
     eq.code.repository = "hdg_postprocess"
     eq.code.description = "Time-resolved equilibrium exported from SOLEDGE-HDG by hdg_postprocess."
-    eq_metadata = _equilibrium_metadata(first_solution, metadata, grid)
+    eq_metadata = _equilibrium_metadata(first_solution, metadata, first_grid)
     eq_metadata["snapshot_count"] = len(timed_solutions)
     eq_metadata["exported_times_s"] = times.tolist()
+    eq_metadata["grid_count"] = len(timed_solutions)
+    eq_metadata["time_varying_grid"] = True
     eq_metadata["representation_note"] = (
-        "Exported as a time-resolved discharge on a rectangular cylindrical (R,Z) mesh "
-        "through equilibrium.grids_ggd/time_slice[i].ggd."
+        "Exported as a time-resolved discharge on rectangular cylindrical (R,Z) GGD meshes "
+        "through equilibrium.grids_ggd[i]/time_slice[i].ggd."
     )
     eq.code.parameters = json.dumps(eq_metadata, sort_keys=True)
     return eq
 
 
-def _store_struct_field(field_container, values):
+def _store_struct_field(field_container, values, *, grid_index):
     field_container.resize(1)
-    field_container[0].grid_index = 1
+    field_container[0].grid_index = int(grid_index)
     field_container[0].grid_subset_index = 1
     field_container[0].values = values.reshape(-1)
 
 
-def _populate_plasma_ggd(solution, ggd, time_value, grid):
+def _populate_plasma_ggd(solution, ggd, time_value, grid, *, grid_index):
     solution.assembly.full()
     solution.assembly.simple()
 
@@ -181,56 +219,64 @@ def _populate_plasma_ggd(solution, ggd, time_value, grid):
         outside_value=np.nan,
     )
 
-    _store_struct_field(ggd.electrons.density, sampled["n"])
-    _store_struct_field(ggd.electrons.temperature, sampled["te"])
+    _store_struct_field(ggd.electrons.density, sampled["n"], grid_index=grid_index)
+    _store_struct_field(ggd.electrons.temperature, sampled["te"], grid_index=grid_index)
 
     ggd.ion.resize(1)
     ion = ggd.ion[0]
     ion.name = "D+"
     ion.z_ion = 1.0
-    _store_struct_field(ion.density, sampled["n"])
-    _store_struct_field(ion.temperature, sampled["ti"])
+    _store_struct_field(ion.density, sampled["n"], grid_index=grid_index)
+    _store_struct_field(ion.temperature, sampled["ti"], grid_index=grid_index)
     ion.velocity.resize(1)
-    ion.velocity[0].grid_index = 1
+    ion.velocity[0].grid_index = int(grid_index)
     ion.velocity[0].grid_subset_index = 1
     ion.velocity[0].parallel = sampled["u"].reshape(-1)
 
     ggd.neutral.resize(1)
     neutral = ggd.neutral[0]
     neutral.name = "D"
-    _store_struct_field(neutral.density, sampled["nn"])
+    _store_struct_field(neutral.density, sampled["nn"], grid_index=grid_index)
 
-    _store_struct_field(ggd.n_i_total, sampled["n"])
-    _store_struct_field(ggd.t_i_average, sampled["ti"])
-    _store_struct_field(ggd.psi, sampled["psi"])
+    _store_struct_field(ggd.n_i_total, sampled["n"], grid_index=grid_index)
+    _store_struct_field(ggd.t_i_average, sampled["ti"], grid_index=grid_index)
+    _store_struct_field(ggd.psi, sampled["psi"], grid_index=grid_index)
     if "Zeff" in solution.parameters["physics"]:
         zeff_values = np.full(r_grid.shape, float(solution.parameters["physics"]["Zeff"]), dtype=float)
         zeff_values[np.isnan(sampled["n"])] = np.nan
-        _store_struct_field(ggd.zeff, zeff_values)
+        _store_struct_field(ggd.zeff, zeff_values, grid_index=grid_index)
 
 
-def build_discharge_plasma_profiles_ids(timed_solutions, metadata: IMASExportMetadata, grid: RectangularGrid2D):
+def build_discharge_plasma_profiles_ids(timed_solutions, metadata: IMASExportMetadata):
     import imas
 
-    first_time, first_solution = timed_solutions[0]
-    times = np.asarray([time_value for time_value, _ in timed_solutions], dtype=float)
+    first_time, first_solution, first_grid = timed_solutions[0]
+    times = np.asarray([time_value for time_value, _, _ in timed_solutions], dtype=float)
 
     plasma = imas.IDSFactory().plasma_profiles()
     plasma.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
     plasma.time = times
-    populate_rectangular_grid_ggd_array(plasma.grid_ggd, grid, float(first_time))
-    plasma.ggd.resize(len(timed_solutions))
+    plasma.grid_ggd.resize(len(timed_solutions))
+    for grid_index, (time_value, _, grid) in enumerate(timed_solutions, start=1):
+        populate_rectangular_grid_ggd_entry(
+            plasma.grid_ggd[grid_index - 1],
+            grid,
+            float(time_value),
+            grid_name="rectangular_rz",
+            grid_index=grid_index,
+        )
 
-    for index, (time_value, solution) in enumerate(timed_solutions):
-        _populate_plasma_ggd(solution, plasma.ggd[index], time_value, grid)
+    plasma.ggd.resize(len(timed_solutions))
+    for index, (time_value, solution, grid) in enumerate(timed_solutions):
+        _populate_plasma_ggd(solution, plasma.ggd[index], time_value, grid, grid_index=index + 1)
 
     plasma.code.name = "SOLEDGE-HDG"
     plasma.code.repository = "hdg_postprocess"
     plasma.code.description = "Time-resolved plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
     metadata_dict = {
-        "grid_shape": [grid.nr, grid.nz],
-        "grid_r_range_m": [grid.r_min, grid.r_max],
-        "grid_z_range_m": [grid.z_min, grid.z_max],
+        "grid_shape": [first_grid.nr, first_grid.nz],
+        "grid_r_range_m": [first_grid.r_min, first_grid.r_max],
+        "grid_z_range_m": [first_grid.z_min, first_grid.z_max],
         "ggd_grid_name": "rectangular_rz",
         "ggd_grid_subset": "All exported plasma fields currently live on the nodes subset.",
         "value_ordering": "Node values are flattened from meshgrid(indexing='ij') in C order, so R is the slow axis and Z the fast axis.",
@@ -238,6 +284,8 @@ def build_discharge_plasma_profiles_ids(timed_solutions, metadata: IMASExportMet
         "model_note": "SOLEDGE-HDG currently uses shared plasma density and parallel velocity for electrons and the single ion species.",
         "snapshot_count": len(timed_solutions),
         "exported_times_s": times.tolist(),
+        "grid_count": len(timed_solutions),
+        "time_varying_grid": True,
     }
     if "Zeff" in first_solution.parameters["physics"]:
         metadata_dict["Zeff"] = float(first_solution.parameters["physics"]["Zeff"])
@@ -245,15 +293,32 @@ def build_discharge_plasma_profiles_ids(timed_solutions, metadata: IMASExportMet
     return plasma
 
 
-def write_discharge(entry, solutions, metadata: IMASExportMetadata, grid: RectangularGrid2D, *, include_summary=True, include_equilibrium=True, include_plasma_profiles=True, sort_by_time=True, time_getter=None):
+def write_discharge(
+    entry,
+    solutions,
+    metadata: IMASExportMetadata,
+    grid,
+    *,
+    include_summary=True,
+    include_equilibrium=True,
+    include_plasma_profiles=True,
+    sort_by_time=True,
+    time_getter=None,
+):
     if not solutions:
         raise ValueError("Full-discharge export requires at least one solution snapshot.")
     if time_getter is None:
         raise ValueError("A time_getter callable must be provided for full-discharge export.")
 
-    timed_solutions = _normalize_snapshot_times(solutions, sort_by_time=sort_by_time, time_getter=time_getter)
-    times = [time_value for time_value, _ in timed_solutions]
-    ordered_solutions = [solution for _, solution in timed_solutions]
+    grids = _normalize_snapshot_grids(solutions, grid)
+    timed_solutions = _normalize_timed_snapshots(
+        solutions,
+        grids,
+        sort_by_time=sort_by_time,
+        time_getter=time_getter,
+    )
+    times = [time_value for time_value, _, _ in timed_solutions]
+    ordered_solutions = [solution for _, solution, _ in timed_solutions]
 
     written = {}
     if include_summary:
@@ -261,11 +326,11 @@ def write_discharge(entry, solutions, metadata: IMASExportMetadata, grid: Rectan
         entry.put(summary, metadata.occurrence)
         written["summary"] = summary
     if include_equilibrium:
-        equilibrium = build_discharge_equilibrium_ids(timed_solutions, metadata, grid)
+        equilibrium = build_discharge_equilibrium_ids(timed_solutions, metadata)
         entry.put(equilibrium, metadata.occurrence)
         written["equilibrium"] = equilibrium
     if include_plasma_profiles:
-        plasma = build_discharge_plasma_profiles_ids(timed_solutions, metadata, grid)
+        plasma = build_discharge_plasma_profiles_ids(timed_solutions, metadata)
         entry.put(plasma, metadata.occurrence)
         written["plasma_profiles"] = plasma
     return written
