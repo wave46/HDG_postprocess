@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from .config import IMASExportMetadata
+from .discharge import write_discharge
 from .equilibrium import put_equilibrium
 from .plasma_profiles import put_plasma_profiles
 from .summary import put_summary
@@ -126,3 +127,39 @@ def write_imas_scan_case_netcdf(
         include_equilibrium=include_equilibrium,
         include_plasma_profiles=include_plasma_profiles,
     )
+
+
+def write_discharge_imas_netcdf(
+    solutions,
+    path,
+    metadata: IMASExportMetadata,
+    grid,
+    *,
+    file_mode="x",
+    include_summary=True,
+    include_equilibrium=True,
+    include_plasma_profiles=True,
+    sort_by_time=True,
+    time_getter=None,
+):
+    """Write a full time-resolved discharge into one netCDF-backed DBEntry."""
+
+    import imas
+
+    db_path = Path(path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    if time_getter is None:
+        time_getter = solution_time_seconds
+
+    with imas.DBEntry(str(db_path), file_mode) as entry:
+        return write_discharge(
+            entry,
+            solutions,
+            metadata,
+            grid,
+            include_summary=include_summary,
+            include_equilibrium=include_equilibrium,
+            include_plasma_profiles=include_plasma_profiles,
+            sort_by_time=sort_by_time,
+            time_getter=time_getter,
+        )

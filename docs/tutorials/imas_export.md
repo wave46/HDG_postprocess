@@ -28,11 +28,11 @@ This keeps each exported file conceptually clean:
 
 - one steady-state simulation -> one file
 - one puff scan -> one file, with one IDS occurrence per scan point
-- one time-resolved snapshot -> one file
+- one full discharge -> one file, with multiple time entries in `equilibrium` and `plasma_profiles`
 
 For a puff scan, keep the same `shot` and increment `run`.
 The current project convention is to bundle the scan into one `.nc` file by using one IDS occurrence per scan point.
-For full-discharge snapshots, you can still keep the same `shot` and use `run` or file naming to distinguish snapshots, depending on how you want to organize the dataset on disk.
+For a full discharge, keep one `shot`, one `run`, one `occurrence`, and export the ordered snapshot list into one time-resolved `DBEntry`.
 
 ## One Steady-State Solution
 
@@ -44,6 +44,7 @@ from hdg_postprocess.api import load_reference_element, load_solution
 from hdg_postprocess.imas_export import (
     IMASExportMetadata,
     RectangularGrid2D,
+    write_discharge_imas_netcdf,
     write_imas_netcdf,
     write_imas_scan_case_netcdf,
 )
@@ -133,35 +134,54 @@ with imas.DBEntry("build/puff_scan.nc", "r") as entry:
     plasma = entry.get("plasma_profiles", occurrence)
 ```
 
-## Full Discharge or Time-Resolved Snapshots
+## Full Discharge in One DBEntry
 
-For a time-dependent simulation, reuse the dimensionalized time stored in the solution only when that time is physically meaningful for the exported case.
-In practice, this means non-steady moving-equilibrium / time-resolved snapshots rather than steady-state solutions.
+For a full discharge, load the ordered list of snapshot files and export them into one `.nc` file.
+This mode expects one physically meaningful time value per snapshot.
 
 ```python
-from hdg_postprocess.imas_export import solution_time_seconds
+from hdg_postprocess.imas_export import solution_time_seconds, write_discharge_imas_netcdf
 
-solution = load_solution(
-    "path/to/discharge/",
-    "solution_snapshot_0420",
-    n_partitions=1,
-)
-solution.mesh.metadata.reference_element = load_reference_element(
-    "demos/data/reference_elements/reference_triangle_P8.mat"
-)
+snapshot_names = [
+    "solution_snapshot_0000",
+    "solution_snapshot_0001",
+    "solution_snapshot_0002",
+]
+
+solutions = []
+for snapshot_name in snapshot_names:
+    solution = load_solution(
+        "path/to/discharge/",
+        snapshot_name,
+        n_partitions=1,
+    )
+    solution.mesh.metadata.reference_element = load_reference_element(
+        "demos/data/reference_elements/reference_triangle_P8.mat"
+    )
+    solutions.append(solution)
 
 metadata = IMASExportMetadata(
-    description="Full-discharge snapshot export",
+    description="Full discharge export",
     shot=1,
     run=42,
-    time=solution_time_seconds(solution),
+    time=0.0,
     effective_energy_transfer=1.0,
     machine="WEST",
 )
 
-grid = RectangularGrid2D.from_solution_bounds(solution, dr=0.005, dz=0.005)
-write_imas_netcdf(solution, "build/discharge_snapshot_0420.nc", metadata, grid, file_mode="w")
+grid = RectangularGrid2D.from_solution_bounds(solutions[0], dr=0.005, dz=0.005)
+write_discharge_imas_netcdf(
+    solutions,
+    "build/full_discharge.nc",
+    metadata,
+    grid,
+    file_mode="w",
+    time_getter=solution_time_seconds,
+)
 ```
+
+Use `solution_time_seconds` only when the stored solver time is physically meaningful for the exported discharge.
+If you need a stricter rule, pass your own `time_getter` callable instead.
 
 ## Inspecting the Written File
 
@@ -188,6 +208,6 @@ For cluster use, the usual pattern is:
 1. prepare one Python environment with `imas-python` and `hdg_postprocess`
 2. loop over solution folders or snapshot names
 3. choose `shot` / `run` explicitly
-4. write one netCDF file per exported case or per bundled scan
+4. write one netCDF file per steady case, per bundled scan, or per full discharge
 
 That keeps the export script simple and makes it easy to transfer the resulting `.nc` files to other users.
