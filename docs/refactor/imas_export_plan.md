@@ -65,11 +65,12 @@ Optional metadata can include:
 
 - `comment`
 - `case_name`
-- `puff_rate`
 - `recycling_coefficient`
 - impurity / cooling model label
 
-In v1, puff rate and recycling should be treated as run-level descriptive metadata rather than as wall-resolved data.
+`puff_rate` should be filled from the simulation data when it is already available in the loaded solution metadata.
+
+In v1, puff rate and recycling should still be treated as run-level descriptive metadata rather than as wall-resolved data.
 
 ## V1 IDS content
 
