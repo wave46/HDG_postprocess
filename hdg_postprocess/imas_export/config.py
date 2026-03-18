@@ -9,7 +9,7 @@ class IMASExportMetadata:
     shot: int
     run: int
     time: float
+    effective_energy_transfer: float
     occurrence: int = 0
     comment: str = ""
-    case_name: str = ""
     machine: str = ""

@@ -5,6 +5,17 @@ import numpy as np
 from .config import IMASExportMetadata
 
 
+_TRANSPORT_KEYS = (
+    "diff_n",
+    "diff_u",
+    "diff_e",
+    "diff_ee",
+    "diff_nn",
+    "diff_pare",
+    "diff_pari",
+)
+
+
 def _as_python_scalar(value):
     if isinstance(value, np.ndarray):
         if value.shape == ():
@@ -23,11 +34,35 @@ def _decode_if_bytes(value):
     return value
 
 
+def _scaled_value(parameters, group_name, key, scale_key):
+    group = parameters.get(group_name, {})
+    adim = parameters.get("adimensionalization", {})
+    if key not in group or scale_key not in adim:
+        return None
+    return _as_python_scalar(group[key]) * _as_python_scalar(adim[scale_key])
+
+
+def _extract_transport_metadata(parameters):
+    physics = parameters.get("physics", {})
+    extracted = {}
+
+    for key in _TRANSPORT_KEYS:
+        source_key = f"{key}_ME" if f"{key}_ME" in physics else key
+        if source_key not in physics:
+            continue
+        extracted[f"{key}_m2_s"] = _scaled_value(parameters, "physics", source_key, "diffusion_scale")
+        if source_key != key:
+            extracted[f"{key}_source_key"] = source_key
+
+    return extracted
+
+
 def extract_solution_summary_metadata(solution):
     """Extract a compact run-metadata mapping from the loaded SOLEDGE-HDG solution."""
 
-    physics = solution.parameters.get("physics", {})
-    switches = solution.parameters.get("switches", {})
+    parameters = solution.parameters
+    physics = parameters.get("physics", {})
+    switches = parameters.get("switches", {})
     extracted = {}
 
     mapping = {
@@ -36,12 +71,18 @@ def extract_solution_summary_metadata(solution):
         "pump_recycling_coefficient": physics.get("recycling_pump"),
         "impurity_name": physics.get("impurity_name"),
         "impurity_concentration": physics.get("impurity_concentration"),
-        "testcase": switches.get("testcase"),
+        "Gmbohm": physics.get("Gmbohm"),
+        "Gmbohme": physics.get("Gmbohme"),
+        "bohmth": physics.get("bohmth"),
+        "ohmic_coeff": physics.get("ohmic_coeff"),
+        "Zeff": physics.get("Zeff"),
     }
     for key, value in mapping.items():
         if value is None:
             continue
         extracted[key] = _decode_if_bytes(_as_python_scalar(value))
+
+    extracted.update(_extract_transport_metadata(parameters))
 
     if "steady" in switches:
         extracted["steady_state"] = bool(_as_python_scalar(switches["steady"]))
@@ -49,6 +90,11 @@ def extract_solution_summary_metadata(solution):
         extracted["impurity_radiation_enabled"] = bool(_as_python_scalar(switches["impurity_radiation"]))
     if "ohmicsrc" in switches:
         extracted["ohmic_source_enabled"] = bool(_as_python_scalar(switches["ohmicsrc"]))
+    if "testcase" in switches:
+        extracted["testcase"] = int(_as_python_scalar(switches["testcase"]))
+
+    if "bohm_energy_thresh" in physics:
+        extracted["bohm_energy_thresh"] = _as_python_scalar(physics["bohm_energy_thresh"])
 
     return extracted
 
@@ -73,19 +119,22 @@ def build_summary_ids(solution, metadata: IMASExportMetadata):
     summary.time = [float(metadata.time)]
     summary.pulse = int(metadata.shot)
 
-    if metadata.case_name:
-        summary.tag.name = metadata.case_name
     if metadata.machine:
         summary.machine = metadata.machine
 
     extracted = extract_solution_summary_metadata(solution)
+    extracted["effective_energy_transfer"] = float(metadata.effective_energy_transfer)
     summary.ids_properties.comment = _build_ids_comment(metadata, extracted)
     if metadata.comment:
         summary.tag.comment = metadata.comment
 
     summary.code.name = "SOLEDGE-HDG"
     summary.code.repository = "hdg_postprocess"
-    summary.code.description = "Exported from SOLEDGE-HDG by hdg_postprocess."
+    testcase = extracted.get("testcase")
+    if testcase is None:
+        summary.code.description = "Exported from SOLEDGE-HDG by hdg_postprocess."
+    else:
+        summary.code.description = f"Exported from SOLEDGE-HDG by hdg_postprocess (testcase {testcase})."
     summary.code.parameters = json.dumps(extracted, sort_keys=True)
 
     summary.simulation.workflow = (
