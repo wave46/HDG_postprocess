@@ -81,19 +81,18 @@ write_imas_netcdf(
 
 ## Puff Scan for One Shot
 
-For a puff scan, keep the same `shot` and change `run` for each scan point.
-Store the whole scan in one `.nc` file and use one IDS occurrence per scan point.
+For a puff scan, keep the same `shot`, keep `run=0`, and use one IDS occurrence per scan point.
+Store the whole scan in one `.nc` file and set `occurrence` explicitly for each simulation.
 
 ```python
 base_shot = 60527
 scan_path = "build/puff_scan.nc"
-for run_in_scan, solname in enumerate(
+for occurrence, solname in enumerate(
     [
         "solution_west_scan_puff_01",
         "solution_west_scan_puff_02",
         "solution_west_scan_puff_03",
-    ],
-    start=1,
+    ]
 ):
     solution = load_solution(
         "path/to/scan/",
@@ -105,10 +104,10 @@ for run_in_scan, solname in enumerate(
     )
 
     metadata = IMASExportMetadata(
-        description=f"Puff scan case {run_in_scan}",
+        description=f"Puff scan case {occurrence}",
         shot=base_shot,
-        run=run_in_scan,
-        occurrence=run_in_scan - 1,
+        run=0,
+        occurrence=occurrence,
         time=0.0,
         effective_energy_transfer=1.0,
         machine="WEST",
@@ -120,7 +119,7 @@ for run_in_scan, solname in enumerate(
         scan_path,
         metadata,
         grid,
-        create=(run_in_scan == 1),
+        create=(occurrence == 0),
     )
 ```
 
