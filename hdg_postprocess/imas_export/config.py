@@ -49,3 +49,7 @@ class RectangularGrid2D:
     def mesh(self):
         r_axis, z_axis = self.axes()
         return np.meshgrid(r_axis, z_axis, indexing="ij")
+
+    def flattened_points(self):
+        r_grid, z_grid = self.mesh()
+        return r_grid.reshape(-1), z_grid.reshape(-1)

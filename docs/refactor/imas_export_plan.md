@@ -84,7 +84,7 @@ Planned content:
 - toroidal / ohmic current where available
 
 This IDS should be written as directly as possible from the current solution-equilibrium data already available in `HDGsolution`.
-The long-term target is the `ggd` branch, even if a temporary rectangular `profiles_2d` representation is used during the transition.
+The first implementation should already use the `ggd` branch, starting from a simple rectangular cylindrical mesh.
 
 ### plasma_profiles
 
