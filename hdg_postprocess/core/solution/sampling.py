@@ -2,6 +2,15 @@ import numpy as np
 import hashlib
 
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
+from hdg_postprocess.routines.plasma import (
+    calculate_M_cons,
+    calculate_Te_cons,
+    calculate_Ti_cons,
+    calculate_cs_cons,
+    calculate_n_cons,
+    calculate_nn_cons,
+    calculate_u_cons,
+)
 from hdg_postprocess.core.solution import preparation as prep_ops
 
 _SHARED_SAMPLE_INTERPOLATORS = {}
@@ -13,8 +22,15 @@ def calculate_variables_along_line(solution, r_line, z_line, variable_list):
     for variable in variable_list:
         if variable not in defined_variables:
             raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
-    result = {variable: np.zeros_like(z_line) for variable in variable_list}
-    requested_getters = [(variable, variable_getters[variable]) for variable in variable_list]
+
+    result = _fast_line_variables(solution, r_line, z_line, variable_list)
+    pending_variables = [variable for variable in variable_list if variable not in result]
+    if not pending_variables:
+        return result
+
+    requested_getters = [(variable, variable_getters[variable]) for variable in pending_variables]
+    for variable in pending_variables:
+        result[variable] = np.zeros_like(z_line)
     for i, (r, z) in enumerate(zip(r_line, z_line)):
         for variable, getter in requested_getters:
             result[variable][i] = _line_scalar_value(getter(r, z))
@@ -185,3 +201,47 @@ def _line_scalar_value(value):
     if array.size == 1:
         return array.reshape(()).item()
     raise ValueError(f"Line sampling expects scalar-valued getters, got shape {array.shape}")
+
+
+def _fast_line_variables(solution, r_line, z_line, variable_list):
+    supported = set(variable_list) & {"n", "nn", "te", "ti", "u", "cs", "M", "psi"}
+    if not supported:
+        return {}
+
+    prep_ops.ensure_interpolators(solution)
+    x_values = np.asarray(r_line, dtype=np.float64).reshape(-1)
+    y_values = np.asarray(z_line, dtype=np.float64).reshape(-1)
+    state = np.zeros((x_values.size, solution.neq), dtype=np.float64)
+
+    if {"n", "te", "ti", "u", "cs", "M"} & supported:
+        state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]].evaluate_many(x_values, y_values)
+    if {"ti", "u", "cs", "M"} & supported:
+        state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]].evaluate_many(x_values, y_values)
+    if {"ti", "cs", "M"} & supported:
+        state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]].evaluate_many(x_values, y_values)
+    if {"te", "cs", "M"} & supported:
+        state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]].evaluate_many(x_values, y_values)
+    if "nn" in supported:
+        state[:, solution._cons_idx[b"rhon"]] = solution.interpolators.solution[solution._cons_idx[b"rhon"]].evaluate_many(x_values, y_values)
+
+    result = {}
+    adim = solution.parameters["adimensionalization"]
+    physics = solution.parameters["physics"]
+    cons_idx = solution._cons_idx
+    if "n" in supported:
+        result["n"] = np.asarray(calculate_n_cons(state, adim["density_scale"], cons_idx), dtype=float)
+    if "nn" in supported:
+        result["nn"] = np.asarray(calculate_nn_cons(state, adim["density_scale"], cons_idx), dtype=float)
+    if "te" in supported:
+        result["te"] = np.asarray(calculate_Te_cons(state, adim["temperature_scale"], physics["Mref"], cons_idx), dtype=float)
+    if "ti" in supported:
+        result["ti"] = np.asarray(calculate_Ti_cons(state, adim["temperature_scale"], physics["Mref"], cons_idx), dtype=float)
+    if "u" in supported:
+        result["u"] = np.asarray(calculate_u_cons(state, adim["speed_scale"], cons_idx), dtype=float)
+    if "cs" in supported:
+        result["cs"] = np.asarray(calculate_cs_cons(state, adim["speed_scale"], cons_idx), dtype=float)
+    if "M" in supported:
+        result["M"] = np.asarray(calculate_M_cons(state, cons_idx), dtype=float)
+    if "psi" in supported:
+        result["psi"] = np.asarray(solution.interpolators.psi.evaluate_many(x_values, y_values), dtype=float)
+    return result
