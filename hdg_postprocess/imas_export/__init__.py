@@ -1,4 +1,10 @@
-from .api import write_equilibrium_netcdf, write_plasma_profiles_netcdf, write_summary_netcdf
+from .api import (
+    solution_time_seconds,
+    write_equilibrium_netcdf,
+    write_imas_netcdf,
+    write_plasma_profiles_netcdf,
+    write_summary_netcdf,
+)
 from .config import IMASExportMetadata, RectangularGrid2D
 from .equilibrium import build_equilibrium_ids, put_equilibrium
 from .plasma_profiles import build_plasma_profiles_ids, put_plasma_profiles
@@ -14,7 +20,9 @@ __all__ = [
     "put_equilibrium",
     "put_plasma_profiles",
     "put_summary",
+    "solution_time_seconds",
     "write_equilibrium_netcdf",
+    "write_imas_netcdf",
     "write_plasma_profiles_netcdf",
     "write_summary_netcdf",
 ]
