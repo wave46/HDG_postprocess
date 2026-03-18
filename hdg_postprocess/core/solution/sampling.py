@@ -15,6 +15,17 @@ from hdg_postprocess.core.solution import preparation as prep_ops
 
 _SHARED_SAMPLE_INTERPOLATORS = {}
 
+_BATCHED_LINE_VARIABLES = {
+    "n": {"cons": (b"rho",)},
+    "nn": {"cons": (b"rhon",)},
+    "te": {"cons": (b"rho", b"nEe")},
+    "ti": {"cons": (b"rho", b"Gamma", b"nEi")},
+    "u": {"cons": (b"rho", b"Gamma")},
+    "cs": {"cons": (b"rho", b"Gamma", b"nEi", b"nEe")},
+    "M": {"cons": (b"rho", b"Gamma", b"nEi", b"nEe")},
+    "psi": {"cons": ()},
+}
+
 
 def calculate_variables_along_line(solution, r_line, z_line, variable_list):
     variable_getters = _line_variable_getters(solution)
@@ -23,7 +34,7 @@ def calculate_variables_along_line(solution, r_line, z_line, variable_list):
         if variable not in defined_variables:
             raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
 
-    result = _fast_line_variables(solution, r_line, z_line, variable_list)
+    result = _batched_line_variables(solution, r_line, z_line, variable_list)
     pending_variables = [variable for variable in variable_list if variable not in result]
     if not pending_variables:
         return result
@@ -203,45 +214,53 @@ def _line_scalar_value(value):
     raise ValueError(f"Line sampling expects scalar-valued getters, got shape {array.shape}")
 
 
-def _fast_line_variables(solution, r_line, z_line, variable_list):
-    supported = set(variable_list) & {"n", "nn", "te", "ti", "u", "cs", "M", "psi"}
+def _batched_line_variables(solution, r_line, z_line, variable_list):
+    supported = [variable for variable in variable_list if variable in _BATCHED_LINE_VARIABLES]
     if not supported:
         return {}
 
     prep_ops.ensure_interpolators(solution)
     x_values = np.asarray(r_line, dtype=np.float64).reshape(-1)
     y_values = np.asarray(z_line, dtype=np.float64).reshape(-1)
+    sampled_cons = _batched_line_state(solution, x_values, y_values, supported)
+    return _batched_line_results(solution, sampled_cons, x_values, y_values, supported)
+
+
+def _batched_line_state(solution, x_values, y_values, variables):
+    required_cons = []
+    for variable in variables:
+        for cons_name in _BATCHED_LINE_VARIABLES[variable]["cons"]:
+            if cons_name not in required_cons:
+                required_cons.append(cons_name)
+
     state = np.zeros((x_values.size, solution.neq), dtype=np.float64)
+    for cons_name in required_cons:
+        idx = solution._cons_idx[cons_name]
+        state[:, idx] = solution.interpolators.solution[idx].evaluate_many(x_values, y_values)
+    return state
 
-    if {"n", "te", "ti", "u", "cs", "M"} & supported:
-        state[:, solution._cons_idx[b"rho"]] = solution.interpolators.solution[solution._cons_idx[b"rho"]].evaluate_many(x_values, y_values)
-    if {"ti", "u", "cs", "M"} & supported:
-        state[:, solution._cons_idx[b"Gamma"]] = solution.interpolators.solution[solution._cons_idx[b"Gamma"]].evaluate_many(x_values, y_values)
-    if {"ti", "cs", "M"} & supported:
-        state[:, solution._cons_idx[b"nEi"]] = solution.interpolators.solution[solution._cons_idx[b"nEi"]].evaluate_many(x_values, y_values)
-    if {"te", "cs", "M"} & supported:
-        state[:, solution._cons_idx[b"nEe"]] = solution.interpolators.solution[solution._cons_idx[b"nEe"]].evaluate_many(x_values, y_values)
-    if "nn" in supported:
-        state[:, solution._cons_idx[b"rhon"]] = solution.interpolators.solution[solution._cons_idx[b"rhon"]].evaluate_many(x_values, y_values)
 
+def _batched_line_results(solution, state, x_values, y_values, variables):
     result = {}
     adim = solution.parameters["adimensionalization"]
     physics = solution.parameters["physics"]
     cons_idx = solution._cons_idx
-    if "n" in supported:
+    variable_set = set(variables)
+
+    if "n" in variable_set:
         result["n"] = np.asarray(calculate_n_cons(state, adim["density_scale"], cons_idx), dtype=float)
-    if "nn" in supported:
+    if "nn" in variable_set:
         result["nn"] = np.asarray(calculate_nn_cons(state, adim["density_scale"], cons_idx), dtype=float)
-    if "te" in supported:
+    if "te" in variable_set:
         result["te"] = np.asarray(calculate_Te_cons(state, adim["temperature_scale"], physics["Mref"], cons_idx), dtype=float)
-    if "ti" in supported:
+    if "ti" in variable_set:
         result["ti"] = np.asarray(calculate_Ti_cons(state, adim["temperature_scale"], physics["Mref"], cons_idx), dtype=float)
-    if "u" in supported:
+    if "u" in variable_set:
         result["u"] = np.asarray(calculate_u_cons(state, adim["speed_scale"], cons_idx), dtype=float)
-    if "cs" in supported:
+    if "cs" in variable_set:
         result["cs"] = np.asarray(calculate_cs_cons(state, adim["speed_scale"], cons_idx), dtype=float)
-    if "M" in supported:
+    if "M" in variable_set:
         result["M"] = np.asarray(calculate_M_cons(state, cons_idx), dtype=float)
-    if "psi" in supported:
+    if "psi" in variable_set:
         result["psi"] = np.asarray(solution.interpolators.psi.evaluate_many(x_values, y_values), dtype=float)
     return result
