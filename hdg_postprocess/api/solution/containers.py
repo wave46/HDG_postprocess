@@ -186,6 +186,8 @@ class InterpolatorState:
     gradient: object = None
     field: object = None
     qcyl: object = None
+    psi: object = None
+    jtor: object = None
 
 
 @dataclass

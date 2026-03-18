@@ -35,12 +35,13 @@ The first export version should be intentionally narrow:
   - `equilibrium`
   - `plasma_profiles`
   - `summary`
-- spatial representation for plasma data:
-  - regular rectangular `(R, Z)` grid
+- spatial representation:
+  - GGD first
+  - start with a regular rectangular cylindrical `(R, Z)` mesh represented through GGD
 - outside-mesh policy:
   - `NaN`
 
-The first implementation should prioritize ease of use for downstream readers over full fidelity to the HDG basis.
+The first implementation should still prioritize ease of use for downstream readers, but the export contract should already align with the GGD branches that naturally carry species-resolved 2D data.
 
 ## Mandatory export metadata
 
@@ -83,10 +84,11 @@ Planned content:
 - toroidal / ohmic current where available
 
 This IDS should be written as directly as possible from the current solution-equilibrium data already available in `HDGsolution`.
+The long-term target is the `ggd` branch, even if a temporary rectangular `profiles_2d` representation is used during the transition.
 
 ### plasma_profiles
 
-Planned content on a rectangular grid:
+Planned content on a rectangular GGD mesh:
 
 - electron density
 - ion density
@@ -103,6 +105,7 @@ Possible later additions:
 - source terms
 
 Even in v1, the exporter should try to carry as much useful plasma information as practical, since the SOLEDGE-HDG model has a manageable number of primary fields.
+Because the IMAS `plasma_profiles.ggd` branch already exposes `electrons`, `ion`, and `neutral`, it is the natural place for the first species-resolved 2D export.
 
 ### summary
 
@@ -116,7 +119,8 @@ This IDS is mainly meant to keep the export self-describing.
 
 ## Rectangular grid policy
 
-The first plasma export should use a user-configurable regular grid in `(R, Z)`.
+The first plasma export should use a user-configurable regular cylindrical grid in `(R, Z)`.
+This grid should be represented in GGD form from the start, even if its geometry is much simpler than the eventual HDG-native mesh description.
 
 Suggested export controls:
 
@@ -124,6 +128,7 @@ Suggested export controls:
 - `z_min`, `z_max`, `nz`
 
 The exporter should evaluate the HDG solution on that grid using the existing locator and interpolator path on the writer side.
+Exporter code should reuse the normal `solution.sample.define_interpolators()` cache rather than building private interpolators for each IDS writer.
 
 ### Outside the mesh
 
@@ -139,7 +144,6 @@ That is safer than zero-filled defaults because:
 
 These are intentionally out of scope for the first implementation:
 
-- GGD export
 - dual representation inside the same export flow
 - full radiation IDS support
 - wall-resolved recycling representation
@@ -152,7 +156,7 @@ These are all valid future directions, but they should not complicate the first 
 1. create an IMAS smoke-test script
 2. define a small export configuration / metadata object
 3. implement `equilibrium` writer
-4. implement rectangular-grid `plasma_profiles` writer
+4. implement rectangular-GGD `plasma_profiles` writer
 5. implement minimal `summary` writer
 6. add one readback example for users
 
@@ -165,4 +169,4 @@ The first milestone is:
 - containing `equilibrium`, `plasma_profiles`, and `summary`
 - with a simple readback example that plots one plasma field on `(R, Z)`
 
-If that works cleanly, later extensions such as GGD and radiation IDS export can be added on top of a stable base.
+If that works cleanly, later extensions such as HDG-native GGD and radiation IDS export can be added on top of a stable base.

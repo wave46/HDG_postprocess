@@ -114,7 +114,11 @@ def define_interpolators(solution):
     for i in range(3):
         interpolators.field.append(SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.magnetic_field[:, :, i]))
     interpolators.qcyl = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.qcyl)
-    solution._psi_interpolator = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.poloidal_flux)
+    interpolators.psi = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.poloidal_flux)
+    interpolators.jtor = None
+    if glob_view.equilibrium.jtor is not None:
+        interpolators.jtor = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.jtor)
+    solution._psi_interpolator = interpolators.psi
 
 
 def _line_scalar_value(value):
