@@ -3,6 +3,7 @@ import numpy as np
 from hdg_postprocess.routines.atomic import *  # noqa: F403
 from hdg_postprocess.routines.neutrals import *  # noqa: F403
 from hdg_postprocess.routines.plasma import *  # noqa: F403
+from hdg_postprocess.core.solution import batched_sampling as batched_sampling_ops
 from hdg_postprocess.core.solution import preparation as prep_ops
 
 
@@ -100,76 +101,53 @@ def _sample_state_and_gradient(solution, r, z):
 def n(solution, r, z):
     if b"rho" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("density is not in the models")
-    state = _sample_selected_state(solution, r, z, b"rho")
-    return calculate_n_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "n")
 
 
 def ti(solution, r, z):
     if b"Ti" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("ion temperature is not in the models")
 
-    state = _sample_density_state(solution, r, z, b"Gamma", b"nEi")
-    if state is None:
-        return 0
-    return calculate_Ti_cons(
-        state,
-        solution.parameters["adimensionalization"]["temperature_scale"],
-        solution.parameters["physics"]["Mref"],
-        solution._cons_idx,
-    )
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "ti")
 
 
 def te(solution, r, z):
     if b"Te" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("electron temperature is not in the models")
 
-    state = _sample_density_state(solution, r, z, b"nEe")
-    if state is None:
-        return 0
-    return calculate_Te_cons(
-        state,
-        solution.parameters["adimensionalization"]["temperature_scale"],
-        solution.parameters["physics"]["Mref"],
-        solution._cons_idx,
-    )
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "te")
 
 
 def u(solution, r, z):
     if b"u" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    state = _sample_density_state(solution, r, z, b"Gamma")
-    if state is None:
-        return 0
-    return calculate_u_cons(state, solution.parameters["adimensionalization"]["speed_scale"], solution._cons_idx)
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "u")
 
 
 def cs(solution, r, z):
     if b"Csi" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    state = _sample_density_state(solution, r, z, b"Gamma", b"nEi", b"nEe")
-    if state is None:
-        return 0
-    return calculate_cs_cons(state, solution.parameters["adimensionalization"]["speed_scale"], solution._cons_idx)
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "cs")
 
 
 def M(solution, r, z):
     if b"M" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("Mach number is not in the models")
 
-    state = _sample_density_state(solution, r, z, b"Gamma", b"nEi", b"nEe")
-    if state is None:
-        return 0
-    return calculate_M_cons(state, solution._cons_idx)
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "M")
 
 
 def nn(solution, r, z):
     if b"rhon" not in solution.parameters["physics"]["physical_variable_names"]:
         raise KeyError("neutral density number is not in the models")
 
-    state = _sample_selected_state(solution, r, z, b"rhon")
-    return calculate_nn_cons(state, solution.parameters["adimensionalization"]["density_scale"], solution._cons_idx)
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "nn")
+
+
+def pe(solution, r, z):
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "pe")
 
 
 def ionization_source_interp(solution, r, z):
@@ -300,10 +278,7 @@ def p_dyn(solution, r, z):
 
 
 def pi(solution, r, z):
-    state = _sample_state(solution, r, z)
-    if state[0, 0] == 0:
-        return 0
-    return calculate_pi_cons(state, _pressure_scale(solution), solution.metadata.indices.conservative)
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "pi")
 
 
 def grad_ti(solution, r, z, coordinate):
@@ -313,17 +288,8 @@ def grad_ti(solution, r, z, coordinate):
         idx = 1
     else:
         raise ValueError(f"{coordinate} is not a coordinate of the problem")
-    state, gradient = _sample_state_and_gradient(solution, r, z)
-    if state[0, 0] == 0:
-        return 0
-    return calculate_grad_Ti_cons(
-        state,
-        gradient,
-        solution.parameters["adimensionalization"]["temperature_scale"],
-        solution.parameters["physics"]["Mref"],
-        solution.parameters["adimensionalization"]["length_scale"],
-        solution._cons_idx,
-    )[0][idx]
+    variable = "dti_dx" if idx == 0 else "dti_dy"
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, variable)[0]
 
 
 def grad_pi(solution, r, z, coordinate):
@@ -333,16 +299,19 @@ def grad_pi(solution, r, z, coordinate):
         idx = 1
     else:
         raise ValueError(f"{coordinate} is not a coordinate of the problem")
-    state, gradient = _sample_state_and_gradient(solution, r, z)
-    if state[0, 0] == 0:
-        return 0
-    return calculate_grad_pi_cons(
-        state,
-        gradient,
-        _pressure_scale(solution),
-        solution.parameters["adimensionalization"]["length_scale"],
-        solution._cons_idx,
-    )[0][idx]
+    variable = "dpi_dx" if idx == 0 else "dpi_dy"
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, variable)[0]
+
+
+def grad_pe(solution, r, z, coordinate):
+    if coordinate == "x":
+        idx = 0
+    elif coordinate == "y":
+        idx = 1
+    else:
+        raise ValueError(f"{coordinate} is not a coordinate of the problem")
+    variable = "dpe_dx" if idx == 0 else "dpe_dy"
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, variable)[0]
 
 
 def grad_ti_par(solution, r, z):
@@ -370,17 +339,8 @@ def grad_te(solution, r, z, coordinate):
         idx = 1
     else:
         raise ValueError(f"{coordinate} is not a coordinate of the problem")
-    state, gradient = _sample_state_and_gradient(solution, r, z)
-    if state[0, 0] == 0:
-        return 0
-    return calculate_grad_Te_cons(
-        state,
-        gradient,
-        solution.parameters["adimensionalization"]["temperature_scale"],
-        solution.parameters["physics"]["Mref"],
-        solution.parameters["adimensionalization"]["length_scale"],
-        solution._cons_idx,
-    )[0][idx]
+    variable = "dte_dx" if idx == 0 else "dte_dy"
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, variable)[0]
 
 
 def grad_te_par(solution, r, z):
@@ -531,21 +491,17 @@ def electron_heat_flux_par(solution, r, z):
 
 
 def psi(solution, r, z):
-    prep_ops.ensure_interpolators(solution)
-    return solution._psi_interpolator(r, z)
+    return batched_sampling_ops.sample_variable_at_point(solution, r, z, "psi")[0]
 
 
 def B(solution, r, z, component):
     if component == "R":
-        idx = 0
-    elif component == "Z":
-        idx = 1
-    elif component == "theta":
-        idx = 2
-    else:
-        raise ValueError(f"{component} is not a component of the problem")
-    prep_ops.ensure_interpolators(solution)
-    return solution.interpolators.field[idx](r, z)
+        return batched_sampling_ops.sample_variable_at_point(solution, r, z, "br")[0]
+    if component == "Z":
+        return batched_sampling_ops.sample_variable_at_point(solution, r, z, "bz")[0]
+    if component == "theta":
+        return batched_sampling_ops.sample_variable_at_point(solution, r, z, "btor")[0]
+    raise ValueError(f"{component} is not a component of the problem")
 
 
 def grad_B(solution, r, z, component, coordinate):

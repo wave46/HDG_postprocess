@@ -1,30 +1,11 @@
 import numpy as np
 import hashlib
 
+from hdg_postprocess.core.solution import batched_sampling as batched_sampling_ops
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
-from hdg_postprocess.routines.plasma import (
-    calculate_M_cons,
-    calculate_Te_cons,
-    calculate_Ti_cons,
-    calculate_cs_cons,
-    calculate_n_cons,
-    calculate_nn_cons,
-    calculate_u_cons,
-)
 from hdg_postprocess.core.solution import preparation as prep_ops
 
 _SHARED_SAMPLE_INTERPOLATORS = {}
-
-_BATCHED_LINE_VARIABLES = {
-    "n": {"cons": (b"rho",)},
-    "nn": {"cons": (b"rhon",)},
-    "te": {"cons": (b"rho", b"nEe")},
-    "ti": {"cons": (b"rho", b"Gamma", b"nEi")},
-    "u": {"cons": (b"rho", b"Gamma")},
-    "cs": {"cons": (b"rho", b"Gamma", b"nEi", b"nEe")},
-    "M": {"cons": (b"rho", b"Gamma", b"nEi", b"nEe")},
-    "psi": {"cons": ()},
-}
 
 
 def calculate_variables_along_line(solution, r_line, z_line, variable_list):
@@ -34,7 +15,7 @@ def calculate_variables_along_line(solution, r_line, z_line, variable_list):
         if variable not in defined_variables:
             raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
 
-    result = _batched_line_variables(solution, r_line, z_line, variable_list)
+    result = batched_sampling_ops.sample_variables(solution, r_line, z_line, variable_list)
     pending_variables = [variable for variable in variable_list if variable not in result]
     if not pending_variables:
         return result
@@ -72,8 +53,11 @@ def _line_variable_getters(solution):
         "mfp": solution.pointwise.plasma.mfp_nn,
         "p_dyn": solution.pointwise.plasma.dynamic_pressure,
         "pi": solution.pointwise.plasma.ion_pressure,
+        "pe": solution.pointwise.plasma.pe,
         "dpi_dx": lambda r, z: solution.pointwise.gradients.pi(r, z, "x"),
         "dpi_dy": lambda r, z: solution.pointwise.gradients.pi(r, z, "y"),
+        "dpe_dx": lambda r, z: solution.pointwise.gradients.pe(r, z, "x"),
+        "dpe_dy": lambda r, z: solution.pointwise.gradients.pe(r, z, "y"),
         "q_i_par": solution.pointwise.fluxes.ion_heat_parallel,
         "q_i_par_conv": solution.pointwise.fluxes.ion_heat_parallel_convective,
         "q_i_par_cond": solution.pointwise.fluxes.ion_heat_parallel_conductive,
@@ -86,6 +70,8 @@ def _line_variable_getters(solution):
         "dk": solution.pointwise.plasma.dk,
         "cx_rate": solution.pointwise.sources.cx_rate,
         "iz_rate": solution.pointwise.sources.ionization_rate,
+        "br": lambda r, z: solution.pointwise.fields.magnetic_field(r, z, "R"),
+        "bz": lambda r, z: solution.pointwise.fields.magnetic_field(r, z, "Z"),
         "btor": lambda r, z: solution.pointwise.fields.magnetic_field(r, z, "theta"),
         "dbtor_dx": lambda r, z: solution.pointwise.fields.grad_magnetic_field(r, z, "theta", "x"),
         "dbtor_dy": lambda r, z: solution.pointwise.fields.grad_magnetic_field(r, z, "theta", "y"),
@@ -212,55 +198,3 @@ def _line_scalar_value(value):
     if array.size == 1:
         return array.reshape(()).item()
     raise ValueError(f"Line sampling expects scalar-valued getters, got shape {array.shape}")
-
-
-def _batched_line_variables(solution, r_line, z_line, variable_list):
-    supported = [variable for variable in variable_list if variable in _BATCHED_LINE_VARIABLES]
-    if not supported:
-        return {}
-
-    prep_ops.ensure_interpolators(solution)
-    x_values = np.asarray(r_line, dtype=np.float64).reshape(-1)
-    y_values = np.asarray(z_line, dtype=np.float64).reshape(-1)
-    sampled_cons = _batched_line_state(solution, x_values, y_values, supported)
-    return _batched_line_results(solution, sampled_cons, x_values, y_values, supported)
-
-
-def _batched_line_state(solution, x_values, y_values, variables):
-    required_cons = []
-    for variable in variables:
-        for cons_name in _BATCHED_LINE_VARIABLES[variable]["cons"]:
-            if cons_name not in required_cons:
-                required_cons.append(cons_name)
-
-    state = np.zeros((x_values.size, solution.neq), dtype=np.float64)
-    for cons_name in required_cons:
-        idx = solution._cons_idx[cons_name]
-        state[:, idx] = solution.interpolators.solution[idx].evaluate_many(x_values, y_values)
-    return state
-
-
-def _batched_line_results(solution, state, x_values, y_values, variables):
-    result = {}
-    adim = solution.parameters["adimensionalization"]
-    physics = solution.parameters["physics"]
-    cons_idx = solution._cons_idx
-    variable_set = set(variables)
-
-    if "n" in variable_set:
-        result["n"] = np.asarray(calculate_n_cons(state, adim["density_scale"], cons_idx), dtype=float)
-    if "nn" in variable_set:
-        result["nn"] = np.asarray(calculate_nn_cons(state, adim["density_scale"], cons_idx), dtype=float)
-    if "te" in variable_set:
-        result["te"] = np.asarray(calculate_Te_cons(state, adim["temperature_scale"], physics["Mref"], cons_idx), dtype=float)
-    if "ti" in variable_set:
-        result["ti"] = np.asarray(calculate_Ti_cons(state, adim["temperature_scale"], physics["Mref"], cons_idx), dtype=float)
-    if "u" in variable_set:
-        result["u"] = np.asarray(calculate_u_cons(state, adim["speed_scale"], cons_idx), dtype=float)
-    if "cs" in variable_set:
-        result["cs"] = np.asarray(calculate_cs_cons(state, adim["speed_scale"], cons_idx), dtype=float)
-    if "M" in variable_set:
-        result["M"] = np.asarray(calculate_M_cons(state, cons_idx), dtype=float)
-    if "psi" in variable_set:
-        result["psi"] = np.asarray(solution.interpolators.psi.evaluate_many(x_values, y_values), dtype=float)
-    return result
