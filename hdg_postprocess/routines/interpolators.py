@@ -2,10 +2,12 @@ import numpy as np
 
 try:
     from hdg_postprocess.routines._interpolators_fast import (
+        evaluate_many_cached as _fast_evaluate_many_cached,
         orthopoly2d_deriv_xieta_scalar as _fast_orthopoly2d_deriv_xieta,
         orthopoly2d_scalar as _fast_orthopoly2d,
     )
 except ImportError:
+    _fast_evaluate_many_cached = None
     _fast_orthopoly2d_deriv_xieta = None
     _fast_orthopoly2d = None
 
@@ -96,6 +98,8 @@ class SoledgeHDG2DInterpolator():
         y_array = np.asarray(y_values, dtype=np.float64).reshape(-1)
         if x_array.shape != y_array.shape:
             raise ValueError("x_values and y_values must have the same shape")
+        if _fast_evaluate_many_cached is not None:
+            return _fast_evaluate_many_cached(self, x_array, y_array)
         result = np.empty_like(x_array, dtype=np.float64)
         for index, (x_value, y_value) in enumerate(zip(x_array, y_array)):
             result[index] = self.evaluate(float(x_value), float(y_value))
