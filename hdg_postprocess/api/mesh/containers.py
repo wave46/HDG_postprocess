@@ -16,6 +16,7 @@ class MeshFlags:
 @dataclass
 class MeshCache:
     boundary_gauss_boundaries: Optional[Tuple[int, ...]] = None
+    interpolator_mesh_signature: Optional[Tuple[object, ...]] = None
 
 
 @dataclass

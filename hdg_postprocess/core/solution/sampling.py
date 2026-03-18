@@ -1,7 +1,10 @@
 import numpy as np
+import hashlib
 
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
 from hdg_postprocess.core.solution import preparation as prep_ops
+
+_SHARED_SAMPLE_INTERPOLATORS = {}
 
 
 def calculate_variables_along_line(solution, r_line, z_line, variable_list):
@@ -87,18 +90,13 @@ def define_interpolators(solution):
         solution.equilibrium.define_qcyl(view="glob")
     interpolators = solution.interpolators
     if interpolators.sample is None:
-        if solution.mesh.mesh_parameters["element_type"] == "triangle":
-            interpolators.sample = SoledgeHDG2DInterpolator(
-                solution.mesh.global_state.vertices, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.global_state.connectivity,
-                solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord"],
-                solution.mesh.mesh_parameters["element_type"], solution.mesh.metadata.p_order, limit=False,
-            )
-        elif solution.mesh.mesh_parameters["element_type"] == "quadrilateral":
-            interpolators.sample = SoledgeHDG2DInterpolator(
-                solution.mesh.global_state.vertices, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.global_state.connectivity,
-                solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord1d"],
-                solution.mesh.mesh_parameters["element_type"], solution.mesh.metadata.p_order, limit=False,
-            )
+        mesh_signature = _mesh_interpolator_signature(solution)
+        shared_sample = _SHARED_SAMPLE_INTERPOLATORS.get(mesh_signature)
+        if shared_sample is None:
+            shared_sample = _build_sample_interpolator(solution, glob_view)
+            _SHARED_SAMPLE_INTERPOLATORS[mesh_signature] = shared_sample
+        solution.mesh.metadata.cache.interpolator_mesh_signature = mesh_signature
+        interpolators.sample = SoledgeHDG2DInterpolator.instance(shared_sample)
 
     interpolators.solution = []
     interpolators.gradient = []
@@ -119,6 +117,65 @@ def define_interpolators(solution):
     if glob_view.equilibrium.jtor is not None:
         interpolators.jtor = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.jtor)
     solution._psi_interpolator = interpolators.psi
+
+
+def _mesh_interpolator_signature(solution):
+    mesh = solution.mesh
+    cached_signature = mesh.metadata.cache.interpolator_mesh_signature
+    if cached_signature is not None:
+        return cached_signature
+    if mesh.global_state.vertices is None:
+        mesh.assembly.full()
+    reference_element = mesh.metadata.reference_element
+    if mesh.mesh_parameters["element_type"] == "triangle":
+        ref_coords = reference_element["NodesCoord"]
+    elif mesh.mesh_parameters["element_type"] == "quadrilateral":
+        ref_coords = reference_element["NodesCoord1d"]
+    else:
+        raise ValueError(f"Unsupported element type: {mesh.mesh_parameters['element_type']!r}")
+
+    def _digest(array):
+        contiguous = np.ascontiguousarray(array)
+        return hashlib.blake2b(memoryview(contiguous), digest_size=16).hexdigest()
+
+    signature = (
+        mesh.mesh_parameters["element_type"],
+        int(mesh.metadata.p_order),
+        tuple(mesh.global_state.vertices.shape),
+        tuple(mesh.global_state.connectivity.shape),
+        _digest(mesh.global_state.vertices),
+        _digest(mesh.global_state.connectivity),
+        _digest(ref_coords),
+    )
+    mesh.metadata.cache.interpolator_mesh_signature = signature
+    return signature
+
+
+def _build_sample_interpolator(solution, glob_view):
+    mesh = solution.mesh
+    if mesh.mesh_parameters["element_type"] == "triangle":
+        return SoledgeHDG2DInterpolator(
+            mesh.global_state.vertices,
+            np.ones_like(glob_view.solution.conservative[:, :, 0]),
+            mesh.global_state.connectivity,
+            mesh.derived_geometry.element_locator,
+            mesh.metadata.reference_element["NodesCoord"],
+            mesh.mesh_parameters["element_type"],
+            mesh.metadata.p_order,
+            limit=False,
+        )
+    if mesh.mesh_parameters["element_type"] == "quadrilateral":
+        return SoledgeHDG2DInterpolator(
+            mesh.global_state.vertices,
+            np.ones_like(glob_view.solution.conservative[:, :, 0]),
+            mesh.global_state.connectivity,
+            mesh.derived_geometry.element_locator,
+            mesh.metadata.reference_element["NodesCoord1d"],
+            mesh.mesh_parameters["element_type"],
+            mesh.metadata.p_order,
+            limit=False,
+        )
+    raise ValueError(f"Unsupported element type: {mesh.mesh_parameters['element_type']!r}")
 
 
 def _line_scalar_value(value):

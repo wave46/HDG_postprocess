@@ -32,6 +32,8 @@ class RectangularGrid2D:
 
     @classmethod
     def from_solution_bounds(cls, solution, *, dr=0.003, dz=0.003, padding=0.0):
+        if solution.mesh.global_state.vertices is None:
+            solution.mesh.assembly.full()
         vertices = solution.mesh.global_state.vertices
         r_min = float(vertices[:, 0].min()) - padding
         r_max = float(vertices[:, 0].max()) + padding

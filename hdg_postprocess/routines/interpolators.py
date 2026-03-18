@@ -89,6 +89,18 @@ class SoledgeHDG2DInterpolator():
         """
         return self.evaluate(x, y)
 
+    def evaluate_many(self, x_values, y_values):
+        """Evaluate the interpolator on a batch of points."""
+
+        x_array = np.asarray(x_values, dtype=np.float64).reshape(-1)
+        y_array = np.asarray(y_values, dtype=np.float64).reshape(-1)
+        if x_array.shape != y_array.shape:
+            raise ValueError("x_values and y_values must have the same shape")
+        result = np.empty_like(x_array, dtype=np.float64)
+        for index, (x_value, y_value) in enumerate(zip(x_array, y_array)):
+            result[index] = self.evaluate(float(x_value), float(y_value))
+        return result
+
     @classmethod
     def instance(cls, instance, vertex_data=None, limit=None, default_value=None):
         m = SoledgeHDG2DInterpolator.__new__(SoledgeHDG2DInterpolator)

@@ -25,16 +25,19 @@ def evaluate_interpolator_on_grid(interpolator, r_grid, z_grid, *, locator=None,
 def evaluate_interpolators_on_grid(interpolators, r_grid, z_grid, *, locator=None, outside_value=np.nan):
     """Evaluate several cached point interpolators on a rectangular mesh in one pass."""
 
-    values = {name: np.empty_like(r_grid, dtype=float) for name in interpolators}
-    for index in np.ndindex(r_grid.shape):
-        r_value = r_grid[index]
-        z_value = z_grid[index]
-        if locator is not None and int(locator(r_value, z_value)) == -1:
-            for name in interpolators:
-                values[name][index] = outside_value
-            continue
-        for name, interpolator in interpolators.items():
-            values[name][index] = interpolator(r_value, z_value)
+    flat_r = r_grid.reshape(-1)
+    flat_z = z_grid.reshape(-1)
+    valid_mask = np.ones(flat_r.shape, dtype=bool)
+    if locator is not None:
+        for index, (r_value, z_value) in enumerate(zip(flat_r, flat_z)):
+            valid_mask[index] = int(locator(r_value, z_value)) != -1
+
+    values = {}
+    for name, interpolator in interpolators.items():
+        flat_values = np.full(flat_r.shape, outside_value, dtype=float)
+        if np.any(valid_mask):
+            flat_values[valid_mask] = interpolator.evaluate_many(flat_r[valid_mask], flat_z[valid_mask])
+        values[name] = flat_values.reshape(r_grid.shape)
     return values
 
 
