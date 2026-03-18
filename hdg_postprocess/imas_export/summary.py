@@ -42,15 +42,44 @@ def _scaled_value(parameters, group_name, key, scale_key):
     return _as_python_scalar(group[key]) * _as_python_scalar(adim[scale_key])
 
 
+def _transport_source_key(physics, key):
+    for candidate in (f"ME_{key}", f"{key}_ME", key):
+        if candidate in physics:
+            return candidate
+    return None
+
+
+def _parallel_conductivity_value(parameters, key):
+    physics = parameters.get("physics", {})
+    adim = parameters.get("adimensionalization", {})
+    source_key = _transport_source_key(physics, key)
+    if source_key is None:
+        return None, None
+
+    denom = (
+        _as_python_scalar(adim["time_scale"]) ** 3
+        * _as_python_scalar(adim["temperature_scale"]) ** (7 / 2)
+        / (
+            _as_python_scalar(adim["density_scale"])
+            * _as_python_scalar(adim["length_scale"]) ** 4
+        )
+        / _as_python_scalar(adim["mass_scale"])
+    )
+    return _as_python_scalar(physics[source_key]) / denom, source_key
+
+
 def _extract_transport_metadata(parameters):
     physics = parameters.get("physics", {})
     extracted = {}
 
     for key in _TRANSPORT_KEYS:
-        source_key = f"{key}_ME" if f"{key}_ME" in physics else key
+        source_key = _transport_source_key(physics, key)
         if source_key not in physics:
             continue
-        extracted[f"{key}_m2_s"] = _scaled_value(parameters, "physics", source_key, "diffusion_scale")
+        if key in ("diff_pare", "diff_pari"):
+            extracted[f"{key}_m2_s"], source_key = _parallel_conductivity_value(parameters, key)
+        else:
+            extracted[f"{key}_m2_s"] = _scaled_value(parameters, "physics", source_key, "diffusion_scale")
         if source_key != key:
             extracted[f"{key}_source_key"] = source_key
 
