@@ -10,6 +10,9 @@ class PointwisePlasma(_PointwiseSection):
     def n(self, r, z):
         return pointwise_fields_ops.n(self._solution, r, z)
 
+    def pe(self, r, z):
+        return pointwise_fields_ops.pe(self._solution, r, z)
+
     def ti(self, r, z):
         return pointwise_fields_ops.ti(self._solution, r, z)
 
@@ -48,6 +51,9 @@ class PointwisePlasma(_PointwiseSection):
 
 
 class PointwiseGradients(_PointwiseSection):
+    def pe(self, r, z, coordinate):
+        return pointwise_fields_ops.grad_pe(self._solution, r, z, coordinate)
+
     def ti(self, r, z, coordinate):
         return pointwise_fields_ops.grad_ti(self._solution, r, z, coordinate)
 

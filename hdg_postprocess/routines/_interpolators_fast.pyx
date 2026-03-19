@@ -10,6 +10,45 @@ cnp.import_array()
 ctypedef cnp.float64_t DTYPE_t
 
 
+def evaluate_many_cached(object interpolator, x_values, y_values):
+    cdef cnp.ndarray[DTYPE_t, ndim=1] x_array = np.asarray(x_values, dtype=np.float64).reshape(-1)
+    cdef cnp.ndarray[DTYPE_t, ndim=1] y_array = np.asarray(y_values, dtype=np.float64).reshape(-1)
+    cdef cnp.ndarray[DTYPE_t, ndim=1] result
+    cdef Py_ssize_t n_points
+    cdef Py_ssize_t index
+    cdef object key
+    cdef object shape_functions
+    cdef object element_number
+    cdef object element_data
+
+    if x_array.shape[0] != y_array.shape[0]:
+        raise ValueError("x_values and y_values must have the same shape")
+
+    n_points = x_array.shape[0]
+    result = np.empty(n_points, dtype=np.float64)
+
+    for index in range(n_points):
+        key = (float(x_array[index]), float(y_array[index]))
+        try:
+            shape_functions = interpolator._hashed_shape_functions[key]
+            element_number = interpolator._hashed_element[key]
+        except KeyError:
+            element_number = interpolator._cache_miss_value(float(x_array[index]), float(y_array[index]), key)
+            if element_number == -1:
+                result[index] = interpolator._default_value
+                continue
+            shape_functions = interpolator._hashed_shape_functions[key]
+
+        if element_number == -1:
+            result[index] = interpolator._default_value
+            continue
+
+        element_data = interpolator._vertex_data[element_number, :]
+        result[index] = np.dot(shape_functions, element_data)
+
+    return result
+
+
 cdef inline double jacobi_scalar(int n, double a, double b, double x) nogil:
     cdef double p_nm2, p_nm1, p_n
     cdef double factor_1, factor_2

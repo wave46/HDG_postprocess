@@ -1,7 +1,11 @@
 import numpy as np
+import hashlib
 
+from hdg_postprocess.core.solution import batched_sampling as batched_sampling_ops
 from hdg_postprocess.routines.interpolators import SoledgeHDG2DInterpolator
 from hdg_postprocess.core.solution import preparation as prep_ops
+
+_SHARED_SAMPLE_INTERPOLATORS = {}
 
 
 def calculate_variables_along_line(solution, r_line, z_line, variable_list):
@@ -10,8 +14,15 @@ def calculate_variables_along_line(solution, r_line, z_line, variable_list):
     for variable in variable_list:
         if variable not in defined_variables:
             raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
-    result = {variable: np.zeros_like(z_line) for variable in variable_list}
-    requested_getters = [(variable, variable_getters[variable]) for variable in variable_list]
+
+    result = batched_sampling_ops.sample_variables(solution, r_line, z_line, variable_list)
+    pending_variables = [variable for variable in variable_list if variable not in result]
+    if not pending_variables:
+        return result
+
+    requested_getters = [(variable, variable_getters[variable]) for variable in pending_variables]
+    for variable in pending_variables:
+        result[variable] = np.zeros_like(z_line)
     for i, (r, z) in enumerate(zip(r_line, z_line)):
         for variable, getter in requested_getters:
             result[variable][i] = _line_scalar_value(getter(r, z))
@@ -42,8 +53,11 @@ def _line_variable_getters(solution):
         "mfp": solution.pointwise.plasma.mfp_nn,
         "p_dyn": solution.pointwise.plasma.dynamic_pressure,
         "pi": solution.pointwise.plasma.ion_pressure,
+        "pe": solution.pointwise.plasma.pe,
         "dpi_dx": lambda r, z: solution.pointwise.gradients.pi(r, z, "x"),
         "dpi_dy": lambda r, z: solution.pointwise.gradients.pi(r, z, "y"),
+        "dpe_dx": lambda r, z: solution.pointwise.gradients.pe(r, z, "x"),
+        "dpe_dy": lambda r, z: solution.pointwise.gradients.pe(r, z, "y"),
         "q_i_par": solution.pointwise.fluxes.ion_heat_parallel,
         "q_i_par_conv": solution.pointwise.fluxes.ion_heat_parallel_convective,
         "q_i_par_cond": solution.pointwise.fluxes.ion_heat_parallel_conductive,
@@ -56,6 +70,8 @@ def _line_variable_getters(solution):
         "dk": solution.pointwise.plasma.dk,
         "cx_rate": solution.pointwise.sources.cx_rate,
         "iz_rate": solution.pointwise.sources.ionization_rate,
+        "br": lambda r, z: solution.pointwise.fields.magnetic_field(r, z, "R"),
+        "bz": lambda r, z: solution.pointwise.fields.magnetic_field(r, z, "Z"),
         "btor": lambda r, z: solution.pointwise.fields.magnetic_field(r, z, "theta"),
         "dbtor_dx": lambda r, z: solution.pointwise.fields.grad_magnetic_field(r, z, "theta", "x"),
         "dbtor_dy": lambda r, z: solution.pointwise.fields.grad_magnetic_field(r, z, "theta", "y"),
@@ -87,18 +103,13 @@ def define_interpolators(solution):
         solution.equilibrium.define_qcyl(view="glob")
     interpolators = solution.interpolators
     if interpolators.sample is None:
-        if solution.mesh.mesh_parameters["element_type"] == "triangle":
-            interpolators.sample = SoledgeHDG2DInterpolator(
-                solution.mesh.global_state.vertices, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.global_state.connectivity,
-                solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord"],
-                solution.mesh.mesh_parameters["element_type"], solution.mesh.metadata.p_order, limit=False,
-            )
-        elif solution.mesh.mesh_parameters["element_type"] == "quadrilateral":
-            interpolators.sample = SoledgeHDG2DInterpolator(
-                solution.mesh.global_state.vertices, np.ones_like(glob_view.solution.conservative[:, :, 0]), solution.mesh.global_state.connectivity,
-                solution.mesh.derived_geometry.element_locator, solution.mesh.metadata.reference_element["NodesCoord1d"],
-                solution.mesh.mesh_parameters["element_type"], solution.mesh.metadata.p_order, limit=False,
-            )
+        mesh_signature = _mesh_interpolator_signature(solution)
+        shared_sample = _SHARED_SAMPLE_INTERPOLATORS.get(mesh_signature)
+        if shared_sample is None:
+            shared_sample = _build_sample_interpolator(solution, glob_view)
+            _SHARED_SAMPLE_INTERPOLATORS[mesh_signature] = shared_sample
+        solution.mesh.metadata.cache.interpolator_mesh_signature = mesh_signature
+        interpolators.sample = SoledgeHDG2DInterpolator.instance(shared_sample)
 
     interpolators.solution = []
     interpolators.gradient = []
@@ -114,7 +125,70 @@ def define_interpolators(solution):
     for i in range(3):
         interpolators.field.append(SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.magnetic_field[:, :, i]))
     interpolators.qcyl = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.qcyl)
-    solution._psi_interpolator = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.poloidal_flux)
+    interpolators.psi = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.poloidal_flux)
+    interpolators.jtor = None
+    if glob_view.equilibrium.jtor is not None:
+        interpolators.jtor = SoledgeHDG2DInterpolator.instance(interpolators.sample, glob_view.equilibrium.jtor)
+    solution._psi_interpolator = interpolators.psi
+
+
+def _mesh_interpolator_signature(solution):
+    mesh = solution.mesh
+    cached_signature = mesh.metadata.cache.interpolator_mesh_signature
+    if cached_signature is not None:
+        return cached_signature
+    if mesh.global_state.vertices is None:
+        mesh.assembly.full()
+    reference_element = mesh.metadata.reference_element
+    if mesh.mesh_parameters["element_type"] == "triangle":
+        ref_coords = reference_element["NodesCoord"]
+    elif mesh.mesh_parameters["element_type"] == "quadrilateral":
+        ref_coords = reference_element["NodesCoord1d"]
+    else:
+        raise ValueError(f"Unsupported element type: {mesh.mesh_parameters['element_type']!r}")
+
+    def _digest(array):
+        contiguous = np.ascontiguousarray(array)
+        return hashlib.blake2b(memoryview(contiguous), digest_size=16).hexdigest()
+
+    signature = (
+        mesh.mesh_parameters["element_type"],
+        int(mesh.metadata.p_order),
+        tuple(mesh.global_state.vertices.shape),
+        tuple(mesh.global_state.connectivity.shape),
+        _digest(mesh.global_state.vertices),
+        _digest(mesh.global_state.connectivity),
+        _digest(ref_coords),
+    )
+    mesh.metadata.cache.interpolator_mesh_signature = signature
+    return signature
+
+
+def _build_sample_interpolator(solution, glob_view):
+    mesh = solution.mesh
+    if mesh.mesh_parameters["element_type"] == "triangle":
+        return SoledgeHDG2DInterpolator(
+            mesh.global_state.vertices,
+            np.ones_like(glob_view.solution.conservative[:, :, 0]),
+            mesh.global_state.connectivity,
+            mesh.derived_geometry.element_locator,
+            mesh.metadata.reference_element["NodesCoord"],
+            mesh.mesh_parameters["element_type"],
+            mesh.metadata.p_order,
+            limit=False,
+        )
+    if mesh.mesh_parameters["element_type"] == "quadrilateral":
+        return SoledgeHDG2DInterpolator(
+            mesh.global_state.vertices,
+            np.ones_like(glob_view.solution.conservative[:, :, 0]),
+            mesh.global_state.connectivity,
+            mesh.derived_geometry.element_locator,
+            mesh.metadata.reference_element["NodesCoord1d"],
+            mesh.mesh_parameters["element_type"],
+            mesh.metadata.p_order,
+            limit=False,
+        )
+    raise ValueError(f"Unsupported element type: {mesh.mesh_parameters['element_type']!r}")
 
 
 def _line_scalar_value(value):

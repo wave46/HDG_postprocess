@@ -41,6 +41,7 @@ For a lighter entry point than the full demo notebooks, start with:
 - [Power Balance](docs/tutorials/power_balance.md)
 - [Boundary Summary](docs/tutorials/boundary_summary.md)
 - [Setup Helpers](docs/tutorials/setup_helpers.md)
+- [IMAS Export](docs/tutorials/imas_export.md)
 
 The longer runnable examples remain in [demos](demos).
 

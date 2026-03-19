@@ -2,10 +2,12 @@ import numpy as np
 
 try:
     from hdg_postprocess.routines._interpolators_fast import (
+        evaluate_many_cached as _fast_evaluate_many_cached,
         orthopoly2d_deriv_xieta_scalar as _fast_orthopoly2d_deriv_xieta,
         orthopoly2d_scalar as _fast_orthopoly2d,
     )
 except ImportError:
+    _fast_evaluate_many_cached = None
     _fast_orthopoly2d_deriv_xieta = None
     _fast_orthopoly2d = None
 
@@ -51,7 +53,7 @@ class SoledgeHDG2DInterpolator():
             shape_functions = hashed_shape_functions[key]
             element_number = self._hashed_element[key]
         except KeyError:
-            element_number = self._cache_miss(x, y, key)
+            element_number = self._cache_miss_value(x, y, key)
             if element_number == -1:
                 return self._default_value
             shape_functions = hashed_shape_functions[key]
@@ -73,7 +75,7 @@ class SoledgeHDG2DInterpolator():
             shape_functions_dy = hashed_shape_functions_dy[key]
             element_number = self._hashed_element[key]
         except KeyError:
-            element_number = self._cache_miss(x, y, key)
+            element_number = self._cache_miss_gradient(x, y, key)
             if element_number == -1:
                 return np.array([0.0, 0.0])
             shape_functions_dx = hashed_shape_functions_dx[key]
@@ -88,6 +90,20 @@ class SoledgeHDG2DInterpolator():
         Calculates interpolateion in given point (R,Z)
         """
         return self.evaluate(x, y)
+
+    def evaluate_many(self, x_values, y_values):
+        """Evaluate the interpolator on a batch of points."""
+
+        x_array = np.asarray(x_values, dtype=np.float64).reshape(-1)
+        y_array = np.asarray(y_values, dtype=np.float64).reshape(-1)
+        if x_array.shape != y_array.shape:
+            raise ValueError("x_values and y_values must have the same shape")
+        if _fast_evaluate_many_cached is not None:
+            return _fast_evaluate_many_cached(self, x_array, y_array)
+        result = np.empty_like(x_array, dtype=np.float64)
+        for index, (x_value, y_value) in enumerate(zip(x_array, y_array)):
+            result[index] = self.evaluate(float(x_value), float(y_value))
+        return result
 
     @classmethod
     def instance(cls, instance, vertex_data=None, limit=None, default_value=None):
@@ -138,6 +154,15 @@ class SoledgeHDG2DInterpolator():
         return self.__new__, (self.__class__, ), self.__getstate__()
 
     def _cache_miss(self, x, y, key):
+        return self._cache_miss_common(x, y, key, cache_gradients=True)
+
+    def _cache_miss_value(self, x, y, key):
+        return self._cache_miss_common(x, y, key, cache_gradients=False)
+
+    def _cache_miss_gradient(self, x, y, key):
+        return self._cache_miss_common(x, y, key, cache_gradients=True)
+
+    def _cache_miss_common(self, x, y, key, *, cache_gradients):
         element_number = int(self._element_number(x, y))
         self._hashed_element[key] = element_number
         if element_number == -1:
@@ -145,10 +170,12 @@ class SoledgeHDG2DInterpolator():
             if self._limit:
                 raise ValueError("Requested value outside mesh bounds.")
             return -1
+
         shape_functions, shape_functions_dx, shape_functions_dy = self._compute_shape_data(x, y, element_number)
         self._hashed_shape_functions[key] = shape_functions
-        self._hashed_shape_functions_dx[key] = shape_functions_dx
-        self._hashed_shape_functions_dy[key] = shape_functions_dy
+        if cache_gradients:
+            self._hashed_shape_functions_dx[key] = shape_functions_dx
+            self._hashed_shape_functions_dy[key] = shape_functions_dy
         return element_number
 
     def _compute_shape_data(self, x, y, element_number):

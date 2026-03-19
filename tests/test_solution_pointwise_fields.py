@@ -68,9 +68,13 @@ def test_pointwise_accessors_match_embedded_k_baseline(manifest_path):
     assert np.isclose(sol.pointwise.plasma.nn(r, z)[0], point["nn"][0])
     assert np.isclose(sol.pointwise.plasma.mach(r, z)[0], point["M"][0])
     assert np.isclose(sol.pointwise.plasma.k(r, z)[0], point["k"][0])
+    assert np.isfinite(sol.pointwise.plasma.pe(r, z)[0])
     assert np.isfinite(sol.pointwise.plasma.dk(r, z)[0])
+    assert np.isfinite(sol.pointwise.gradients.pe(r, z, "x"))
     assert np.isfinite(sol.pointwise.gradients.ti(r, z, "x"))
     assert np.isfinite(sol.pointwise.fields.psi(r, z))
+    assert np.isfinite(sol.pointwise.fields.magnetic_field(r, z, "R"))
+    assert np.isfinite(sol.pointwise.fields.magnetic_field(r, z, "Z"))
 
 
 def test_pointwise_source_and_field_accessors_are_finite(manifest_path):
