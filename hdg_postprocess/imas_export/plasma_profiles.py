@@ -7,6 +7,88 @@ from .evaluate import evaluate_variables_on_grid
 from .ggd_geometry import populate_rectangular_grid_ggd_array
 
 
+def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: RectangularGrid2D):
+    """Build a rectangular-GGD plasma_profiles IDS from one HDG solution."""
+
+    import imas
+
+    solution.assembly.full()
+    solution.assembly.simple()
+
+    plasma = imas.IDSFactory().plasma_profiles()
+    plasma.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
+    plasma.time = np.array([float(metadata.time)])
+    populate_rectangular_grid_ggd_array(plasma.grid_ggd, grid, float(metadata.time))
+    plasma.ggd.resize(1)
+
+    ggd = plasma.ggd[0]
+    ggd.time = float(metadata.time)
+
+    sampled = _sample_plasma_fields(solution, grid)
+    _populate_plasma_ggd(ggd, sampled)
+
+    if "Zeff" in solution.parameters["physics"]:
+        plasma.global_quantities.z_eff_resistive = np.array(
+            [float(solution.parameters["physics"]["Zeff"])],
+            dtype=float,
+        )
+
+    plasma.code.name = "SOLEDGE-HDG"
+    plasma.code.repository = "hdg_postprocess"
+    plasma.code.description = "Plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
+    plasma.code.parameters = json.dumps(_plasma_profiles_metadata(solution, grid), sort_keys=True)
+    return plasma
+
+
+def put_plasma_profiles(entry, solution, metadata: IMASExportMetadata, grid: RectangularGrid2D):
+    """Build and store one plasma_profiles IDS in the provided IMAS DBEntry."""
+
+    plasma = build_plasma_profiles_ids(solution, metadata, grid)
+    entry.put(plasma, metadata.occurrence)
+    return plasma
+
+
+def _sample_plasma_fields(solution, grid):
+    r_grid, z_grid = grid.mesh()
+    return evaluate_variables_on_grid(
+        solution,
+        r_grid,
+        z_grid,
+        ["n", "te", "ti", "u", "nn", "psi"],
+        locator=solution.mesh.geometry.element_locator,
+        outside_value=np.nan,
+    )
+
+
+def _populate_plasma_ggd(ggd, sampled):
+    _store_struct_field(ggd.electrons.density, sampled["n"])
+    _store_struct_field(ggd.electrons.temperature, sampled["te"])
+
+    ggd.ion.resize(1)
+    ion = ggd.ion[0]
+    ion.name = "D+"
+    ion.z_ion = 1.0
+    _store_struct_field(ion.temperature, sampled["ti"])
+    ion.velocity.resize(1)
+    ion.velocity[0].grid_index = 1
+    ion.velocity[0].grid_subset_index = 1
+    ion.velocity[0].parallel = sampled["u"].reshape(-1)
+
+    ggd.neutral.resize(1)
+    neutral = ggd.neutral[0]
+    neutral.name = "D"
+    _store_struct_field(neutral.density, sampled["nn"])
+
+    _store_struct_field(ggd.psi, sampled["psi"])
+
+
+def _store_struct_field(field_container, values):
+    field_container.resize(1)
+    field_container[0].grid_index = 1
+    field_container[0].grid_subset_index = 1
+    field_container[0].values = values.reshape(-1)
+
+
 def _plasma_profiles_metadata(solution, grid):
     physics = solution.parameters["physics"]
     extracted = {
@@ -41,77 +123,3 @@ def _plasma_profiles_metadata(solution, grid):
                 impurity_name = impurity_name.decode()
         extracted["impurity_name"] = impurity_name
     return extracted
-
-
-def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: RectangularGrid2D):
-    """Build a rectangular-GGD plasma_profiles IDS from one HDG solution."""
-
-    import imas
-
-    solution.assembly.full()
-    solution.assembly.simple()
-
-    plasma = imas.IDSFactory().plasma_profiles()
-    plasma.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
-    plasma.time = np.array([float(metadata.time)])
-    populate_rectangular_grid_ggd_array(plasma.grid_ggd, grid, float(metadata.time))
-    plasma.ggd.resize(1)
-
-    ggd = plasma.ggd[0]
-    ggd.time = float(metadata.time)
-
-    r_grid, z_grid = grid.mesh()
-    locator = solution.mesh.geometry.element_locator
-    sampled = evaluate_variables_on_grid(
-        solution,
-        r_grid,
-        z_grid,
-        ["n", "te", "ti", "u", "nn", "psi"],
-        locator=locator,
-        outside_value=np.nan,
-    )
-
-    def _store_struct_field(field_container, values):
-        field_container.resize(1)
-        field_container[0].grid_index = 1
-        field_container[0].grid_subset_index = 1
-        field_container[0].values = values.reshape(-1)
-
-    _store_struct_field(ggd.electrons.density, sampled["n"])
-    _store_struct_field(ggd.electrons.temperature, sampled["te"])
-
-    ggd.ion.resize(1)
-    ion = ggd.ion[0]
-    ion.name = "D+"
-    ion.z_ion = 1.0
-    _store_struct_field(ion.temperature, sampled["ti"])
-    ion.velocity.resize(1)
-    ion.velocity[0].grid_index = 1
-    ion.velocity[0].grid_subset_index = 1
-    ion.velocity[0].parallel = sampled["u"].reshape(-1)
-
-    ggd.neutral.resize(1)
-    neutral = ggd.neutral[0]
-    neutral.name = "D"
-    _store_struct_field(neutral.density, sampled["nn"])
-
-    _store_struct_field(ggd.psi, sampled["psi"])
-    if "Zeff" in solution.parameters["physics"]:
-        plasma.global_quantities.z_eff_resistive = np.array(
-            [float(solution.parameters["physics"]["Zeff"])],
-            dtype=float,
-        )
-
-    plasma.code.name = "SOLEDGE-HDG"
-    plasma.code.repository = "hdg_postprocess"
-    plasma.code.description = "Plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
-    plasma.code.parameters = json.dumps(_plasma_profiles_metadata(solution, grid), sort_keys=True)
-    return plasma
-
-
-def put_plasma_profiles(entry, solution, metadata: IMASExportMetadata, grid: RectangularGrid2D):
-    """Build and store one plasma_profiles IDS in the provided IMAS DBEntry."""
-
-    plasma = build_plasma_profiles_ids(solution, metadata, grid)
-    entry.put(plasma, metadata.occurrence)
-    return plasma

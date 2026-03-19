@@ -7,30 +7,13 @@ from .plasma_profiles import put_plasma_profiles
 from .summary import put_summary
 
 
-def _as_python_scalar(value):
-    try:
-        import numpy as np
-    except ImportError:  # pragma: no cover
-        np = None
-
-    if np is not None:
-        if isinstance(value, np.ndarray):
-            if value.shape == ():
-                return value.item()
-            if value.size == 1:
-                return value.reshape(-1)[0].item()
-            return value.tolist()
-        if isinstance(value, np.generic):
-            return value.item()
-    return value
-
-
 def solution_time_seconds(solution, *, allow_steady=False):
     """Return the dimensional solution time in seconds when it is meaningful for export."""
 
     switches = solution.parameters.get("switches", {})
     if not allow_steady and "steady" in switches and bool(_as_python_scalar(switches["steady"])):
         return None
+
     time_group = solution.parameters.get("time", {})
     adim = solution.parameters.get("adimensionalization", {})
     if "Current_time" not in time_group or "time_scale" not in adim:
@@ -43,10 +26,7 @@ def write_summary_netcdf(solution, path, metadata: IMASExportMetadata, *, file_m
 
     import imas
 
-    db_path = Path(path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with imas.DBEntry(str(db_path), file_mode) as entry:
+    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
         return put_summary(entry, solution, metadata)
 
 
@@ -55,10 +35,7 @@ def write_equilibrium_netcdf(solution, path, metadata: IMASExportMetadata, grid,
 
     import imas
 
-    db_path = Path(path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with imas.DBEntry(str(db_path), file_mode) as entry:
+    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
         return put_equilibrium(entry, solution, metadata, grid)
 
 
@@ -67,10 +44,7 @@ def write_plasma_profiles_netcdf(solution, path, metadata: IMASExportMetadata, g
 
     import imas
 
-    db_path = Path(path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with imas.DBEntry(str(db_path), file_mode) as entry:
+    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
         return put_plasma_profiles(entry, solution, metadata, grid)
 
 
@@ -89,15 +63,14 @@ def write_imas_netcdf(
 
     import imas
 
-    db_path = Path(path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
     written = {}
-    with imas.DBEntry(str(db_path), file_mode) as entry:
+    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
         if include_summary:
             written["summary"] = put_summary(entry, solution, metadata)
+
         if include_plasma_profiles:
             written["plasma_profiles"] = put_plasma_profiles(entry, solution, metadata, grid)
+
         if include_equilibrium:
             if include_plasma_profiles:
                 equilibrium = build_equilibrium_ids(
@@ -113,6 +86,7 @@ def write_imas_netcdf(
                 written["equilibrium"] = equilibrium
             else:
                 written["equilibrium"] = put_equilibrium(entry, solution, metadata, grid)
+
     return written
 
 
@@ -129,13 +103,12 @@ def write_imas_scan_case_netcdf(
 ):
     """Write one scan point into a bundled netCDF-backed DBEntry using its occurrence index."""
 
-    file_mode = "w" if create else "a"
     return write_imas_netcdf(
         solution,
         path,
         metadata,
         grid,
-        file_mode=file_mode,
+        file_mode="w" if create else "a",
         include_summary=include_summary,
         include_equilibrium=include_equilibrium,
         include_plasma_profiles=include_plasma_profiles,
@@ -164,12 +137,10 @@ def write_discharge_imas_netcdf(
 
     import imas
 
-    db_path = Path(path)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
     if time_getter is None:
         time_getter = solution_time_seconds
 
-    with imas.DBEntry(str(db_path), file_mode) as entry:
+    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
         return write_discharge(
             entry,
             solutions,
@@ -181,3 +152,27 @@ def write_discharge_imas_netcdf(
             sort_by_time=sort_by_time,
             time_getter=time_getter,
         )
+
+
+def _prepare_db_path(path):
+    db_path = Path(path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return db_path
+
+
+def _as_python_scalar(value):
+    try:
+        import numpy as np
+    except ImportError:  # pragma: no cover
+        np = None
+
+    if np is not None:
+        if isinstance(value, np.ndarray):
+            if value.shape == ():
+                return value.item()
+            if value.size == 1:
+                return value.reshape(-1)[0].item()
+            return value.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+    return value

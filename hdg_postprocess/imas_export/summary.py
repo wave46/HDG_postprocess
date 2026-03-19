@@ -16,74 +16,57 @@ _TRANSPORT_KEYS = (
 )
 
 
-def _as_python_scalar(value):
-    if isinstance(value, np.ndarray):
-        if value.shape == ():
-            return value.item()
-        if value.size == 1:
-            return value.reshape(-1)[0].item()
-        return value.tolist()
-    if isinstance(value, np.generic):
-        return value.item()
-    return value
+def build_summary_ids(solution, metadata: IMASExportMetadata):
+    """Build a summary IDS from one HDG solution and export metadata."""
 
+    import imas
 
-def _decode_if_bytes(value):
-    if isinstance(value, bytes):
-        return value.decode()
-    return value
+    summary = imas.IDSFactory().summary()
+    summary.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
+    summary.description = metadata.description
+    summary.time = [float(metadata.time)]
+    summary.pulse = int(metadata.shot)
 
+    if metadata.machine:
+        summary.machine = metadata.machine
 
-def _scaled_value(parameters, group_name, key, scale_key):
-    group = parameters.get(group_name, {})
-    adim = parameters.get("adimensionalization", {})
-    if key not in group or scale_key not in adim:
-        return None
-    return _as_python_scalar(group[key]) * _as_python_scalar(adim[scale_key])
+    extracted = extract_solution_summary_metadata(solution)
+    extracted["export_shot"] = int(metadata.shot)
+    extracted["export_run"] = int(metadata.run)
+    extracted["export_occurrence"] = int(metadata.occurrence)
+    extracted["effective_energy_transfer"] = float(metadata.effective_energy_transfer)
 
+    summary.ids_properties.comment = _build_ids_comment(metadata, extracted)
+    if metadata.comment:
+        summary.tag.comment = metadata.comment
 
-def _transport_source_key(physics, key):
-    for candidate in (f"ME_{key}", f"{key}_ME", key):
-        if candidate in physics:
-            return candidate
-    return None
+    summary.code.name = "SOLEDGE-HDG"
+    summary.code.repository = "hdg_postprocess"
+    testcase = extracted.get("testcase")
+    if testcase is None:
+        summary.code.description = "Exported from SOLEDGE-HDG by hdg_postprocess."
+    else:
+        summary.code.description = f"Exported from SOLEDGE-HDG by hdg_postprocess (testcase {testcase})."
+    summary.code.parameters = json.dumps(extracted, sort_keys=True)
 
-
-def _parallel_conductivity_value(parameters, key):
-    physics = parameters.get("physics", {})
-    adim = parameters.get("adimensionalization", {})
-    source_key = _transport_source_key(physics, key)
-    if source_key is None:
-        return None, None
-
-    denom = (
-        _as_python_scalar(adim["time_scale"]) ** 3
-        * _as_python_scalar(adim["temperature_scale"]) ** (7 / 2)
-        / (
-            _as_python_scalar(adim["density_scale"])
-            * _as_python_scalar(adim["length_scale"]) ** 4
-        )
-        / _as_python_scalar(adim["mass_scale"])
+    summary.simulation.workflow = (
+        "steady_state" if extracted.get("steady_state", False) else "time_dependent_snapshot"
     )
-    return _as_python_scalar(physics[source_key]) / denom, source_key
+
+    puff_rate = extracted.get("puff_rate")
+    if puff_rate is not None:
+        summary.gas_injection_rates.total.value = [float(puff_rate)]
+        summary.gas_injection_rates.total.source = "SOLEDGE-HDG physics/puff"
+
+    return summary
 
 
-def _extract_transport_metadata(parameters):
-    physics = parameters.get("physics", {})
-    extracted = {}
+def put_summary(entry, solution, metadata: IMASExportMetadata):
+    """Build and store one summary IDS in the provided IMAS DBEntry."""
 
-    for key in _TRANSPORT_KEYS:
-        source_key = _transport_source_key(physics, key)
-        if source_key not in physics:
-            continue
-        if key in ("diff_pare", "diff_pari"):
-            extracted[f"{key}_m2_s"], source_key = _parallel_conductivity_value(parameters, key)
-        else:
-            extracted[f"{key}_m2_s"] = _scaled_value(parameters, "physics", source_key, "diffusion_scale")
-        if source_key != key:
-            extracted[f"{key}_source_key"] = source_key
-
-    return extracted
+    summary = build_summary_ids(solution, metadata)
+    entry.put(summary, metadata.occurrence)
+    return summary
 
 
 def extract_solution_summary_metadata(solution):
@@ -137,53 +120,71 @@ def _build_ids_comment(metadata, extracted):
     return "\n".join(lines)
 
 
-def build_summary_ids(solution, metadata: IMASExportMetadata):
-    """Build a summary IDS from one HDG solution and export metadata."""
+def _extract_transport_metadata(parameters):
+    physics = parameters.get("physics", {})
+    extracted = {}
 
-    import imas
+    for key in _TRANSPORT_KEYS:
+        source_key = _transport_source_key(physics, key)
+        if source_key not in physics:
+            continue
+        if key in ("diff_pare", "diff_pari"):
+            extracted[f"{key}_m2_s"], source_key = _parallel_conductivity_value(parameters, key)
+        else:
+            extracted[f"{key}_m2_s"] = _scaled_value(parameters, "physics", source_key, "diffusion_scale")
+        if source_key != key:
+            extracted[f"{key}_source_key"] = source_key
 
-    summary = imas.IDSFactory().summary()
-    summary.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
-    summary.description = metadata.description
-    summary.time = [float(metadata.time)]
-    summary.pulse = int(metadata.shot)
+    return extracted
 
-    if metadata.machine:
-        summary.machine = metadata.machine
 
-    extracted = extract_solution_summary_metadata(solution)
-    extracted["export_shot"] = int(metadata.shot)
-    extracted["export_run"] = int(metadata.run)
-    extracted["export_occurrence"] = int(metadata.occurrence)
-    extracted["effective_energy_transfer"] = float(metadata.effective_energy_transfer)
-    summary.ids_properties.comment = _build_ids_comment(metadata, extracted)
-    if metadata.comment:
-        summary.tag.comment = metadata.comment
+def _parallel_conductivity_value(parameters, key):
+    physics = parameters.get("physics", {})
+    adim = parameters.get("adimensionalization", {})
+    source_key = _transport_source_key(physics, key)
+    if source_key is None:
+        return None, None
 
-    summary.code.name = "SOLEDGE-HDG"
-    summary.code.repository = "hdg_postprocess"
-    testcase = extracted.get("testcase")
-    if testcase is None:
-        summary.code.description = "Exported from SOLEDGE-HDG by hdg_postprocess."
-    else:
-        summary.code.description = f"Exported from SOLEDGE-HDG by hdg_postprocess (testcase {testcase})."
-    summary.code.parameters = json.dumps(extracted, sort_keys=True)
-
-    summary.simulation.workflow = (
-        "steady_state" if extracted.get("steady_state", False) else "time_dependent_snapshot"
+    denom = (
+        _as_python_scalar(adim["time_scale"]) ** 3
+        * _as_python_scalar(adim["temperature_scale"]) ** (7 / 2)
+        / (
+            _as_python_scalar(adim["density_scale"])
+            * _as_python_scalar(adim["length_scale"]) ** 4
+        )
+        / _as_python_scalar(adim["mass_scale"])
     )
-
-    puff_rate = extracted.get("puff_rate")
-    if puff_rate is not None:
-        summary.gas_injection_rates.total.value = [float(puff_rate)]
-        summary.gas_injection_rates.total.source = "SOLEDGE-HDG physics/puff"
-
-    return summary
+    return _as_python_scalar(physics[source_key]) / denom, source_key
 
 
-def put_summary(entry, solution, metadata: IMASExportMetadata):
-    """Build and store one summary IDS in the provided IMAS DBEntry."""
+def _transport_source_key(physics, key):
+    for candidate in (f"ME_{key}", f"{key}_ME", key):
+        if candidate in physics:
+            return candidate
+    return None
 
-    summary = build_summary_ids(solution, metadata)
-    entry.put(summary, metadata.occurrence)
-    return summary
+
+def _scaled_value(parameters, group_name, key, scale_key):
+    group = parameters.get(group_name, {})
+    adim = parameters.get("adimensionalization", {})
+    if key not in group or scale_key not in adim:
+        return None
+    return _as_python_scalar(group[key]) * _as_python_scalar(adim[scale_key])
+
+
+def _decode_if_bytes(value):
+    if isinstance(value, bytes):
+        return value.decode()
+    return value
+
+
+def _as_python_scalar(value):
+    if isinstance(value, np.ndarray):
+        if value.shape == ():
+            return value.item()
+        if value.size == 1:
+            return value.reshape(-1)[0].item()
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
