@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import math
+from typing import Optional
 
 import numpy as np
 
@@ -25,10 +26,10 @@ class SolutionSnapshotSource:
 
     solution_path: str
     solution_base: str
-    mesh_path: str | None = None
-    mesh_base: str | None = None
+    mesh_path: Optional[str] = None
+    mesh_base: Optional[str] = None
     n_partitions: int = 1
-    reference_element: str | None = None
+    reference_element: Optional[str] = None
 
     def load(self):
         from hdg_postprocess.api import load_reference_element, load_solution
