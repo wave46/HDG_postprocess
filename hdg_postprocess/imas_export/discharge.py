@@ -28,8 +28,8 @@ def write_discharge(
     if time_getter is None:
         raise ValueError("A time_getter callable must be provided for full-discharge export.")
 
-    grids = _normalize_snapshot_grids(len(solutions), grid)
-    timed_snapshots = _normalize_timed_snapshots(
+    grids = build_discharge_grids(len(solutions), grid)
+    timed_snapshots = build_timed_snapshots(
         solutions,
         grids,
         sort_by_time=sort_by_time,
@@ -42,17 +42,17 @@ def write_discharge(
         summary = build_discharge_summary_ids(timed_snapshots, metadata, times)
         entry.put(summary, metadata.occurrence)
         written["summary"] = build_written_ids_info(metadata, times)
-        _release_large_object(summary)
+        release_large_object(summary)
 
     grid_reference_paths = None
     if include_equilibrium and include_plasma_profiles:
-        grid_reference_paths = _plasma_grid_reference_paths(metadata.occurrence, len(timed_snapshots))
+        grid_reference_paths = build_plasma_grid_reference_paths(metadata.occurrence, len(timed_snapshots))
 
     if include_plasma_profiles:
         plasma = build_discharge_plasma_profiles_ids(timed_snapshots, metadata)
         entry.put(plasma, metadata.occurrence)
         written["plasma_profiles"] = build_written_ids_info(metadata, times)
-        _release_large_object(plasma)
+        release_large_object(plasma)
 
     if include_equilibrium:
         equilibrium = build_discharge_equilibrium_ids(
@@ -62,7 +62,7 @@ def write_discharge(
         )
         entry.put(equilibrium, metadata.occurrence)
         written["equilibrium"] = build_written_ids_info(metadata, times)
-        _release_large_object(equilibrium)
+        release_large_object(equilibrium)
 
     return written
 
@@ -71,7 +71,7 @@ def build_discharge_summary_ids(timed_snapshots, metadata, times):
     import imas
 
     _, first_snapshot, _ = timed_snapshots[0]
-    first_solution, owned = _load_snapshot(first_snapshot)
+    first_solution, owned = load_snapshot(first_snapshot)
 
     summary = imas.IDSFactory().summary()
 
@@ -86,7 +86,7 @@ def build_discharge_summary_ids(timed_snapshots, metadata, times):
             description_prefix="Exported full discharge from SOLEDGE-HDG by hdg_postprocess.",
         )
     finally:
-        _release_snapshot(first_solution, owned)
+        release_snapshot(first_solution, owned)
 
     return summary
 
@@ -95,7 +95,7 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
     import imas
 
     first_time, first_snapshot, first_grid = timed_snapshots[0]
-    first_solution, owned = _load_snapshot(first_snapshot)
+    first_solution, owned = load_snapshot(first_snapshot)
     times = np.asarray([time_value for time_value, _, _ in timed_snapshots], dtype=float)
 
     plasma = imas.IDSFactory().plasma_profiles()
@@ -114,13 +114,13 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
 
     plasma.ggd.resize(len(timed_snapshots))
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
-        solution, snapshot_owned = _load_snapshot(snapshot)
+        solution, snapshot_owned = load_snapshot(snapshot)
         try:
             sampled = sample_plasma_fields(solution, grid)
             plasma.ggd[index].time = float(time_value)
             populate_plasma_ggd(plasma.ggd[index], sampled, grid_index=index + 1)
         finally:
-            _release_snapshot(solution, snapshot_owned)
+            release_snapshot(solution, snapshot_owned)
 
     try:
         set_constant_zeff(plasma, first_solution, count=len(timed_snapshots))
@@ -133,7 +133,7 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
             sort_keys=True,
         )
     finally:
-        _release_snapshot(first_solution, owned)
+        release_snapshot(first_solution, owned)
 
     return plasma
 
@@ -142,7 +142,7 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
     import imas
 
     first_time, first_snapshot, first_grid = timed_snapshots[0]
-    first_solution, owned = _load_snapshot(first_snapshot)
+    first_solution, owned = load_snapshot(first_snapshot)
     times = np.asarray([time_value for time_value, _, _ in timed_snapshots], dtype=float)
 
     eq = imas.IDSFactory().equilibrium()
@@ -151,7 +151,7 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
 
     eq.grids_ggd.resize(len(timed_snapshots))
     for grid_index, (time_value, _, grid) in enumerate(timed_snapshots, start=1):
-        _populate_discharge_equilibrium_grid(
+        populate_discharge_equilibrium_grid(
             eq.grids_ggd[grid_index - 1],
             grid,
             time_value=time_value,
@@ -161,13 +161,13 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
 
     eq.time_slice.resize(len(timed_snapshots))
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
-        solution, snapshot_owned = _load_snapshot(snapshot)
+        solution, snapshot_owned = load_snapshot(snapshot)
         try:
             sampled_fields = sample_equilibrium_fields(solution, grid)
             eq.time_slice[index].time = float(time_value)
             populate_equilibrium_timeslice(eq.time_slice[index], sampled_fields, grid_index=index + 1)
         finally:
-            _release_snapshot(solution, snapshot_owned)
+            release_snapshot(solution, snapshot_owned)
 
     try:
         eq.code.name = "SOLEDGE-HDG"
@@ -190,12 +190,12 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
             )
         eq.code.parameters = json.dumps(eq_metadata, sort_keys=True)
     finally:
-        _release_snapshot(first_solution, owned)
+        release_snapshot(first_solution, owned)
 
     return eq
 
 
-def _normalize_snapshot_grids(snapshot_count, grid):
+def build_discharge_grids(snapshot_count, grid):
     if isinstance(grid, RectangularGrid2D):
         return [grid] * snapshot_count
 
@@ -214,12 +214,12 @@ def _normalize_snapshot_grids(snapshot_count, grid):
     return grids
 
 
-def _normalize_timed_snapshots(snapshots, grids, *, sort_by_time, time_getter):
+def build_timed_snapshots(snapshots, grids, *, sort_by_time, time_getter):
     timed_snapshots = []
     previous_time = None
 
     for index, (snapshot, grid) in enumerate(zip(snapshots, grids)):
-        solution, owned = _load_snapshot(snapshot)
+        solution, owned = load_snapshot(snapshot)
         try:
             time_value = time_getter(solution)
             if time_value is None:
@@ -236,14 +236,14 @@ def _normalize_timed_snapshots(snapshots, grids, *, sort_by_time, time_getter):
             timed_snapshots.append((time_value, snapshot, grid))
             previous_time = time_value
         finally:
-            _release_snapshot(solution, owned)
+            release_snapshot(solution, owned)
 
     if sort_by_time:
         timed_snapshots.sort(key=lambda item: item[0])
     return timed_snapshots
 
 
-def _populate_discharge_equilibrium_grid(
+def populate_discharge_equilibrium_grid(
     grids_ggd_entry,
     grid,
     *,
@@ -270,7 +270,7 @@ def _populate_discharge_equilibrium_grid(
     )
 
 
-def _plasma_grid_reference_paths(occurrence, grid_count):
+def build_plasma_grid_reference_paths(occurrence, grid_count):
     return [
         f"#plasma_profiles:{int(occurrence)}/grid_ggd({index})"
         for index in range(1, grid_count + 1)
@@ -281,19 +281,19 @@ def build_written_ids_info(metadata, times):
     return {"occurrence": int(metadata.occurrence), "time_count": len(times)}
 
 
-def _load_snapshot(snapshot):
+def load_snapshot(snapshot):
     if isinstance(snapshot, SolutionSnapshotSource):
         return snapshot.load(), True
     return snapshot, False
 
 
-def _release_snapshot(snapshot, owned):
+def release_snapshot(snapshot, owned):
     if owned:
         del snapshot
         gc.collect()
 
 
-def _release_large_object(value):
+def release_large_object(value):
     del value
     gc.collect()
 
