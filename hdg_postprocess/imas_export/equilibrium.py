@@ -31,8 +31,8 @@ def build_equilibrium_ids(
     ts.time = float(metadata.time)
     _populate_equilibrium_grid(eq, grid, metadata.time, grid_reference_path)
 
-    sampled = _sample_equilibrium_fields(solution, grid)
-    _populate_equilibrium_timeslice(ts, sampled)
+    sampled = sample_equilibrium_fields(solution, grid)
+    populate_equilibrium_timeslice(ts, sampled, grid_index=1)
     axis = solution.summary.equilibrium.axis
     if axis.r is not None and axis.z is not None:
         ts.global_quantities.magnetic_axis.r = float(axis.r)
@@ -81,7 +81,7 @@ def _populate_equilibrium_grid(eq, grid, time_value, grid_reference_path):
     )
 
 
-def _sample_equilibrium_fields(solution, grid):
+def sample_equilibrium_fields(solution, grid):
     r_grid, z_grid = grid.mesh()
     interpolators = equilibrium_interpolators(solution)
 
@@ -114,24 +114,28 @@ def _sample_equilibrium_fields(solution, grid):
     }
 
 
-def _populate_equilibrium_timeslice(ts, sampled):
+def populate_equilibrium_timeslice(ts, sampled, *, grid_index):
     ts.ggd.resize(1)
     ggd = ts.ggd[0]
 
-    _store_ggd_field(ggd.psi, sampled["psi"])
-    _store_ggd_field(ggd.b_field_r, sampled["b_field_r"])
-    _store_ggd_field(ggd.b_field_z, sampled["b_field_z"])
-    _store_ggd_field(ggd.b_field_phi, sampled["b_field_phi"])
+    _store_ggd_field(ggd.psi, sampled["psi"], grid_index=grid_index)
+    _store_ggd_field(ggd.b_field_r, sampled["b_field_r"], grid_index=grid_index)
+    _store_ggd_field(ggd.b_field_z, sampled["b_field_z"], grid_index=grid_index)
+    _store_ggd_field(ggd.b_field_phi, sampled["b_field_phi"], grid_index=grid_index)
     if sampled["j_phi"] is not None:
-        _store_ggd_field(ggd.j_phi, sampled["j_phi"])
+        _store_ggd_field(ggd.j_phi, sampled["j_phi"], grid_index=grid_index)
 
     if sampled["psi_axis"] is not None:
         ts.global_quantities.psi_axis = sampled["psi_axis"]
 
+    if sampled.get("axis_r") is not None and sampled.get("axis_z") is not None:
+        ts.global_quantities.magnetic_axis.r = sampled["axis_r"]
+        ts.global_quantities.magnetic_axis.z = sampled["axis_z"]
 
-def _store_ggd_field(field, values):
+
+def _store_ggd_field(field, values, *, grid_index):
     field.resize(1)
-    field[0].grid_index = 1
+    field[0].grid_index = int(grid_index)
     field[0].grid_subset_index = 1
     field[0].values = values
 

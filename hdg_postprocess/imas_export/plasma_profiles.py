@@ -24,19 +24,15 @@ def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: Rect
     ggd = plasma.ggd[0]
     ggd.time = float(metadata.time)
 
-    sampled = _sample_plasma_fields(solution, grid)
-    _populate_plasma_ggd(ggd, sampled)
+    sampled = sample_plasma_fields(solution, grid)
+    populate_plasma_ggd(ggd, sampled, grid_index=1)
 
-    if "Zeff" in solution.parameters["physics"]:
-        plasma.global_quantities.z_eff_resistive = np.array(
-            [float(solution.parameters["physics"]["Zeff"])],
-            dtype=float,
-        )
+    set_constant_zeff(plasma, solution, count=1)
 
     plasma.code.name = "SOLEDGE-HDG"
     plasma.code.repository = "hdg_postprocess"
     plasma.code.description = "Plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
-    plasma.code.parameters = json.dumps(_plasma_profiles_metadata(solution, grid), sort_keys=True)
+    plasma.code.parameters = json.dumps(plasma_profiles_metadata(solution, grid), sort_keys=True)
     return plasma
 
 
@@ -48,7 +44,7 @@ def put_plasma_profiles(entry, solution, metadata: IMASExportMetadata, grid: Rec
     return plasma
 
 
-def _sample_plasma_fields(solution, grid):
+def sample_plasma_fields(solution, grid):
     r_grid, z_grid = grid.mesh()
     return evaluate_variables_on_grid(
         solution,
@@ -60,36 +56,45 @@ def _sample_plasma_fields(solution, grid):
     )
 
 
-def _populate_plasma_ggd(ggd, sampled):
-    _store_struct_field(ggd.electrons.density, sampled["n"])
-    _store_struct_field(ggd.electrons.temperature, sampled["te"])
+def populate_plasma_ggd(ggd, sampled, *, grid_index):
+    _store_struct_field(ggd.electrons.density, sampled["n"], grid_index=grid_index)
+    _store_struct_field(ggd.electrons.temperature, sampled["te"], grid_index=grid_index)
 
     ggd.ion.resize(1)
     ion = ggd.ion[0]
     ion.name = "D+"
     ion.z_ion = 1.0
-    _store_struct_field(ion.temperature, sampled["ti"])
+    _store_struct_field(ion.temperature, sampled["ti"], grid_index=grid_index)
     ion.velocity.resize(1)
-    ion.velocity[0].grid_index = 1
+    ion.velocity[0].grid_index = int(grid_index)
     ion.velocity[0].grid_subset_index = 1
     ion.velocity[0].parallel = sampled["u"].reshape(-1)
 
     ggd.neutral.resize(1)
     neutral = ggd.neutral[0]
     neutral.name = "D"
-    _store_struct_field(neutral.density, sampled["nn"])
+    _store_struct_field(neutral.density, sampled["nn"], grid_index=grid_index)
 
-    _store_struct_field(ggd.psi, sampled["psi"])
+    _store_struct_field(ggd.psi, sampled["psi"], grid_index=grid_index)
 
 
-def _store_struct_field(field_container, values):
+def set_constant_zeff(plasma, solution, *, count):
+    if "Zeff" in solution.parameters["physics"]:
+        plasma.global_quantities.z_eff_resistive = np.full(
+            int(count),
+            float(solution.parameters["physics"]["Zeff"]),
+            dtype=float,
+        )
+
+
+def _store_struct_field(field_container, values, *, grid_index):
     field_container.resize(1)
-    field_container[0].grid_index = 1
+    field_container[0].grid_index = int(grid_index)
     field_container[0].grid_subset_index = 1
     field_container[0].values = values.reshape(-1)
 
 
-def _plasma_profiles_metadata(solution, grid):
+def plasma_profiles_metadata(solution, grid):
     physics = solution.parameters["physics"]
     extracted = {
         "grid_shape": [grid.nr, grid.nz],

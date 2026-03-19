@@ -4,9 +4,9 @@ import json
 import numpy as np
 
 from .config import IMASExportMetadata, RectangularGrid2D, SolutionSnapshotSource
-from .equilibrium import _equilibrium_metadata
-from .evaluate import equilibrium_interpolators, evaluate_interpolators_on_grid, evaluate_variables_on_grid
+from .equilibrium import _equilibrium_metadata, populate_equilibrium_timeslice, sample_equilibrium_fields
 from .ggd_geometry import populate_grid_reference_ggd_entry, populate_rectangular_grid_ggd_entry
+from .plasma_profiles import plasma_profiles_metadata, populate_plasma_ggd, sample_plasma_fields, set_constant_zeff
 from .summary import _build_ids_comment, extract_solution_summary_metadata
 
 
@@ -141,23 +141,20 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
         solution, snapshot_owned = _load_snapshot(snapshot)
         try:
-            _populate_plasma_ggd(solution, plasma.ggd[index], time_value, grid, grid_index=index + 1)
+            sampled = sample_plasma_fields(solution, grid)
+            plasma.ggd[index].time = float(time_value)
+            populate_plasma_ggd(plasma.ggd[index], sampled, grid_index=index + 1)
         finally:
             _release_snapshot(solution, snapshot_owned)
 
     try:
-        if "Zeff" in first_solution.parameters["physics"]:
-            plasma.global_quantities.z_eff_resistive = np.full(
-                len(timed_snapshots),
-                float(first_solution.parameters["physics"]["Zeff"]),
-                dtype=float,
-            )
+        set_constant_zeff(plasma, first_solution, count=len(timed_snapshots))
 
         plasma.code.name = "SOLEDGE-HDG"
         plasma.code.repository = "hdg_postprocess"
         plasma.code.description = "Time-resolved plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
         plasma.code.parameters = json.dumps(
-            _plasma_profiles_metadata(first_solution, first_grid, times),
+            _discharge_plasma_profiles_metadata(first_solution, first_grid, times),
             sort_keys=True,
         )
     finally:
@@ -191,8 +188,9 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
         solution, snapshot_owned = _load_snapshot(snapshot)
         try:
-            sampled_fields = _sample_equilibrium_fields(solution, grid)
-            _fill_equilibrium_timeslice(eq.time_slice[index], sampled_fields, time_value=time_value, grid_index=index + 1)
+            sampled_fields = sample_equilibrium_fields(solution, grid)
+            eq.time_slice[index].time = float(time_value)
+            populate_equilibrium_timeslice(eq.time_slice[index], sampled_fields, grid_index=index + 1)
         finally:
             _release_snapshot(solution, snapshot_owned)
 
@@ -270,73 +268,6 @@ def _normalize_timed_snapshots(snapshots, grids, *, sort_by_time, time_getter):
     return timed_snapshots
 
 
-def _populate_plasma_ggd(solution, ggd, time_value, grid, *, grid_index):
-    solution.assembly.full()
-    solution.assembly.simple()
-
-    ggd.time = float(time_value)
-
-    r_grid, z_grid = grid.mesh()
-    sampled = evaluate_variables_on_grid(
-        solution,
-        r_grid,
-        z_grid,
-        ["n", "te", "ti", "u", "nn", "psi"],
-        locator=solution.mesh.geometry.element_locator,
-        outside_value=np.nan,
-    )
-
-    _store_struct_field(ggd.electrons.density, sampled["n"], grid_index=grid_index)
-    _store_struct_field(ggd.electrons.temperature, sampled["te"], grid_index=grid_index)
-
-    ggd.ion.resize(1)
-    ion = ggd.ion[0]
-    ion.name = "D+"
-    ion.z_ion = 1.0
-    _store_struct_field(ion.temperature, sampled["ti"], grid_index=grid_index)
-    ion.velocity.resize(1)
-    ion.velocity[0].grid_index = int(grid_index)
-    ion.velocity[0].grid_subset_index = 1
-    ion.velocity[0].parallel = sampled["u"].reshape(-1)
-
-    ggd.neutral.resize(1)
-    neutral = ggd.neutral[0]
-    neutral.name = "D"
-    _store_struct_field(neutral.density, sampled["nn"], grid_index=grid_index)
-
-    _store_struct_field(ggd.psi, sampled["psi"], grid_index=grid_index)
-
-
-def _plasma_profiles_metadata(solution, grid, times):
-    metadata_dict = {
-        "grid_shape": [grid.nr, grid.nz],
-        "grid_r_range_m": [grid.r_min, grid.r_max],
-        "grid_z_range_m": [grid.z_min, grid.z_max],
-        "ggd_grid_name": "rectangular_rz",
-        "ggd_grid_subset": "All exported plasma fields currently live on the nodes subset.",
-        "value_ordering": "Node values are flattened from meshgrid(indexing='ij') in C order, so R is the slow axis and Z the fast axis.",
-        "outside_mesh_policy": "Values outside the HDG mesh are exported as NaN.",
-        "model_note": "SOLEDGE-HDG currently uses shared plasma density and parallel velocity for electrons and the single ion species.",
-        "density_storage_note": (
-            "For the current single-ion SOLEDGE-HDG model, electrons.density is the authoritative density field. "
-            "The redundant ion[0].density and n_i_total fields are intentionally left empty to reduce storage."
-        ),
-        "temperature_storage_note": (
-            "For the current single-ion model, ion[0].temperature is populated and the redundant t_i_average field is left empty."
-        ),
-        "snapshot_count": len(times),
-        "exported_times_s": list(times),
-        "grid_count": len(times),
-        "time_varying_grid": True,
-    }
-    if "Zeff" in solution.parameters["physics"]:
-        metadata_dict["Zeff"] = float(solution.parameters["physics"]["Zeff"])
-        metadata_dict["Zeff_storage_note"] = (
-            "Spatially constant Zeff is exported through plasma_profiles.global_quantities.z_eff_resistive."
-        )
-    return metadata_dict
-
-
 def _populate_discharge_equilibrium_grid(
     grids_ggd_entry,
     grid,
@@ -364,65 +295,6 @@ def _populate_discharge_equilibrium_grid(
     )
 
 
-def _sample_equilibrium_fields(solution, grid):
-    solution.assembly.full()
-    solution.assembly.simple()
-    solution.equilibrium.define_axis()
-
-    r_grid, z_grid = grid.mesh()
-    interpolators = equilibrium_interpolators(solution)
-
-    eval_fields = {
-        "psi": interpolators["psi"],
-        "br": interpolators["br"],
-        "bz": interpolators["bz"],
-        "bphi": interpolators["bphi"],
-    }
-    if interpolators["jphi"] is not None:
-        eval_fields["jphi"] = interpolators["jphi"]
-
-    sampled = evaluate_interpolators_on_grid(
-        eval_fields,
-        r_grid=r_grid,
-        z_grid=z_grid,
-        locator=solution.mesh.geometry.element_locator,
-        outside_value=np.nan,
-    )
-
-    axis = solution.summary.equilibrium.axis
-    psi_values = sampled["psi"].reshape(-1)
-    finite_psi = psi_values[np.isfinite(psi_values)]
-    return {
-        "psi": psi_values,
-        "b_field_r": sampled["br"].reshape(-1),
-        "b_field_z": sampled["bz"].reshape(-1),
-        "b_field_phi": sampled["bphi"].reshape(-1),
-        "j_phi": sampled["jphi"].reshape(-1) if "jphi" in sampled else None,
-        "axis_r": float(axis.r) if axis.r is not None else None,
-        "axis_z": float(axis.z) if axis.z is not None else None,
-        "psi_axis": float(np.nanmin(finite_psi)) if finite_psi.size else None,
-    }
-
-
-def _fill_equilibrium_timeslice(ts, sampled_fields, *, time_value, grid_index):
-    ts.time = float(time_value)
-    ts.ggd.resize(1)
-    ggd = ts.ggd[0]
-
-    _store_equilibrium_field(ggd.psi, sampled_fields["psi"], grid_index=grid_index)
-    _store_equilibrium_field(ggd.b_field_r, sampled_fields["b_field_r"], grid_index=grid_index)
-    _store_equilibrium_field(ggd.b_field_z, sampled_fields["b_field_z"], grid_index=grid_index)
-    _store_equilibrium_field(ggd.b_field_phi, sampled_fields["b_field_phi"], grid_index=grid_index)
-    if sampled_fields["j_phi"] is not None:
-        _store_equilibrium_field(ggd.j_phi, sampled_fields["j_phi"], grid_index=grid_index)
-
-    if sampled_fields["axis_r"] is not None and sampled_fields["axis_z"] is not None:
-        ts.global_quantities.magnetic_axis.r = sampled_fields["axis_r"]
-        ts.global_quantities.magnetic_axis.z = sampled_fields["axis_z"]
-    if sampled_fields["psi_axis"] is not None:
-        ts.global_quantities.psi_axis = sampled_fields["psi_axis"]
-
-
 def _plasma_grid_reference_paths(occurrence, grid_count):
     return [
         f"#plasma_profiles:{int(occurrence)}/grid_ggd({index})"
@@ -432,20 +304,6 @@ def _plasma_grid_reference_paths(occurrence, grid_count):
 
 def _written_ids_info(metadata, times):
     return {"occurrence": int(metadata.occurrence), "time_count": len(times)}
-
-
-def _store_equilibrium_field(field_container, values, *, grid_index):
-    field_container.resize(1)
-    field_container[0].grid_index = int(grid_index)
-    field_container[0].grid_subset_index = 1
-    field_container[0].values = values
-
-
-def _store_struct_field(field_container, values, *, grid_index):
-    field_container.resize(1)
-    field_container[0].grid_index = int(grid_index)
-    field_container[0].grid_subset_index = 1
-    field_container[0].values = values.reshape(-1)
 
 
 def _load_snapshot(snapshot):
@@ -463,3 +321,12 @@ def _release_snapshot(snapshot, owned):
 def _release_large_object(value):
     del value
     gc.collect()
+
+
+def _discharge_plasma_profiles_metadata(solution, grid, times):
+    metadata_dict = plasma_profiles_metadata(solution, grid)
+    metadata_dict["snapshot_count"] = len(times)
+    metadata_dict["exported_times_s"] = list(times)
+    metadata_dict["grid_count"] = len(times)
+    metadata_dict["time_varying_grid"] = True
+    return metadata_dict
