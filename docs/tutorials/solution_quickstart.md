@@ -137,4 +137,4 @@ These views expose the same solution on different discretization layouts: volume
 - [Setup Helpers](setup_helpers.md)
 - [Migrating Solution API](migrating_solution_api.md)
 - [migration_notes.md](../refactor/migration_notes.md)
-- demos in [demos](../../demos)
+- compatibility demos in [demos/compatibility](../../demos/compatibility)

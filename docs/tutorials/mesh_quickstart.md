@@ -102,4 +102,4 @@ Use `raw()` to inspect partition-local input data, `full()` for the recombined m
 
 - [Solution Quickstart](solution_quickstart.md)
 - [Migrating Mesh API](migrating_mesh_api.md)
-- demo notebook [hdg_mesh.ipynb](../../demos/hdg_mesh.ipynb)
+- compatibility demo notebook [hdg_mesh.ipynb](../../demos/compatibility/hdg_mesh.ipynb)

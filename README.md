@@ -43,7 +43,7 @@ For a lighter entry point than the full demo notebooks, start with:
 - [Setup Helpers](docs/tutorials/setup_helpers.md)
 - [IMAS Export](docs/tutorials/imas_export.md)
 
-The longer runnable examples remain in [demos](demos).
+The longer legacy-compatible runnable examples remain in [demos/compatibility](demos/compatibility).
 
 ## Quick installation
 
