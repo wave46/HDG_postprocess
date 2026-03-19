@@ -59,6 +59,8 @@ To reduce redundant storage, the current plasma export fills only the authoritat
 - `neutral[0].density`
 
 The redundant `ion[0].density`, `n_i_total`, and `t_i_average` fields are intentionally left empty and documented in `plasma_profiles.code.parameters`.
+Likewise, `equilibrium.time_slice[i].ggd` no longer duplicates `R` and `Z` as data fields, because those coordinates are already defined by the referenced GGD topology.
+If `Zeff` is spatially constant, it is exported through `plasma_profiles.global_quantities.z_eff_resistive` instead of as a 2D field.
 
 ## One Steady-State Solution
 

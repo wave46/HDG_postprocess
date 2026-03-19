@@ -28,6 +28,9 @@ def _plasma_profiles_metadata(solution, grid):
     }
     if "Zeff" in physics:
         extracted["Zeff"] = float(physics["Zeff"])
+        extracted["Zeff_storage_note"] = (
+            "Spatially constant Zeff is exported through plasma_profiles.global_quantities.z_eff_resistive."
+        )
     if "impurity_name" in physics:
         impurity_name = physics["impurity_name"]
         if isinstance(impurity_name, bytes):
@@ -94,9 +97,10 @@ def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: Rect
 
     _store_struct_field(ggd.psi, sampled["psi"])
     if "Zeff" in solution.parameters["physics"]:
-        zeff_values = np.full(r_grid.shape, float(solution.parameters["physics"]["Zeff"]), dtype=float)
-        zeff_values[np.isnan(sampled["n"])] = np.nan
-        _store_struct_field(ggd.zeff, zeff_values)
+        plasma.global_quantities.z_eff_resistive = np.array(
+            [float(solution.parameters["physics"]["Zeff"])],
+            dtype=float,
+        )
 
     plasma.code.name = "SOLEDGE-HDG"
     plasma.code.repository = "hdg_postprocess"

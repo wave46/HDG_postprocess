@@ -110,6 +110,9 @@ The current implementation also reduces redundant plasma storage for the single-
 - `electrons.density` is the authoritative density field
 - `ion[0].density` and `n_i_total` are intentionally left empty
 - `ion[0].temperature` is kept while `t_i_average` is left empty
+- spatially constant `Zeff` is exported through `plasma_profiles.global_quantities.z_eff_resistive`
+
+On the equilibrium side, `R` and `Z` are not duplicated as GGD data fields because the referenced rectangular topology already defines the coordinates.
 
 It also avoids duplicating the rectangular GGD topology between the two time-resolved IDSs:
 

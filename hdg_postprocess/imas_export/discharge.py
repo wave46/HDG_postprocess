@@ -147,8 +147,6 @@ def _sample_equilibrium_fields(solution, grid):
     psi_values = sampled["psi"].reshape(-1)
     finite_psi = psi_values[np.isfinite(psi_values)]
     return {
-        "r": r_grid.reshape(-1),
-        "z": z_grid.reshape(-1),
         "psi": psi_values,
         "b_field_r": sampled["br"].reshape(-1),
         "b_field_z": sampled["bz"].reshape(-1),
@@ -172,8 +170,6 @@ def _fill_equilibrium_timeslice(ts, sampled_fields, *, time_value, grid_index):
     ts.ggd.resize(1)
     ggd = ts.ggd[0]
 
-    _store_equilibrium_field(ggd.r, sampled_fields["r"], grid_index=grid_index)
-    _store_equilibrium_field(ggd.z, sampled_fields["z"], grid_index=grid_index)
     _store_equilibrium_field(ggd.psi, sampled_fields["psi"], grid_index=grid_index)
     _store_equilibrium_field(ggd.b_field_r, sampled_fields["b_field_r"], grid_index=grid_index)
     _store_equilibrium_field(ggd.b_field_z, sampled_fields["b_field_z"], grid_index=grid_index)
@@ -293,10 +289,6 @@ def _populate_plasma_ggd(solution, ggd, time_value, grid, *, grid_index):
     _store_struct_field(neutral.density, sampled["nn"], grid_index=grid_index)
 
     _store_struct_field(ggd.psi, sampled["psi"], grid_index=grid_index)
-    if "Zeff" in solution.parameters["physics"]:
-        zeff_values = np.full(r_grid.shape, float(solution.parameters["physics"]["Zeff"]), dtype=float)
-        zeff_values[np.isnan(sampled["n"])] = np.nan
-        _store_struct_field(ggd.zeff, zeff_values, grid_index=grid_index)
 
 
 def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMetadata):
@@ -327,6 +319,13 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
         finally:
             _release_snapshot(solution, snapshot_owned)
 
+    if "Zeff" in first_solution.parameters["physics"]:
+        plasma.global_quantities.z_eff_resistive = np.full(
+            len(timed_snapshots),
+            float(first_solution.parameters["physics"]["Zeff"]),
+            dtype=float,
+        )
+
     try:
         plasma.code.name = "SOLEDGE-HDG"
         plasma.code.repository = "hdg_postprocess"
@@ -354,6 +353,9 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
         }
         if "Zeff" in first_solution.parameters["physics"]:
             metadata_dict["Zeff"] = float(first_solution.parameters["physics"]["Zeff"])
+            metadata_dict["Zeff_storage_note"] = (
+                "Spatially constant Zeff is exported through plasma_profiles.global_quantities.z_eff_resistive."
+            )
         plasma.code.parameters = json.dumps(metadata_dict, sort_keys=True)
     finally:
         _release_snapshot(first_solution, owned)

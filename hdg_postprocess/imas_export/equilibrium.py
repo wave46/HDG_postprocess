@@ -99,9 +99,6 @@ def build_equilibrium_ids(
     br_values = sampled["br"].reshape(-1)
     bz_values = sampled["bz"].reshape(-1)
     bphi_values = sampled["bphi"].reshape(-1)
-    r_values = r_grid.reshape(-1)
-    z_values = z_grid.reshape(-1)
-
     def _store_ggd_field(field_name, values):
         field = getattr(ggd, field_name)
         field.resize(1)
@@ -109,8 +106,6 @@ def build_equilibrium_ids(
         field[0].grid_subset_index = 1
         field[0].values = values
 
-    _store_ggd_field("r", r_values)
-    _store_ggd_field("z", z_values)
     _store_ggd_field("psi", psi_values)
     _store_ggd_field("b_field_r", br_values)
     _store_ggd_field("b_field_z", bz_values)
