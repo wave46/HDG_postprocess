@@ -3,6 +3,7 @@ import json
 import numpy as np
 
 from .config import IMASExportMetadata, RectangularGrid2D
+from .common import add_constant_zeff_metadata, rectangular_grid_metadata, set_constant_zeff, store_node_field, store_parallel_velocity
 from .evaluate import evaluate_variables_on_grid
 from .ggd_geometry import populate_rectangular_grid_ggd_array
 
@@ -57,52 +58,30 @@ def sample_plasma_fields(solution, grid):
 
 
 def populate_plasma_ggd(ggd, sampled, *, grid_index):
-    _store_struct_field(ggd.electrons.density, sampled["n"], grid_index=grid_index)
-    _store_struct_field(ggd.electrons.temperature, sampled["te"], grid_index=grid_index)
+    store_node_field(ggd.electrons.density, sampled["n"], grid_index=grid_index)
+    store_node_field(ggd.electrons.temperature, sampled["te"], grid_index=grid_index)
 
     ggd.ion.resize(1)
     ion = ggd.ion[0]
     ion.name = "D+"
     ion.z_ion = 1.0
-    _store_struct_field(ion.temperature, sampled["ti"], grid_index=grid_index)
-    ion.velocity.resize(1)
-    ion.velocity[0].grid_index = int(grid_index)
-    ion.velocity[0].grid_subset_index = 1
-    ion.velocity[0].parallel = sampled["u"].reshape(-1)
+    store_node_field(ion.temperature, sampled["ti"], grid_index=grid_index)
+    store_parallel_velocity(ion.velocity, sampled["u"], grid_index=grid_index)
 
     ggd.neutral.resize(1)
     neutral = ggd.neutral[0]
     neutral.name = "D"
-    _store_struct_field(neutral.density, sampled["nn"], grid_index=grid_index)
+    store_node_field(neutral.density, sampled["nn"], grid_index=grid_index)
 
-    _store_struct_field(ggd.psi, sampled["psi"], grid_index=grid_index)
-
-
-def set_constant_zeff(plasma, solution, *, count):
-    if "Zeff" in solution.parameters["physics"]:
-        plasma.global_quantities.z_eff_resistive = np.full(
-            int(count),
-            float(solution.parameters["physics"]["Zeff"]),
-            dtype=float,
-        )
-
-
-def _store_struct_field(field_container, values, *, grid_index):
-    field_container.resize(1)
-    field_container[0].grid_index = int(grid_index)
-    field_container[0].grid_subset_index = 1
-    field_container[0].values = values.reshape(-1)
+    store_node_field(ggd.psi, sampled["psi"], grid_index=grid_index)
 
 
 def plasma_profiles_metadata(solution, grid):
     physics = solution.parameters["physics"]
-    extracted = {
-        "grid_shape": [grid.nr, grid.nz],
-        "grid_r_range_m": [grid.r_min, grid.r_max],
-        "grid_z_range_m": [grid.z_min, grid.z_max],
-        "ggd_grid_name": "rectangular_rz",
+    extracted = rectangular_grid_metadata(grid)
+    extracted.update(
+        {
         "ggd_grid_subset": "All exported plasma fields currently live on the nodes subset.",
-        "value_ordering": "Node values are flattened from meshgrid(indexing='ij') in C order, so R is the slow axis and Z the fast axis.",
         "outside_mesh_policy": "Values outside the HDG mesh are exported as NaN.",
         "model_note": "SOLEDGE-HDG currently uses shared plasma density and parallel velocity for electrons and the single ion species.",
         "density_storage_note": (
@@ -112,12 +91,8 @@ def plasma_profiles_metadata(solution, grid):
         "temperature_storage_note": (
             "For the current single-ion model, ion[0].temperature is populated and the redundant t_i_average field is left empty."
         ),
-    }
-    if "Zeff" in physics:
-        extracted["Zeff"] = float(physics["Zeff"])
-        extracted["Zeff_storage_note"] = (
-            "Spatially constant Zeff is exported through plasma_profiles.global_quantities.z_eff_resistive."
-        )
+    })
+    add_constant_zeff_metadata(extracted, solution)
     if "impurity_name" in physics:
         impurity_name = physics["impurity_name"]
         if isinstance(impurity_name, bytes):

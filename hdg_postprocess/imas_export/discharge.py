@@ -3,6 +3,7 @@ import json
 
 import numpy as np
 
+from .common import add_constant_zeff_metadata, extend_time_metadata
 from .config import IMASExportMetadata, RectangularGrid2D, SolutionSnapshotSource
 from .equilibrium import _equilibrium_metadata, populate_equilibrium_timeslice, sample_equilibrium_fields
 from .ggd_geometry import populate_grid_reference_ggd_entry, populate_rectangular_grid_ggd_entry
@@ -325,8 +326,5 @@ def _release_large_object(value):
 
 def _discharge_plasma_profiles_metadata(solution, grid, times):
     metadata_dict = plasma_profiles_metadata(solution, grid)
-    metadata_dict["snapshot_count"] = len(times)
-    metadata_dict["exported_times_s"] = list(times)
-    metadata_dict["grid_count"] = len(times)
-    metadata_dict["time_varying_grid"] = True
+    extend_time_metadata(metadata_dict, times)
     return metadata_dict

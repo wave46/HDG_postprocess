@@ -2,6 +2,7 @@ import json
 
 import numpy as np
 
+from .common import rectangular_grid_metadata, store_node_field
 from .config import IMASExportMetadata, RectangularGrid2D
 from .evaluate import equilibrium_interpolators, evaluate_interpolators_on_grid
 from .ggd_geometry import populate_grid_reference_ggd_entry, populate_rectangular_grid_ggd
@@ -118,12 +119,12 @@ def populate_equilibrium_timeslice(ts, sampled, *, grid_index):
     ts.ggd.resize(1)
     ggd = ts.ggd[0]
 
-    _store_ggd_field(ggd.psi, sampled["psi"], grid_index=grid_index)
-    _store_ggd_field(ggd.b_field_r, sampled["b_field_r"], grid_index=grid_index)
-    _store_ggd_field(ggd.b_field_z, sampled["b_field_z"], grid_index=grid_index)
-    _store_ggd_field(ggd.b_field_phi, sampled["b_field_phi"], grid_index=grid_index)
+    store_node_field(ggd.psi, sampled["psi"], grid_index=grid_index, flatten=False)
+    store_node_field(ggd.b_field_r, sampled["b_field_r"], grid_index=grid_index, flatten=False)
+    store_node_field(ggd.b_field_z, sampled["b_field_z"], grid_index=grid_index, flatten=False)
+    store_node_field(ggd.b_field_phi, sampled["b_field_phi"], grid_index=grid_index, flatten=False)
     if sampled["j_phi"] is not None:
-        _store_ggd_field(ggd.j_phi, sampled["j_phi"], grid_index=grid_index)
+        store_node_field(ggd.j_phi, sampled["j_phi"], grid_index=grid_index, flatten=False)
 
     if sampled["psi_axis"] is not None:
         ts.global_quantities.psi_axis = sampled["psi_axis"]
@@ -131,25 +132,13 @@ def populate_equilibrium_timeslice(ts, sampled, *, grid_index):
     if sampled.get("axis_r") is not None and sampled.get("axis_z") is not None:
         ts.global_quantities.magnetic_axis.r = sampled["axis_r"]
         ts.global_quantities.magnetic_axis.z = sampled["axis_z"]
-
-
-def _store_ggd_field(field, values, *, grid_index):
-    field.resize(1)
-    field[0].grid_index = int(grid_index)
-    field[0].grid_subset_index = 1
-    field[0].values = values
-
-
 def _equilibrium_metadata(solution, metadata, grid):
-    extracted = {
-        "grid_shape": [grid.nr, grid.nz],
-        "grid_r_range_m": [grid.r_min, grid.r_max],
-        "grid_z_range_m": [grid.z_min, grid.z_max],
+    extracted = rectangular_grid_metadata(grid)
+    extracted.update({
         "representation_note": "Exported on a rectangular cylindrical (R,Z) mesh through equilibrium.grids_ggd/time_slice[0].ggd.",
-        "ggd_grid_name": "rectangular_rz",
         "ggd_grid_description": "Regular cylindrical (R,Z) rectangular grid with explicit node, edge, and cell topology.",
         "ggd_grid_subset": "All exported equilibrium fields currently live on the nodes subset.",
-        "ggd_value_ordering": "Node values are flattened from meshgrid(indexing='ij') in C order, so R is the slow axis and Z the fast axis.",
+        "ggd_value_ordering": extracted["value_ordering"],
         "poloidal_flux_export_note": (
             metadata.poloidal_flux_convention
             or (
@@ -163,7 +152,8 @@ def _equilibrium_metadata(solution, metadata, grid):
             "this is typically the Ohmic contribution, and the person doing the IMAS "
             "export should verify the sign convention."
         ),
-    }
+    })
+    extracted.pop("value_ordering")
 
     axis = solution.summary.equilibrium.axis
     if axis.r is not None and axis.z is not None:
