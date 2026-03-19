@@ -2,6 +2,7 @@ import json
 
 import numpy as np
 
+from .common import extend_time_metadata
 from .config import IMASExportMetadata
 
 
@@ -22,41 +23,15 @@ def build_summary_ids(solution, metadata: IMASExportMetadata):
     import imas
 
     summary = imas.IDSFactory().summary()
-    summary.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
-    summary.description = metadata.description
-    summary.time = [float(metadata.time)]
-    summary.pulse = int(metadata.shot)
-
-    if metadata.machine:
-        summary.machine = metadata.machine
-
-    extracted = extract_solution_summary_metadata(solution)
-    extracted["export_shot"] = int(metadata.shot)
-    extracted["export_run"] = int(metadata.run)
-    extracted["export_occurrence"] = int(metadata.occurrence)
-    extracted["effective_energy_transfer"] = float(metadata.effective_energy_transfer)
-
-    summary.ids_properties.comment = _build_ids_comment(metadata, extracted)
-    if metadata.comment:
-        summary.tag.comment = metadata.comment
-
-    summary.code.name = "SOLEDGE-HDG"
-    summary.code.repository = "hdg_postprocess"
-    testcase = extracted.get("testcase")
-    if testcase is None:
-        summary.code.description = "Exported from SOLEDGE-HDG by hdg_postprocess."
-    else:
-        summary.code.description = f"Exported from SOLEDGE-HDG by hdg_postprocess (testcase {testcase})."
-    summary.code.parameters = json.dumps(extracted, sort_keys=True)
-
-    summary.simulation.workflow = (
-        "steady_state" if extracted.get("steady_state", False) else "time_dependent_snapshot"
+    extracted = summary_export_metadata(solution, metadata)
+    populate_summary_ids(
+        summary,
+        metadata,
+        extracted,
+        time_values=[float(metadata.time)],
+        workflow="steady_state" if extracted.get("steady_state", False) else "time_dependent_snapshot",
+        description_prefix="Exported from SOLEDGE-HDG by hdg_postprocess.",
     )
-
-    puff_rate = extracted.get("puff_rate")
-    if puff_rate is not None:
-        summary.gas_injection_rates.total.value = [float(puff_rate)]
-        summary.gas_injection_rates.total.source = "SOLEDGE-HDG physics/puff"
 
     return summary
 
@@ -109,6 +84,52 @@ def extract_solution_summary_metadata(solution):
         extracted["bohm_energy_thresh"] = _as_python_scalar(physics["bohm_energy_thresh"])
 
     return extracted
+
+
+def summary_export_metadata(solution, metadata: IMASExportMetadata, *, times=None):
+    extracted = extract_solution_summary_metadata(solution)
+    extracted["export_shot"] = int(metadata.shot)
+    extracted["export_run"] = int(metadata.run)
+    extracted["export_occurrence"] = int(metadata.occurrence)
+    extracted["effective_energy_transfer"] = float(metadata.effective_energy_transfer)
+    if times is not None:
+        extend_time_metadata(extracted, [float(time_value) for time_value in times])
+    return extracted
+
+
+def populate_summary_ids(
+    summary,
+    metadata: IMASExportMetadata,
+    extracted,
+    *,
+    time_values,
+    workflow,
+    description_prefix,
+):
+    import imas
+
+    summary.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
+    summary.description = metadata.description
+    summary.time = np.asarray(time_values, dtype=float)
+    summary.pulse = int(metadata.shot)
+
+    if metadata.machine:
+        summary.machine = metadata.machine
+
+    summary.ids_properties.comment = _build_ids_comment(metadata, extracted)
+    if metadata.comment:
+        summary.tag.comment = metadata.comment
+
+    summary.code.name = "SOLEDGE-HDG"
+    summary.code.repository = "hdg_postprocess"
+    summary.code.description = _summary_code_description(description_prefix, extracted)
+    summary.code.parameters = json.dumps(extracted, sort_keys=True)
+    summary.simulation.workflow = str(workflow)
+
+    puff_rate = extracted.get("puff_rate")
+    if puff_rate is not None:
+        summary.gas_injection_rates.total.value = np.full(len(time_values), float(puff_rate), dtype=float)
+        summary.gas_injection_rates.total.source = "SOLEDGE-HDG physics/puff"
 
 
 def _build_ids_comment(metadata, extracted):
@@ -188,3 +209,10 @@ def _as_python_scalar(value):
     if isinstance(value, np.generic):
         return value.item()
     return value
+
+
+def _summary_code_description(description_prefix, extracted):
+    testcase = extracted.get("testcase")
+    if testcase is None:
+        return description_prefix
+    return f"{description_prefix.rstrip('.')} (testcase {testcase})."

@@ -24,28 +24,19 @@ def solution_time_seconds(solution, *, allow_steady=False):
 def write_summary_netcdf(solution, path, metadata: IMASExportMetadata, *, file_mode="x"):
     """Write one summary IDS into a netCDF-backed IMAS DBEntry."""
 
-    import imas
-
-    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
-        return put_summary(entry, solution, metadata)
+    return _write_netcdf(path, file_mode, lambda entry: put_summary(entry, solution, metadata))
 
 
 def write_equilibrium_netcdf(solution, path, metadata: IMASExportMetadata, grid, *, file_mode="x"):
     """Write one equilibrium IDS into a netCDF-backed IMAS DBEntry."""
 
-    import imas
-
-    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
-        return put_equilibrium(entry, solution, metadata, grid)
+    return _write_netcdf(path, file_mode, lambda entry: put_equilibrium(entry, solution, metadata, grid))
 
 
 def write_plasma_profiles_netcdf(solution, path, metadata: IMASExportMetadata, grid, *, file_mode="x"):
     """Write one plasma_profiles IDS into a netCDF-backed IMAS DBEntry."""
 
-    import imas
-
-    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
-        return put_plasma_profiles(entry, solution, metadata, grid)
+    return _write_netcdf(path, file_mode, lambda entry: put_plasma_profiles(entry, solution, metadata, grid))
 
 
 def write_imas_netcdf(
@@ -61,33 +52,19 @@ def write_imas_netcdf(
 ):
     """Write the selected IMAS IDSs into one netCDF-backed DBEntry."""
 
-    import imas
-
-    written = {}
-    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
-        if include_summary:
-            written["summary"] = put_summary(entry, solution, metadata)
-
-        if include_plasma_profiles:
-            written["plasma_profiles"] = put_plasma_profiles(entry, solution, metadata, grid)
-
-        if include_equilibrium:
-            if include_plasma_profiles:
-                equilibrium = build_equilibrium_ids(
-                    solution,
-                    metadata,
-                    grid,
-                    grid_reference_path=_plasma_grid_reference_path(
-                        occurrence=metadata.occurrence,
-                        grid_index=1,
-                    ),
-                )
-                entry.put(equilibrium, metadata.occurrence)
-                written["equilibrium"] = equilibrium
-            else:
-                written["equilibrium"] = put_equilibrium(entry, solution, metadata, grid)
-
-    return written
+    return _write_netcdf(
+        path,
+        file_mode,
+        lambda entry: _write_selected_ids(
+            entry,
+            solution,
+            metadata,
+            grid,
+            include_summary=include_summary,
+            include_equilibrium=include_equilibrium,
+            include_plasma_profiles=include_plasma_profiles,
+        ),
+    )
 
 
 def write_imas_scan_case_netcdf(
@@ -135,13 +112,13 @@ def write_discharge_imas_netcdf(
     want the exporter to reorder snapshots.
     """
 
-    import imas
-
     if time_getter is None:
         time_getter = solution_time_seconds
 
-    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
-        return write_discharge(
+    return _write_netcdf(
+        path,
+        file_mode,
+        lambda entry: write_discharge(
             entry,
             solutions,
             metadata,
@@ -151,13 +128,68 @@ def write_discharge_imas_netcdf(
             include_plasma_profiles=include_plasma_profiles,
             sort_by_time=sort_by_time,
             time_getter=time_getter,
-        )
+        ),
+    )
 
 
 def _prepare_db_path(path):
     db_path = Path(path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return db_path
+
+
+def _write_netcdf(path, file_mode, writer):
+    import imas
+
+    with imas.DBEntry(str(_prepare_db_path(path)), file_mode) as entry:
+        return writer(entry)
+
+
+def _write_selected_ids(
+    entry,
+    solution,
+    metadata,
+    grid,
+    *,
+    include_summary,
+    include_equilibrium,
+    include_plasma_profiles,
+):
+    written = {}
+
+    if include_summary:
+        written["summary"] = put_summary(entry, solution, metadata)
+
+    if include_plasma_profiles:
+        written["plasma_profiles"] = put_plasma_profiles(entry, solution, metadata, grid)
+
+    if include_equilibrium:
+        written["equilibrium"] = _put_equilibrium_for_selected_ids(
+            entry,
+            solution,
+            metadata,
+            grid,
+            include_plasma_profiles=include_plasma_profiles,
+        )
+
+    return written
+
+
+def _put_equilibrium_for_selected_ids(entry, solution, metadata, grid, *, include_plasma_profiles):
+    if not include_plasma_profiles:
+        return put_equilibrium(entry, solution, metadata, grid)
+
+    equilibrium = build_equilibrium_ids(
+        solution,
+        metadata,
+        grid,
+        grid_reference_path=_plasma_grid_reference_path(
+            occurrence=metadata.occurrence,
+            grid_index=1,
+        ),
+    )
+    entry.put(equilibrium, metadata.occurrence)
+    return equilibrium
 
 
 def _as_python_scalar(value):

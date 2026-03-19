@@ -8,7 +8,7 @@ from .config import IMASExportMetadata, RectangularGrid2D, SolutionSnapshotSourc
 from .equilibrium import _equilibrium_metadata, populate_equilibrium_timeslice, sample_equilibrium_fields
 from .ggd_geometry import populate_grid_reference_ggd_entry, populate_rectangular_grid_ggd_entry
 from .plasma_profiles import plasma_profiles_metadata, populate_plasma_ggd, sample_plasma_fields, set_constant_zeff
-from .summary import _build_ids_comment, extract_solution_summary_metadata
+from .summary import populate_summary_ids, summary_export_metadata
 
 
 def write_discharge(
@@ -74,43 +74,17 @@ def build_discharge_summary_ids(timed_snapshots, metadata, times):
     first_solution, owned = _load_snapshot(first_snapshot)
 
     summary = imas.IDSFactory().summary()
-    summary.ids_properties.homogeneous_time = imas.ids_defs.IDS_TIME_MODE_HOMOGENEOUS
-    summary.description = metadata.description
-    summary.time = np.asarray(times, dtype=float)
-    summary.pulse = int(metadata.shot)
-
-    if metadata.machine:
-        summary.machine = metadata.machine
 
     try:
-        extracted = extract_solution_summary_metadata(first_solution)
-        extracted["export_shot"] = int(metadata.shot)
-        extracted["export_run"] = int(metadata.run)
-        extracted["export_occurrence"] = int(metadata.occurrence)
-        extracted["effective_energy_transfer"] = float(metadata.effective_energy_transfer)
-        extracted["snapshot_count"] = len(times)
-        extracted["exported_times_s"] = [float(time_value) for time_value in times]
-
-        summary.ids_properties.comment = _build_ids_comment(metadata, extracted)
-        if metadata.comment:
-            summary.tag.comment = metadata.comment
-
-        summary.code.name = "SOLEDGE-HDG"
-        summary.code.repository = "hdg_postprocess"
-        testcase = extracted.get("testcase")
-        if testcase is None:
-            summary.code.description = "Exported full discharge from SOLEDGE-HDG by hdg_postprocess."
-        else:
-            summary.code.description = (
-                f"Exported full discharge from SOLEDGE-HDG by hdg_postprocess (testcase {testcase})."
-            )
-        summary.code.parameters = json.dumps(extracted, sort_keys=True)
-        summary.simulation.workflow = "time_dependent_discharge"
-
-        puff_rate = extracted.get("puff_rate")
-        if puff_rate is not None:
-            summary.gas_injection_rates.total.value = np.full(len(times), float(puff_rate), dtype=float)
-            summary.gas_injection_rates.total.source = "SOLEDGE-HDG physics/puff"
+        extracted = summary_export_metadata(first_solution, metadata, times=times)
+        populate_summary_ids(
+            summary,
+            metadata,
+            extracted,
+            time_values=times,
+            workflow="time_dependent_discharge",
+            description_prefix="Exported full discharge from SOLEDGE-HDG by hdg_postprocess.",
+        )
     finally:
         _release_snapshot(first_solution, owned)
 
