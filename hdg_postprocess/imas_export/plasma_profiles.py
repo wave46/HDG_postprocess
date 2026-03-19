@@ -33,7 +33,7 @@ def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: Rect
     plasma.code.name = "SOLEDGE-HDG"
     plasma.code.repository = "hdg_postprocess"
     plasma.code.description = "Plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
-    plasma.code.parameters = json.dumps(plasma_profiles_metadata(solution, grid), sort_keys=True)
+    plasma.code.parameters = json.dumps(build_plasma_profiles_metadata(solution, grid), sort_keys=True)
     return plasma
 
 
@@ -76,7 +76,7 @@ def populate_plasma_ggd(ggd, sampled, *, grid_index):
     store_node_field(ggd.psi, sampled["psi"], grid_index=grid_index)
 
 
-def plasma_profiles_metadata(solution, grid):
+def build_plasma_profiles_metadata(solution, grid):
     physics = solution.parameters["physics"]
     extracted = rectangular_grid_metadata(grid)
     extracted.update(

@@ -5,10 +5,10 @@ import numpy as np
 
 from .common import add_constant_zeff_metadata, extend_time_metadata
 from .config import IMASExportMetadata, RectangularGrid2D, SolutionSnapshotSource
-from .equilibrium import _equilibrium_metadata, populate_equilibrium_timeslice, sample_equilibrium_fields
+from .equilibrium import build_equilibrium_metadata, populate_equilibrium_timeslice, sample_equilibrium_fields
 from .ggd_geometry import populate_grid_reference_ggd_entry, populate_rectangular_grid_ggd_entry
-from .plasma_profiles import plasma_profiles_metadata, populate_plasma_ggd, sample_plasma_fields, set_constant_zeff
-from .summary import populate_summary_ids, summary_export_metadata
+from .plasma_profiles import build_plasma_profiles_metadata, populate_plasma_ggd, sample_plasma_fields, set_constant_zeff
+from .summary import build_summary_export_metadata, populate_summary_ids
 
 
 def write_discharge(
@@ -41,7 +41,7 @@ def write_discharge(
     if include_summary:
         summary = build_discharge_summary_ids(timed_snapshots, metadata, times)
         entry.put(summary, metadata.occurrence)
-        written["summary"] = _written_ids_info(metadata, times)
+        written["summary"] = build_written_ids_info(metadata, times)
         _release_large_object(summary)
 
     grid_reference_paths = None
@@ -51,7 +51,7 @@ def write_discharge(
     if include_plasma_profiles:
         plasma = build_discharge_plasma_profiles_ids(timed_snapshots, metadata)
         entry.put(plasma, metadata.occurrence)
-        written["plasma_profiles"] = _written_ids_info(metadata, times)
+        written["plasma_profiles"] = build_written_ids_info(metadata, times)
         _release_large_object(plasma)
 
     if include_equilibrium:
@@ -61,7 +61,7 @@ def write_discharge(
             grid_reference_paths=grid_reference_paths,
         )
         entry.put(equilibrium, metadata.occurrence)
-        written["equilibrium"] = _written_ids_info(metadata, times)
+        written["equilibrium"] = build_written_ids_info(metadata, times)
         _release_large_object(equilibrium)
 
     return written
@@ -76,7 +76,7 @@ def build_discharge_summary_ids(timed_snapshots, metadata, times):
     summary = imas.IDSFactory().summary()
 
     try:
-        extracted = summary_export_metadata(first_solution, metadata, times=times)
+        extracted = build_summary_export_metadata(first_solution, metadata, times=times)
         populate_summary_ids(
             summary,
             metadata,
@@ -129,7 +129,7 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
         plasma.code.repository = "hdg_postprocess"
         plasma.code.description = "Time-resolved plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
         plasma.code.parameters = json.dumps(
-            _discharge_plasma_profiles_metadata(first_solution, first_grid, times),
+            build_discharge_plasma_profiles_metadata(first_solution, first_grid, times),
             sort_keys=True,
         )
     finally:
@@ -174,7 +174,7 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
         eq.code.repository = "hdg_postprocess"
         eq.code.description = "Time-resolved equilibrium exported from SOLEDGE-HDG by hdg_postprocess."
 
-        eq_metadata = _equilibrium_metadata(first_solution, metadata, first_grid)
+        eq_metadata = build_equilibrium_metadata(first_solution, metadata, first_grid)
         eq_metadata["snapshot_count"] = len(timed_snapshots)
         eq_metadata["exported_times_s"] = times.tolist()
         eq_metadata["grid_count"] = len(timed_snapshots)
@@ -277,7 +277,7 @@ def _plasma_grid_reference_paths(occurrence, grid_count):
     ]
 
 
-def _written_ids_info(metadata, times):
+def build_written_ids_info(metadata, times):
     return {"occurrence": int(metadata.occurrence), "time_count": len(times)}
 
 
@@ -298,7 +298,7 @@ def _release_large_object(value):
     gc.collect()
 
 
-def _discharge_plasma_profiles_metadata(solution, grid, times):
-    metadata_dict = plasma_profiles_metadata(solution, grid)
+def build_discharge_plasma_profiles_metadata(solution, grid, times):
+    metadata_dict = build_plasma_profiles_metadata(solution, grid)
     extend_time_metadata(metadata_dict, times)
     return metadata_dict

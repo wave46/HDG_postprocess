@@ -23,7 +23,7 @@ def build_summary_ids(solution, metadata: IMASExportMetadata):
     import imas
 
     summary = imas.IDSFactory().summary()
-    extracted = summary_export_metadata(solution, metadata)
+    extracted = build_summary_export_metadata(solution, metadata)
     populate_summary_ids(
         summary,
         metadata,
@@ -86,7 +86,7 @@ def extract_solution_summary_metadata(solution):
     return extracted
 
 
-def summary_export_metadata(solution, metadata: IMASExportMetadata, *, times=None):
+def build_summary_export_metadata(solution, metadata: IMASExportMetadata, *, times=None):
     extracted = extract_solution_summary_metadata(solution)
     extracted["export_shot"] = int(metadata.shot)
     extracted["export_run"] = int(metadata.run)

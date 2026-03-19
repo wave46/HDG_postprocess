@@ -43,7 +43,7 @@ def build_equilibrium_ids(
     eq.code.repository = "hdg_postprocess"
     eq.code.description = "Equilibrium exported from SOLEDGE-HDG by hdg_postprocess."
 
-    eq_metadata = _equilibrium_metadata(solution, metadata, grid)
+    eq_metadata = build_equilibrium_metadata(solution, metadata, grid)
     if grid_reference_path is not None:
         eq_metadata["ggd_grid_reference_path"] = str(grid_reference_path)
         eq_metadata["ggd_grid_reference_note"] = (
@@ -132,7 +132,9 @@ def populate_equilibrium_timeslice(ts, sampled, *, grid_index):
     if sampled.get("axis_r") is not None and sampled.get("axis_z") is not None:
         ts.global_quantities.magnetic_axis.r = sampled["axis_r"]
         ts.global_quantities.magnetic_axis.z = sampled["axis_z"]
-def _equilibrium_metadata(solution, metadata, grid):
+
+
+def build_equilibrium_metadata(solution, metadata, grid):
     extracted = rectangular_grid_metadata(grid)
     extracted.update({
         "representation_note": "Exported on a rectangular cylindrical (R,Z) mesh through equilibrium.grids_ggd/time_slice[0].ggd.",
