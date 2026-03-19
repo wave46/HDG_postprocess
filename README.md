@@ -87,6 +87,7 @@ from hdg_postprocess.api import load_solution
 solution = load_solution(...)
 full_cons = solution.fields.conservative(view="full")
 simple_phys = solution.fields.physical(view="simple")
+simple_psi = solution.equilibrium.poloidal_flux(view="simple")
 profile = solution.sample.line(r_line, z_line, ["n", "te", "ti"])
 power = solution.analysis.power_balance()
 ```
@@ -95,6 +96,7 @@ For direct data access, prefer the structured container API instead of the long 
 
 ```python
 simple_phys = solution.views.simple.solution.physical
+simple_eq = solution.views.simple.equilibrium
 glob_cons = solution.views.glob.solution.conservative
 gauss_grad = solution.views.gauss.gradient.conservative
 boundary_profile = solution.summary.boundary.profile

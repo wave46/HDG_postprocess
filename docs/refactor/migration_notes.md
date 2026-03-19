@@ -35,8 +35,9 @@ For existing notebooks and analysis scripts:
 For new code:
 
 - prefer `hdg_postprocess.api.load_solution()`
-- prefer grouped access through facades such as `fields`, `analysis`, `sample`, `plot`, and `sources`
+- prefer grouped access through facades such as `fields`, `equilibrium`, `analysis`, `sample`, `plot`, and `sources`
 - prefer direct structured access such as `solution.views.simple.solution.physical`
+- use `solution.equilibrium.*` for equilibrium views and derived equilibrium helpers, while keeping `solution.views.*.equilibrium` for direct cached-state inspection
 - avoid introducing new code that depends on legacy split-property aliases; prefer paths like `solution.views.boundary_gauss.gradient.conservative`
 - for point sampling, prefer the semantic pointwise subfacades:
   - `solution.pointwise.plasma`
