@@ -20,6 +20,32 @@ class IMASExportMetadata:
 
 
 @dataclass
+class SolutionSnapshotSource:
+    """Lightweight description of one snapshot that can be loaded on demand."""
+
+    solution_path: str
+    solution_base: str
+    mesh_path: str | None = None
+    mesh_base: str | None = None
+    n_partitions: int = 1
+    reference_element: str | None = None
+
+    def load(self):
+        from hdg_postprocess.api import load_reference_element, load_solution
+
+        solution = load_solution(
+            self.solution_path,
+            self.solution_base,
+            self.mesh_path,
+            self.mesh_base,
+            self.n_partitions,
+        )
+        if self.reference_element is not None:
+            solution.mesh.metadata.reference_element = load_reference_element(self.reference_element)
+        return solution
+
+
+@dataclass
 class RectangularGrid2D:
     """Rectangular (R, Z) sampling grid used by the first IMAS exporters."""
 

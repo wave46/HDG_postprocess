@@ -4,7 +4,7 @@ import numpy as np
 
 from .config import IMASExportMetadata, RectangularGrid2D
 from .evaluate import equilibrium_interpolators, evaluate_interpolators_on_grid
-from .ggd_geometry import populate_rectangular_grid_ggd
+from .ggd_geometry import populate_grid_reference_ggd_entry, populate_rectangular_grid_ggd
 
 
 def _equilibrium_metadata(solution, metadata, grid):
@@ -37,7 +37,17 @@ def _equilibrium_metadata(solution, metadata, grid):
     return extracted
 
 
-def build_equilibrium_ids(solution, metadata: IMASExportMetadata, grid: RectangularGrid2D):
+def _plasma_grid_reference_path(*, occurrence, grid_index):
+    return f"#plasma_profiles:{int(occurrence)}/grid_ggd({int(grid_index)})"
+
+
+def build_equilibrium_ids(
+    solution,
+    metadata: IMASExportMetadata,
+    grid: RectangularGrid2D,
+    *,
+    grid_reference_path=None,
+):
     """Build a rectangular-grid equilibrium IDS from one HDG solution."""
 
     import imas
@@ -53,7 +63,17 @@ def build_equilibrium_ids(solution, metadata: IMASExportMetadata, grid: Rectangu
 
     ts = eq.time_slice[0]
     ts.time = float(metadata.time)
-    populate_rectangular_grid_ggd(eq, grid, float(metadata.time))
+    if grid_reference_path is None:
+        populate_rectangular_grid_ggd(eq, grid, float(metadata.time))
+    else:
+        eq.grids_ggd.resize(1)
+        populate_grid_reference_ggd_entry(
+            eq.grids_ggd[0],
+            time_value=float(metadata.time),
+            path=str(grid_reference_path),
+            grid_name="rectangular_rz",
+            grid_index=1,
+        )
     ts.ggd.resize(1)
     ggd = ts.ggd[0]
 
@@ -110,7 +130,14 @@ def build_equilibrium_ids(solution, metadata: IMASExportMetadata, grid: Rectangu
     eq.code.name = "SOLEDGE-HDG"
     eq.code.repository = "hdg_postprocess"
     eq.code.description = "Equilibrium exported from SOLEDGE-HDG by hdg_postprocess."
-    eq.code.parameters = json.dumps(_equilibrium_metadata(solution, metadata, grid), sort_keys=True)
+    eq_metadata = _equilibrium_metadata(solution, metadata, grid)
+    if grid_reference_path is not None:
+        eq_metadata["ggd_grid_reference_path"] = str(grid_reference_path)
+        eq_metadata["ggd_grid_reference_note"] = (
+            "equilibrium.grids_ggd references the topology stored in plasma_profiles.grid_ggd "
+            "to avoid duplicate rectangular GGD geometry."
+        )
+    eq.code.parameters = json.dumps(eq_metadata, sort_keys=True)
 
     return eq
 

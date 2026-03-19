@@ -18,6 +18,13 @@ def _plasma_profiles_metadata(solution, grid):
         "value_ordering": "Node values are flattened from meshgrid(indexing='ij') in C order, so R is the slow axis and Z the fast axis.",
         "outside_mesh_policy": "Values outside the HDG mesh are exported as NaN.",
         "model_note": "SOLEDGE-HDG currently uses shared plasma density and parallel velocity for electrons and the single ion species.",
+        "density_storage_note": (
+            "For the current single-ion SOLEDGE-HDG model, electrons.density is the authoritative density field. "
+            "The redundant ion[0].density and n_i_total fields are intentionally left empty to reduce storage."
+        ),
+        "temperature_storage_note": (
+            "For the current single-ion model, ion[0].temperature is populated and the redundant t_i_average field is left empty."
+        ),
     }
     if "Zeff" in physics:
         extracted["Zeff"] = float(physics["Zeff"])
@@ -74,7 +81,6 @@ def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: Rect
     ion = ggd.ion[0]
     ion.name = "D+"
     ion.z_ion = 1.0
-    _store_struct_field(ion.density, sampled["n"])
     _store_struct_field(ion.temperature, sampled["ti"])
     ion.velocity.resize(1)
     ion.velocity[0].grid_index = 1
@@ -86,8 +92,6 @@ def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: Rect
     neutral.name = "D"
     _store_struct_field(neutral.density, sampled["nn"])
 
-    _store_struct_field(ggd.n_i_total, sampled["n"])
-    _store_struct_field(ggd.t_i_average, sampled["ti"])
     _store_struct_field(ggd.psi, sampled["psi"])
     if "Zeff" in solution.parameters["physics"]:
         zeff_values = np.full(r_grid.shape, float(solution.parameters["physics"]["Zeff"]), dtype=float)

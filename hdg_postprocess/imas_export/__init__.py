@@ -7,7 +7,7 @@ from .api import (
     write_plasma_profiles_netcdf,
     write_summary_netcdf,
 )
-from .config import IMASExportMetadata, RectangularGrid2D
+from .config import IMASExportMetadata, RectangularGrid2D, SolutionSnapshotSource
 from .discharge import build_discharge_equilibrium_ids, build_discharge_plasma_profiles_ids
 from .equilibrium import build_equilibrium_ids, put_equilibrium
 from .plasma_profiles import build_plasma_profiles_ids, put_plasma_profiles
@@ -16,6 +16,7 @@ from .summary import build_summary_ids, extract_solution_summary_metadata, put_s
 __all__ = [
     "IMASExportMetadata",
     "RectangularGrid2D",
+    "SolutionSnapshotSource",
     "build_discharge_equilibrium_ids",
     "build_discharge_plasma_profiles_ids",
     "build_equilibrium_ids",

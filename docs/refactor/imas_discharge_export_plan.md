@@ -38,14 +38,14 @@ write_discharge_imas_netcdf(
     include_summary=True,
     include_equilibrium=True,
     include_plasma_profiles=True,
-    sort_by_time=True,
+    sort_by_time=False,
 )
 ```
 
 Where:
 
 - `solutions`
-  - ordered list of loaded `HDGsolution` snapshots
+  - ordered list of loaded `HDGsolution` snapshots or `SolutionSnapshotSource` descriptors
 - `path`
   - output `.nc` file
 - `metadata`
@@ -100,10 +100,21 @@ Use one `plasma_profiles` IDS with:
 ## Implementation notes
 
 1. Build and validate either one shared grid or one grid per snapshot.
-2. Sort snapshots by time if requested.
+2. Validate that snapshots are already ordered in time, unless explicit reordering is requested.
 3. Reuse the current snapshot field-mapping logic for each time index.
 4. Keep the same node subset conventions as the current rectangular-GGD exporter.
 5. Write the final IDSs once with `put()`.
+
+The current implementation also reduces redundant plasma storage for the single-ion model:
+
+- `electrons.density` is the authoritative density field
+- `ion[0].density` and `n_i_total` are intentionally left empty
+- `ion[0].temperature` is kept while `t_i_average` is left empty
+
+It also avoids duplicating the rectangular GGD topology between the two time-resolved IDSs:
+
+- `plasma_profiles.grid_ggd(i)` stores the explicit rectangular grid description
+- `equilibrium.grids_ggd(i).grid(1).path` references that topology through the IMAS path mechanism
 
 The netCDF backend is better suited to writing the assembled IDSs once than to repeated slice-style appends.
 

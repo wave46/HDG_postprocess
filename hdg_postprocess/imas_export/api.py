@@ -2,7 +2,7 @@ from pathlib import Path
 
 from .config import IMASExportMetadata
 from .discharge import write_discharge
-from .equilibrium import put_equilibrium
+from .equilibrium import _plasma_grid_reference_path, build_equilibrium_ids, put_equilibrium
 from .plasma_profiles import put_plasma_profiles
 from .summary import put_summary
 
@@ -96,10 +96,23 @@ def write_imas_netcdf(
     with imas.DBEntry(str(db_path), file_mode) as entry:
         if include_summary:
             written["summary"] = put_summary(entry, solution, metadata)
-        if include_equilibrium:
-            written["equilibrium"] = put_equilibrium(entry, solution, metadata, grid)
         if include_plasma_profiles:
             written["plasma_profiles"] = put_plasma_profiles(entry, solution, metadata, grid)
+        if include_equilibrium:
+            if include_plasma_profiles:
+                equilibrium = build_equilibrium_ids(
+                    solution,
+                    metadata,
+                    grid,
+                    grid_reference_path=_plasma_grid_reference_path(
+                        occurrence=metadata.occurrence,
+                        grid_index=1,
+                    ),
+                )
+                entry.put(equilibrium, metadata.occurrence)
+                written["equilibrium"] = equilibrium
+            else:
+                written["equilibrium"] = put_equilibrium(entry, solution, metadata, grid)
     return written
 
 
@@ -139,10 +152,15 @@ def write_discharge_imas_netcdf(
     include_summary=True,
     include_equilibrium=True,
     include_plasma_profiles=True,
-    sort_by_time=True,
+    sort_by_time=False,
     time_getter=None,
 ):
-    """Write a full time-resolved discharge into one netCDF-backed DBEntry."""
+    """Write a full time-resolved discharge into one netCDF-backed DBEntry.
+
+    The default path expects snapshots to already be ordered in time and will
+    raise if they are not. Pass ``sort_by_time=True`` only when you explicitly
+    want the exporter to reorder snapshots.
+    """
 
     import imas
 

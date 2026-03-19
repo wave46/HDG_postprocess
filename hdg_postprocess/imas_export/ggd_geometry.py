@@ -191,6 +191,29 @@ def populate_rectangular_grid_ggd_entry(
     )
 
 
+def populate_grid_reference_ggd_entry(
+    grids_ggd,
+    *,
+    time_value: float,
+    path: str,
+    grid_name="rectangular_rz",
+    grid_index=1,
+):
+    grids_ggd.time = float(time_value)
+    if hasattr(grids_ggd, "grid"):
+        grids_ggd.grid.resize(1)
+        grid_node = grids_ggd.grid[0]
+    else:
+        grid_node = grids_ggd
+    grid_node.identifier.name = grid_name
+    grid_node.identifier.index = int(grid_index)
+    grid_node.identifier.description = (
+        "Grid topology is referenced from another IDS through the IMAS path field."
+    )
+    grid_node.path = path
+    return grid_node
+
+
 def populate_rectangular_grid_ggd(ids_with_grids_ggd, grid: RectangularGrid2D, time_value: float, *, grid_name="rectangular_rz"):
     return populate_rectangular_grid_ggd_array(
         ids_with_grids_ggd.grids_ggd,

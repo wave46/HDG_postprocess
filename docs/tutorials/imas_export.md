@@ -10,6 +10,8 @@ The first exporter writes three IDSs into one netCDF-backed `DBEntry`:
 
 The current 2D representation is a rectangular cylindrical `(R, Z)` GGD mesh generated on the writer side.
 
+When `equilibrium` and `plasma_profiles` are written together into the same `DBEntry`, the combined writers now store the explicit rectangular GGD topology in `plasma_profiles.grid_ggd` and let `equilibrium.grids_ggd` reference it through the IMAS `path` field. This avoids duplicating the same grid description twice in the same file.
+
 ## Current Export Contract
 
 The current IMAS adapter already supports three practical patterns:
@@ -22,6 +24,7 @@ Two small implementation details are worth knowing up front:
 
 - `RectangularGrid2D.from_solution_bounds(...)` now assembles the full mesh automatically when a legacy multi-partition case has not yet recombined its global mesh vertices
 - unchanged meshes can now reuse the shared sample-interpolator geometry cache across separately loaded solutions, which helps repeated scan/discharge exports at the same `(R, Z)` sampling points
+- when `equilibrium` and `plasma_profiles` are exported together, `equilibrium.grids_ggd` now references `plasma_profiles.grid_ggd` instead of storing a duplicate rectangular topology
 
 ## Recommended File Layout
 
@@ -47,6 +50,16 @@ For a puff scan, keep the same `shot`, keep `run=0`, and use one IDS occurrence 
 The current project convention is to bundle the scan into one `.nc` file by using one IDS occurrence per simulation.
 For a full discharge, keep one `shot`, one `run`, one `occurrence`, and export the ordered snapshot list into one time-resolved `DBEntry`.
 
+To reduce redundant storage, the current plasma export fills only the authoritative fields for the single-ion SOLEDGE-HDG model:
+
+- `electrons.density`
+- `electrons.temperature`
+- `ion[0].temperature`
+- `ion[0].velocity.parallel`
+- `neutral[0].density`
+
+The redundant `ion[0].density`, `n_i_total`, and `t_i_average` fields are intentionally left empty and documented in `plasma_profiles.code.parameters`.
+
 ## One Steady-State Solution
 
 Use an explicit user-provided time for a single steady-state snapshot.
@@ -57,6 +70,7 @@ from hdg_postprocess.api import load_reference_element, load_solution
 from hdg_postprocess.imas_export import (
     IMASExportMetadata,
     RectangularGrid2D,
+    SolutionSnapshotSource,
     write_discharge_imas_netcdf,
     write_imas_netcdf,
     write_imas_scan_case_netcdf,
@@ -150,7 +164,7 @@ with imas.DBEntry("build/puff_scan.nc", "r") as entry:
 
 ## Full Discharge in One DBEntry
 
-For a full discharge, load the ordered list of snapshot files and export them into one `.nc` file.
+For a full discharge, provide the ordered list of snapshot files and export them into one `.nc` file.
 This mode expects one physically meaningful time value per snapshot.
 You may pass either:
 
@@ -158,7 +172,12 @@ You may pass either:
 - or one rectangular grid per snapshot if the mesh changes during the discharge
 
 ```python
-from hdg_postprocess.imas_export import solution_time_seconds, write_discharge_imas_netcdf
+from hdg_postprocess.imas_export import (
+    IMASExportMetadata,
+    RectangularGrid2D,
+    SolutionSnapshotSource,
+    write_discharge_imas_netcdf,
+)
 
 snapshot_names = [
     "solution_snapshot_0000",
@@ -166,17 +185,15 @@ snapshot_names = [
     "solution_snapshot_0002",
 ]
 
-solutions = []
-for snapshot_name in snapshot_names:
-    solution = load_solution(
-        "path/to/discharge/",
-        snapshot_name,
+snapshots = [
+    SolutionSnapshotSource(
+        solution_path="path/to/discharge/",
+        solution_base=snapshot_name,
         n_partitions=1,
+        reference_element="demos/data/reference_elements/reference_triangle_P8.mat",
     )
-    solution.mesh.metadata.reference_element = load_reference_element(
-        "demos/data/reference_elements/reference_triangle_P8.mat"
-    )
-    solutions.append(solution)
+    for snapshot_name in snapshot_names
+]
 
 metadata = IMASExportMetadata(
     description="Full discharge export",
@@ -187,22 +204,22 @@ metadata = IMASExportMetadata(
     machine="WEST",
 )
 
-grids = [
-    RectangularGrid2D.from_solution_bounds(solution, dr=0.005, dz=0.005)
-    for solution in solutions
-]
+grids = []
+for snapshot in snapshots:
+    solution = snapshot.load()
+    grids.append(RectangularGrid2D.from_solution_bounds(solution, dr=0.005, dz=0.005))
+    del solution
 write_discharge_imas_netcdf(
-    solutions,
+    snapshots,
     "build/full_discharge.nc",
     metadata,
     grids,
     file_mode="w",
-    time_getter=solution_time_seconds,
 )
 ```
 
-Use `solution_time_seconds` only when the stored solver time is physically meaningful for the exported discharge.
-If you need a stricter rule, pass your own `time_getter` callable instead.
+By default, `write_discharge_imas_netcdf(...)` uses `solution_time_seconds` and expects snapshots to already be ordered in time.
+If the stored solver time is not physically meaningful for the exported discharge, or if you need a stricter validity rule, pass your own `time_getter` callable instead.
 
 ## Performance Notes
 
