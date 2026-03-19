@@ -123,3 +123,35 @@ Decision:
 
 - do not keep the payload-cache approach
 - move on to unchanged-grid reuse by IMAS `path` / reference
+
+## Tried: unchanged-grid reuse by IMAS `path`
+
+Attempt:
+
+- in `plasma_profiles.grid_ggd`, store the first explicit grid topology for each unique rectangular grid
+- for later unchanged snapshots, store only a `path` reference to that first explicit `grid_ggd`
+- keep `equilibrium.grids_ggd` pointing directly to the corresponding explicit plasma grid entry
+
+Result on `4` repeated snapshots with `dr = dz = 0.005`:
+
+- previous `build_plasma_ids`: `47.068 s`
+- path-reuse `build_plasma_ids`: `27.610 s`
+- `build_equilibrium_ids`: `11.515 s`
+
+Roundtrip check:
+
+- readback keeps the expected plasma paths:
+  - `["", "#plasma_profiles:0/grid_ggd(1)", "#plasma_profiles:0/grid_ggd(1)", "#plasma_profiles:0/grid_ggd(1)"]`
+- equilibrium keeps direct references to the explicit plasma grid:
+  - `["#plasma_profiles:0/grid_ggd(1)", ...]`
+
+Mixed-grid check:
+
+- when the grid changes every 3 timesteps, the exporter produces:
+  - plasma: `[None, ref(1), ref(1), None, ref(4), ref(4), None, ref(7), ref(7)]`
+  - equilibrium: `[ref(1), ref(1), ref(1), ref(4), ref(4), ref(4), ref(7), ref(7), ref(7)]`
+
+Conclusion:
+
+- unchanged-grid reuse by IMAS `path` is the first optimization that materially reduces plasma build cost
+- this should be the default discharge-export behavior when consecutive rectangular grids are identical
