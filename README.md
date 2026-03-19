@@ -43,6 +43,8 @@ For a lighter entry point than the full demo notebooks, start with:
 - [Setup Helpers](docs/tutorials/setup_helpers.md)
 - [IMAS Export](docs/tutorials/imas_export.md)
 
+For canonical modern runnable examples, start with [demos/modern_api](demos/modern_api).
+
 The longer legacy-compatible runnable examples remain in [demos/compatibility](demos/compatibility).
 
 ## Quick installation

@@ -129,6 +129,20 @@ class SolutionEquilibrium:
     def __init__(self, solution):
         self._solution = solution
 
+    def magnetic_field(self, view="simple"):
+        target_view = self._prepare_view(view)
+        return target_view.equilibrium.magnetic_field
+
+    def poloidal_flux(self, view="simple"):
+        target_view = self._prepare_view(view)
+        return target_view.equilibrium.poloidal_flux
+
+    def jtor(self, view="simple"):
+        target_view = self._prepare_view(view)
+        if view in {"boundary", "boundary_gauss"}:
+            raise ValueError("jtor is not exposed on boundary equilibrium views.")
+        return target_view.equilibrium.jtor
+
     def define_axis(self):
         equilibrium_ops.define_magnetic_axis(self._solution)
         return self._solution.summary.equilibrium.axis
@@ -144,6 +158,30 @@ class SolutionEquilibrium:
         equilibrium_ops.define_qcyl(self._solution, which=which)
         target_view = self._solution.views.glob if which == "full" else getattr(self._solution.views, which)
         return target_view.equilibrium.qcyl
+
+    def _prepare_view(self, view):
+        normalized = "full" if view == "glob" else view
+        if normalized == "full":
+            if not self._solution.metadata.flags.combined_to_full:
+                self._solution.assembly.full()
+            return self._solution.views.glob
+        if normalized == "simple":
+            if not self._solution.metadata.flags.combined_simple_solution:
+                self._solution.assembly.simple()
+            return self._solution.views.simple
+        if normalized == "gauss":
+            if not self._solution.metadata.flags.combined_gauss:
+                self._solution.assembly.gauss()
+            return self._solution.views.gauss
+        if normalized == "boundary":
+            if not self._solution.metadata.flags.combined_boundary:
+                self._solution.assembly.boundary()
+            return self._solution.views.boundary
+        if normalized == "boundary_gauss":
+            if not self._solution.metadata.flags.combined_boundary_gauss:
+                self._solution.assembly.boundary_gauss()
+            return self._solution.views.boundary_gauss
+        raise ValueError(f"Unsupported equilibrium view: {view}")
 
 
 class SolutionAnalysis:
