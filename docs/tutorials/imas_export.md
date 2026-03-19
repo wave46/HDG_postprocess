@@ -237,12 +237,21 @@ Recent improvements already in the current branch:
 
 - equilibrium export now uses batched interpolator evaluation on the valid grid points instead of repeated single-point calls from the exporter loop
 - unchanged meshes can reuse the shared sample-interpolator geometry cache across separately loaded solutions
+- full-discharge export can stream snapshots from `SolutionSnapshotSource` instead of keeping all `HDGsolution` objects resident
+- when `equilibrium` and `plasma_profiles` are exported together, `equilibrium` references `plasma_profiles.grid_ggd` instead of duplicating the same rectangular topology
 
 Still worth keeping in mind:
 
 - the interpolator geometry cache is currently unbounded
 - plasma export is still slower than equilibrium export because it samples derived variables through the pointwise layer
 - `dr=dz=0.005` on a large WEST mesh produces a very large GGD topology, so coarser grids or cropped domains can reduce export time substantially
+
+On a lightweight 8-snapshot circular discharge benchmark with `dr=dz=0.05`:
+
+- old preloaded pattern peaked around `500 MB`
+- the current streamed path peaked around `359 MB`
+
+So the current low-memory discharge export is roughly `140 MB` lower, about `28-30%` on that benchmark.
 
 ## Inspecting the Written File
 
