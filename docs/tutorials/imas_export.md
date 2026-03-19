@@ -246,13 +246,6 @@ Still worth keeping in mind:
 - plasma export is still slower than equilibrium export because it samples derived variables through the pointwise layer
 - `dr=dz=0.005` on a large WEST mesh produces a very large GGD topology, so coarser grids or cropped domains can reduce export time substantially
 
-On a lightweight 8-snapshot circular discharge benchmark with `dr=dz=0.05`:
-
-- old preloaded pattern peaked around `500 MB`
-- the current streamed path peaked around `359 MB`
-
-So the current low-memory discharge export is roughly `140 MB` lower, about `28-30%` on that benchmark.
-
 ## Inspecting the Written File
 
 Avoid calling `print_tree()` on the whole GGD IDS when the grid is large.
