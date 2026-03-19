@@ -67,3 +67,59 @@ Main equilibrium hotspot:
 - Plasma sampling is the next significant cost.
 - Equilibrium is materially cheaper than plasma.
 - For large discharges, the best acceleration target is reducing explicit plasma GGD volume before further interpolator micro-optimization.
+
+## Tried: cached rectangular topology data
+
+Attempt:
+
+- cache `rectangular_topology(grid)` by grid signature
+- reuse the same plain node/edge/cell lists across equilibrium and plasma
+- reuse them again for unchanged grids over time
+
+Result on the fine WEST-like grid (`dr = dz = 0.005`):
+
+- topology build itself:
+  - cold: `0.503 s`
+  - warm: `0.000 s`
+- but `build_plasma_ids` for `4` snapshots still stayed around:
+  - `48.625 s`
+
+Conclusion:
+
+- caching the plain topology data works
+- but it is not the real bottleneck
+- the expensive part is populating IMAS objects with that topology, not generating the node/edge/cell lists
+
+Implication:
+
+- a stronger optimization is needed:
+  - either reusing unchanged `grid_ggd` semantically by IMAS reference/path
+  - or otherwise avoiding repeated IMAS topology population itself
+
+## Tried: cached topology payload arrays
+
+Attempt:
+
+- precompute not only node/edge/cell lists
+- but also the NumPy payload objects later assigned into IMAS node, edge, cell, and subset entries
+
+Micro-benchmark on the fine WEST-like grid (`dr = dz = 0.005`):
+
+- current grid population: about `7.0 s`
+- payload-based population: about `6.3 s`
+
+End-to-end check on `build_plasma_ids` for `4` snapshots:
+
+- before: about `48.6 s`
+- payload-based version: about `47.8 s`
+
+Conclusion:
+
+- the idea helps slightly
+- but the gain is too small to justify extra complexity
+- the main bottleneck is still repeated IMAS object population itself
+
+Decision:
+
+- do not keep the payload-cache approach
+- move on to unchanged-grid reuse by IMAS `path` / reference
