@@ -67,4 +67,4 @@ the preferred modern style is to collect that setup through `configure_solution_
 - [Point Sampling](point_sampling.md)
 - [Boundary Summary](boundary_summary.md)
 - [Setup Helpers](setup_helpers.md)
-- demo notebook [hdg_solution_power_balance.ipynb](../../demos/hdg_solution_power_balance.ipynb)
+- compatibility demo notebook [hdg_solution_power_balance.ipynb](../../demos/compatibility/hdg_solution_power_balance.ipynb)

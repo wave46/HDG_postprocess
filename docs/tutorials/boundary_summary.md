@@ -77,4 +77,4 @@ This is useful when you want to mark or slice a particular wall region in a note
 
 - [Power Balance](power_balance.md)
 - [Setup Helpers](setup_helpers.md)
-- demo notebook [hdg_solution_boundary_plots.ipynb](../../demos/hdg_solution_boundary_plots.ipynb)
+- compatibility demo notebook [hdg_solution_boundary_plots.ipynb](../../demos/compatibility/hdg_solution_boundary_plots.ipynb)

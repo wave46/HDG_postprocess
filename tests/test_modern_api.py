@@ -47,6 +47,11 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     boundary_gauss_cons_cached = solution.fields.conservative(view="boundary_gauss")
     boundary_gauss_skeleton_cached = solution.fields.conservative(view="boundary_gauss", skeleton=True)
     axis = solution.equilibrium.define_axis()
+    eq_magnetic_field = solution.equilibrium.magnetic_field(view="simple")
+    eq_poloidal_flux = solution.equilibrium.poloidal_flux(view="simple")
+    eq_jtor = solution.equilibrium.jtor(view="simple")
+    eq_gauss_psi = solution.equilibrium.poloidal_flux(view="gauss")
+    eq_boundary_psi = solution.equilibrium.poloidal_flux(view="boundary")
     profile = solution.sample.line(
         baseline["sampled_profile"]["r"],
         baseline["sampled_profile"]["z"],
@@ -81,6 +86,11 @@ def test_modern_solution_api(manifest_path, baselines_dir):
     assert boundary_gauss_cons_cached is boundary_gauss_cons
     assert boundary_gauss_skeleton_cached is boundary_gauss_skeleton
     assert axis is solution.summary.equilibrium.axis
+    assert eq_magnetic_field is solution.views.simple.equilibrium.magnetic_field
+    assert eq_poloidal_flux is solution.views.simple.equilibrium.poloidal_flux
+    assert eq_jtor is solution.views.simple.equilibrium.jtor
+    assert eq_gauss_psi is solution.views.gauss.equilibrium.poloidal_flux
+    assert eq_boundary_psi is solution.views.boundary.equilibrium.poloidal_flux
     assert solution.metadata.flags.combined_gauss
     assert solution.metadata.flags.combined_boundary
     assert solution.metadata.flags.combined_boundary_gauss

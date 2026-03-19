@@ -37,6 +37,7 @@ Typical examples:
 ```python
 full_cons = solution.views.glob.solution.conservative
 simple_phys = solution.views.simple.solution.physical
+simple_eq = solution.views.simple.equilibrium
 boundary_profile = solution.summary.boundary.profile
 flags = solution.metadata.flags
 ```
@@ -44,6 +45,7 @@ flags = solution.metadata.flags
 These examples show the main roles of the containers:
 - `views.glob.solution.conservative` is the assembled full-mesh conservative solution.
 - `views.simple.solution.physical` is the reduced simple-mesh physical view that is often easiest to inspect.
+- `views.simple.equilibrium` stores the cached simple-view equilibrium arrays such as magnetic field, poloidal flux, and `jtor`.
 - `summary.boundary.profile` stores the last computed boundary-summary table.
 - `metadata.flags` tells you which assembled and derived states are already available.
 
@@ -67,11 +69,12 @@ Examples:
 ```python
 full_cons = solution.fields.conservative(view="full")
 simple_phys = solution.fields.physical(view="simple")
+simple_psi = solution.equilibrium.poloidal_flux(view="simple")
 power = solution.analysis.power_balance()
 profile = solution.sample.line(r_line, z_line, ["n", "te", "ti"])
 ```
 
-`solution.fields.*` returns assembled arrays, `analysis.power_balance()` evaluates the integrated source and sink terms, and `sample.line(...)` interpolates the requested variables along an arbitrary curve without exposing the low-level interpolator machinery.
+`solution.fields.*` returns assembled plasma arrays, `solution.equilibrium.*` exposes cached equilibrium views and derived equilibrium helpers, `analysis.power_balance()` evaluates the integrated source and sink terms, and `sample.line(...)` interpolates the requested variables along an arbitrary curve without exposing the low-level interpolator machinery.
 
 ## Pointwise access
 
@@ -124,9 +127,10 @@ The helper loads the reference element and common atomic / neutral-diffusion pre
 gauss_cons = solution.fields.conservative(view="gauss")
 boundary_cons = solution.fields.conservative(view="boundary")
 boundary_gauss_cons = solution.fields.conservative(view="boundary_gauss")
+gauss_psi = solution.equilibrium.poloidal_flux(view="gauss")
 ```
 
-These views expose the same solution on different discretization layouts: volume quadrature points, ordered boundary faces, and boundary quadrature points.
+These views expose the same state on different discretization layouts: volume quadrature points, ordered boundary faces, and boundary quadrature points.
 
 ## Next reading
 
@@ -137,4 +141,5 @@ These views expose the same solution on different discretization layouts: volume
 - [Setup Helpers](setup_helpers.md)
 - [Migrating Solution API](migrating_solution_api.md)
 - [migration_notes.md](../refactor/migration_notes.md)
-- demos in [demos](../../demos)
+- modern demo notebook [01_solution_basics.ipynb](../../demos/modern_api/01_solution_basics.ipynb)
+- compatibility demos in [demos/compatibility](../../demos/compatibility)
