@@ -1,5 +1,6 @@
 import gc
 import json
+from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
@@ -22,6 +23,7 @@ def write_discharge(
     include_plasma_profiles=True,
     sort_by_time=False,
     time_getter=None,
+    sample_workers=None,
 ):
     if not solutions:
         raise ValueError("Full-discharge export requires at least one solution snapshot.")
@@ -36,6 +38,12 @@ def write_discharge(
         time_getter=time_getter,
     )
     times = [time_value for time_value, _, _ in timed_snapshots]
+    sampled_snapshots = build_sampled_discharge_snapshots(
+        timed_snapshots,
+        include_plasma_profiles=include_plasma_profiles,
+        include_equilibrium=include_equilibrium,
+        sample_workers=sample_workers,
+    )
 
     written = {}
     if include_summary:
@@ -59,6 +67,7 @@ def write_discharge(
             timed_snapshots,
             metadata,
             grid_reference_paths=plasma_grid_reference_paths,
+            sampled_snapshots=sampled_snapshots,
         )
         entry.put(plasma, metadata.occurrence)
         written["plasma_profiles"] = build_written_ids_info(metadata, times)
@@ -69,6 +78,7 @@ def write_discharge(
             timed_snapshots,
             metadata,
             grid_reference_paths=equilibrium_grid_reference_paths,
+            sampled_snapshots=sampled_snapshots,
         )
         entry.put(equilibrium, metadata.occurrence)
         written["equilibrium"] = build_written_ids_info(metadata, times)
@@ -106,6 +116,7 @@ def build_discharge_plasma_profiles_ids(
     metadata: IMASExportMetadata,
     *,
     grid_reference_paths=None,
+    sampled_snapshots=None,
 ):
     import imas
 
@@ -141,13 +152,16 @@ def build_discharge_plasma_profiles_ids(
 
     plasma.ggd.resize(len(timed_snapshots))
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
-        solution, snapshot_owned = load_snapshot(snapshot)
-        try:
-            sampled = sample_plasma_fields(solution, grid)
-            plasma.ggd[index].time = float(time_value)
-            populate_plasma_ggd(plasma.ggd[index], sampled, grid_index=index + 1)
-        finally:
-            release_snapshot(solution, snapshot_owned)
+        if sampled_snapshots is None:
+            solution, snapshot_owned = load_snapshot(snapshot)
+            try:
+                sampled = sample_plasma_fields(solution, grid)
+            finally:
+                release_snapshot(solution, snapshot_owned)
+        else:
+            sampled = sampled_snapshots[index]["plasma"]
+        plasma.ggd[index].time = float(time_value)
+        populate_plasma_ggd(plasma.ggd[index], sampled, grid_index=index + 1)
 
     try:
         set_constant_zeff(plasma, first_solution, count=len(timed_snapshots))
@@ -170,7 +184,13 @@ def build_discharge_plasma_profiles_ids(
     return plasma
 
 
-def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadata, *, grid_reference_paths=None):
+def build_discharge_equilibrium_ids(
+    timed_snapshots,
+    metadata: IMASExportMetadata,
+    *,
+    grid_reference_paths=None,
+    sampled_snapshots=None,
+):
     import imas
 
     first_time, first_snapshot, first_grid = timed_snapshots[0]
@@ -193,13 +213,16 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
 
     eq.time_slice.resize(len(timed_snapshots))
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
-        solution, snapshot_owned = load_snapshot(snapshot)
-        try:
-            sampled_fields = sample_equilibrium_fields(solution, grid)
-            eq.time_slice[index].time = float(time_value)
-            populate_equilibrium_timeslice(eq.time_slice[index], sampled_fields, grid_index=index + 1)
-        finally:
-            release_snapshot(solution, snapshot_owned)
+        if sampled_snapshots is None:
+            solution, snapshot_owned = load_snapshot(snapshot)
+            try:
+                sampled_fields = sample_equilibrium_fields(solution, grid)
+            finally:
+                release_snapshot(solution, snapshot_owned)
+        else:
+            sampled_fields = sampled_snapshots[index]["equilibrium"]
+        eq.time_slice[index].time = float(time_value)
+        populate_equilibrium_timeslice(eq.time_slice[index], sampled_fields, grid_index=index + 1)
 
     try:
         eq.code.name = "SOLEDGE-HDG"
@@ -336,6 +359,46 @@ def build_equilibrium_grid_reference_paths(occurrence, timed_snapshots):
 
 def build_written_ids_info(metadata, times):
     return {"occurrence": int(metadata.occurrence), "time_count": len(times)}
+
+
+def build_sampled_discharge_snapshots(
+    timed_snapshots,
+    *,
+    include_plasma_profiles,
+    include_equilibrium,
+    sample_workers=None,
+):
+    if not include_plasma_profiles and not include_equilibrium:
+        return None
+    if sample_workers is None:
+        sample_workers = 1
+    sample_workers = int(sample_workers)
+    if sample_workers < 1:
+        raise ValueError("sample_workers must be >= 1.")
+
+    payload = [
+        (snapshot, grid, include_plasma_profiles, include_equilibrium)
+        for _, snapshot, grid in timed_snapshots
+    ]
+    if sample_workers == 1 or not all(isinstance(snapshot, SolutionSnapshotSource) for _, snapshot, _ in timed_snapshots):
+        return [sample_discharge_snapshot_fields(item) for item in payload]
+
+    with ProcessPoolExecutor(max_workers=sample_workers) as executor:
+        return list(executor.map(sample_discharge_snapshot_fields, payload))
+
+
+def sample_discharge_snapshot_fields(payload):
+    snapshot, grid, include_plasma_profiles, include_equilibrium = payload
+    solution, owned = load_snapshot(snapshot)
+    try:
+        sampled = {}
+        if include_plasma_profiles:
+            sampled["plasma"] = sample_plasma_fields(solution, grid)
+        if include_equilibrium:
+            sampled["equilibrium"] = sample_equilibrium_fields(solution, grid)
+        return sampled
+    finally:
+        release_snapshot(solution, owned)
 
 
 def load_snapshot(snapshot):

@@ -104,6 +104,7 @@ def write_discharge_imas_netcdf(
     include_plasma_profiles=True,
     sort_by_time=False,
     time_getter=None,
+    sample_workers=None,
 ):
     """Write a full time-resolved discharge into one netCDF-backed DBEntry.
 
@@ -128,6 +129,7 @@ def write_discharge_imas_netcdf(
             include_plasma_profiles=include_plasma_profiles,
             sort_by_time=sort_by_time,
             time_getter=time_getter,
+            sample_workers=sample_workers,
         ),
     )
 
