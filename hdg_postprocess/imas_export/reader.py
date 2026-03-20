@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+import shutil
 
 import numpy as np
 
@@ -175,7 +177,19 @@ def make_field_animation(
 
 
 def save_animation(animation, path, *, fps=8, dpi=140, writer=None):
+    path = Path(path)
     kwargs = {"fps": int(fps), "dpi": int(dpi)}
+    if writer is None:
+        suffix = path.suffix.lower()
+        if suffix == ".mp4":
+            if shutil.which("ffmpeg") is None:
+                raise RuntimeError(
+                    "Saving MP4 animations requires 'ffmpeg' to be available in PATH. "
+                    "Install ffmpeg on the cluster, choose a .gif output, or use --frames-dir."
+                )
+            writer = "ffmpeg"
+        elif suffix == ".gif":
+            writer = "pillow"
     if writer is not None:
         kwargs["writer"] = writer
     animation.save(str(path), **kwargs)
