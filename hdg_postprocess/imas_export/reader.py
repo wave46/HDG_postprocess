@@ -81,6 +81,21 @@ def symmetric_limits(field):
     return -max_abs, max_abs
 
 
+def format_time_labels(times, *, precision=3):
+    values = np.asarray(times, dtype=float)
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return [str(time) for time in times]
+    max_abs = float(np.max(np.abs(finite)))
+    if max_abs >= 1.0e4 or (max_abs > 0.0 and max_abs < 1.0e-2):
+        width = precision + 7
+        return [f"{float(time):{width}.{precision}e}" for time in values]
+
+    max_int_digits = max(1, int(np.floor(np.log10(max_abs))) + 1) if max_abs > 0.0 else 1
+    width = max_int_digits + precision + 3
+    return [f"{float(time):{width}.{precision}f}" for time in values]
+
+
 def field_style_presets():
     return {
         "ne": {"cmap": "magma", "scale": "log"},
@@ -146,6 +161,7 @@ def make_field_animation(
             raise ValueError("Provide either fixed r/z or per-frame r_frames/z_frames for animation.")
     elif len(r_frames) != len(frames) or len(z_frames) != len(frames):
         raise ValueError("r_frames and z_frames must have the same length as frames.")
+    time_labels = format_time_labels(times)
 
     fig, ax = plt.subplots(figsize=(6, 8))
     fig.colorbar(ScalarMappable(norm=norm, cmap=cmap), ax=ax, label=label)
@@ -155,7 +171,7 @@ def make_field_animation(
         current_r = r if r_frames is None else r_frames[frame_index]
         current_z = z if z_frames is None else z_frames[frame_index]
         mesh = ax.pcolormesh(current_r, current_z, frames[frame_index], shading="auto", cmap=cmap, norm=norm)
-        ax.set_title(f"{title} @ t={float(times[frame_index]):.6g} s")
+        ax.set_title(f"{title} @ t={time_labels[frame_index]} s")
         ax.set_xlabel("R [m]")
         ax.set_ylabel("Z [m]")
         ax.set_aspect("equal")

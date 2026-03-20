@@ -23,6 +23,7 @@ from matplotlib.colors import LogNorm, Normalize
 from hdg_postprocess.imas_export.reader import (
     equilibrium_slice,
     field_style_presets,
+    format_time_labels,
     load_ids,
     make_field_animation,
     plasma_slice,
@@ -210,15 +211,16 @@ def export_png_frames(
 ):
     frames_dir.mkdir(parents=True, exist_ok=True)
     norm_payload = frame_norm_payload(field_name, frames)
+    time_labels = format_time_labels(times)
 
     payloads = []
-    for index, (field, time_value, r_grid, z_grid) in enumerate(zip(frames, times, r_frames, z_frames)):
+    for index, (field, time_label, r_grid, z_grid) in enumerate(zip(frames, time_labels, r_frames, z_frames)):
         payloads.append(
             {
                 "r": r_grid,
                 "z": z_grid,
                 "field": field,
-                "title": f"{field_name} @ t={float(time_value):.6g} s",
+                "title": f"{field_name} @ t={time_label} s",
                 "label": FIELD_LABELS[field_name],
                 "cmap": cmap,
                 "norm": norm_payload,
