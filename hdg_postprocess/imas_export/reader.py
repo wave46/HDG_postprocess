@@ -81,17 +81,17 @@ def symmetric_limits(field):
 
 def field_style_presets():
     return {
-        "ne": {"cmap": "inferno", "scale": "log"},
+        "ne": {"cmap": "magma", "scale": "log"},
         "nn": {"cmap": "magma", "scale": "log"},
-        "te": {"cmap": "inferno", "scale": "log"},
-        "ti": {"cmap": "inferno", "scale": "log"},
+        "te": {"cmap": "magma", "scale": "log"},
+        "ti": {"cmap": "magma", "scale": "log"},
         "psi": {"cmap": "cividis", "scale": "linear"},
-        "br": {"cmap": "bwr", "scale": "linear", "symmetric": True},
-        "bz": {"cmap": "bwr", "scale": "linear", "symmetric": True},
+        "br": {"cmap": "RdBu_r", "scale": "linear", "symmetric": True},
+        "bz": {"cmap": "RdBu_r", "scale": "linear", "symmetric": True},
         "bphi": {"cmap": "viridis", "scale": "linear"},
-        "jphi": {"cmap": "bwr", "scale": "linear", "symmetric": True},
-        "u_par": {"cmap": "bwr", "scale": "linear", "symmetric": True},
-        "M": {"cmap": "bwr", "scale": "linear", "symmetric": True},
+        "jphi": {"cmap": "RdBu_r", "scale": "linear", "symmetric": True},
+        "u_par": {"cmap": "RdBu_r", "scale": "linear", "symmetric": True},
+        "M": {"cmap": "RdBu_r", "scale": "linear", "symmetric": True},
     }
 
 
