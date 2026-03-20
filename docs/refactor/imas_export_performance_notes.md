@@ -155,3 +155,83 @@ Conclusion:
 
 - unchanged-grid reuse by IMAS `path` is the first optimization that materially reduces plasma build cost
 - this should be the default discharge-export behavior when consecutive rectangular grids are identical
+
+## Validation, `put()` scaling, and parallel sampling
+
+12-snapshot mixed-grid case (`3` grids reused in `3`-step epochs):
+
+- validation on:
+  - `plasma_build_ids`: `48.065 s`
+  - `equilibrium_build_ids`: `25.502 s`
+  - `put`: `17.093 s`
+- `IMAS_AL_DISABLE_VALIDATE=1`:
+  - `plasma_build_ids`: `49.529 s`
+  - `equilibrium_build_ids`: `26.738 s`
+  - `put`: `9.210 s`
+
+Conclusion:
+
+- disabling validation helps `put()` by about `1.9x`
+- but the dominant cost is still IDS construction
+
+`put()` scaling with validation disabled:
+
+- `4` snapshots, `16.306 MB`: `3.907 s`
+- `8` snapshots, `52.827 MB`: `8.423 s`
+- `12` snapshots, `77.952 MB`: `8.794 s`
+
+Conclusion:
+
+- `put()` grows with file size, but it is not the main long-discharge bottleneck once path reuse is active
+
+Sampling-only process parallelism on the same 12-snapshot case:
+
+- sequential: `36.947 s`
+- `2` workers: `16.152 s`
+- `4` workers: `8.967 s`
+- `8` workers: `6.267 s`
+
+Conclusion:
+
+- process-parallel sampling is the strongest remaining acceleration candidate
+- this does not imply safe parallel writing to one DBEntry; it supports a design with parallel sampling and serial IMAS assembly/write
+
+## Current hotspots after path reuse
+
+`cProfile` on the same 12-snapshot mixed-grid case:
+
+Plasma build (`62.840 s` total):
+
+- `sample_plasma_fields(...)`: `24.806 s`
+- `populate_rectangular_grid_ggd_entry(...)` for the `3` explicit grids: `19.119 s`
+- snapshot loading: `11.850 s`
+
+Equilibrium build (`24.272 s` total):
+
+- snapshot loading: `12.086 s`
+- `sample_equilibrium_fields(...)`: `10.019 s`
+
+Conclusion:
+
+- after grid-path reuse, the exporter is now dominated by repeated snapshot loading and field sampling
+- further speedups should target parallel sampling / loading before more IMAS object micro-optimization
+
+## Tried: chunked export plus final merge
+
+Prototype on the same 12-snapshot case, split into `3` chunks of `4` snapshots:
+
+- monolithic export:
+  - build: `75.027 s`
+  - put: `9.137 s`
+  - total: `84.164 s`
+- chunk exports:
+  - totals: `29.684 s`, `38.058 s`, `34.747 s`
+  - sequential export total: `102.489 s`
+  - ideal parallel export wall time: `38.058 s`
+- naive final merge into one DBEntry:
+  - `118.119 s`
+
+Conclusion:
+
+- chunking is only attractive if chunk exports run in parallel and the final merge is made much cheaper than this first proof-of-concept
+- a naive Python-level IDS deepcopy/merge is too expensive to recommend as the default path
