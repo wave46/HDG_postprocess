@@ -102,6 +102,18 @@ def _default_ticks(norm, *, ticks):
     return ticks
 
 
+def _default_levels(norm, *, n_levels, limits):
+    if limits is not None or norm is None:
+        return None
+    vmin = getattr(norm, "vmin", None)
+    vmax = getattr(norm, "vmax", None)
+    if vmin is None or vmax is None:
+        return None
+    if np.isfinite(vmin) and np.isfinite(vmax) and np.isclose(vmin, -vmax):
+        return np.linspace(vmin, vmax, n_levels)
+    return None
+
+
 def plot_raw_meshes(mesh, data=None, ax=None):
     colors = cm.get_cmap("hsv", mesh.n_partitions)
     if ax is None:
@@ -137,6 +149,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
     cmap = _default_cmap(data, log=log, cmap=cmap)
     norm = _default_norm(data, log=log, limits=limits)
     ticks = _default_ticks(norm, ticks=ticks)
+    levels = _default_levels(norm, n_levels=n_levels, limits=limits)
 
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
@@ -190,7 +203,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                 im = ax.tricontourf(
                     triangulation,
                     data,
-                    levels=n_levels,
+                    levels=n_levels if levels is None else levels,
                     extend="both",
                     cmap=cmap,
                     norm=norm,
