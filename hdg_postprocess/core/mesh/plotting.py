@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib.tri import Triangulation
 from matplotlib import cm
 from matplotlib.collections import PolyCollection
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
 
 
 DEFAULT_POSITIVE_CMAP = "magma"
@@ -44,10 +44,6 @@ def _plot_with_connectivity(ax, vertices, connectivity, data, linewidth):
         ax.add_collection(collection)
         return None
     if data.shape[0] == connectivity.shape[0]:
-        verts = vertices[connectivity]
-        collection = PolyCollection(verts)
-        collection.set_array(data)
-        ax.add_collection(collection)
         return None
     return "tricontourf"
 
@@ -70,6 +66,28 @@ def _default_cmap(data, *, log, cmap):
     if np.any(finite < 0) and np.any(finite > 0):
         return DEFAULT_SIGNED_CMAP
     return DEFAULT_POSITIVE_CMAP
+
+
+def _default_norm(data, *, log, limits):
+    if data is None:
+        return None
+    finite = np.asarray(data, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        return None
+    if log:
+        if limits is None:
+            positive = finite[finite > 0]
+            if positive.size == 0:
+                return None
+            return LogNorm(vmin=float(positive.min()), vmax=float(positive.max()))
+        return LogNorm(vmin=10.0 ** limits[0], vmax=10.0 ** limits[1])
+    if limits is not None:
+        return Normalize(vmin=limits[0], vmax=limits[1])
+    if np.any(finite < 0) and np.any(finite > 0):
+        vmax = float(np.max(np.abs(finite)))
+        return Normalize(vmin=-vmax, vmax=vmax)
+    return Normalize(vmin=float(finite.min()), vmax=float(finite.max()))
 
 
 def plot_raw_meshes(mesh, data=None, ax=None):
@@ -105,6 +123,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                    n_levels=100, limits=None, ticks=None, tick_labels=None, cmap=None, linewidth=0.1):
     _ensure_full_mesh(mesh)
     cmap = _default_cmap(data, log=log, cmap=cmap)
+    norm = _default_norm(data, log=log, limits=limits)
 
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
@@ -112,6 +131,25 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
         connectivity = _default_plot_connectivity(mesh)
 
     plot_mode = _plot_with_connectivity(ax, mesh.global_state.vertices, connectivity, data, linewidth)
+    if data is not None and plot_mode is None:
+        verts = mesh.global_state.vertices[connectivity]
+        collection = PolyCollection(verts, linewidth=linewidth)
+        collection.set_array(np.asarray(data))
+        collection.set_cmap(cmap)
+        if norm is not None:
+            collection.set_norm(norm)
+        if limits is not None and not log:
+            collection.set_clim(limits[0], limits[1])
+        ax.add_collection(collection)
+        cbar = plt.colorbar(collection, ax=ax, extendrect=True)
+        if ticks is not None:
+            cbar.set_ticks(ticks)
+        if tick_labels is not None:
+            cbar.set_ticklabels(tick_labels)
+        if log:
+            ax.set_title(f"log10({label})")
+        else:
+            ax.set_title(f"{label}")
     if plot_mode == "tricontourf":
         triangulation = _make_triangulation(mesh.global_state.vertices, connectivity)
         if log:
@@ -130,7 +168,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                     data,
                     levels=np.logspace(limits[0], limits[1], n_levels),
                     cmap=cmap, vmin=10.0 ** limits[0], vmax=10.0 ** limits[1],
-                    norm=LogNorm(vmin=10.0 ** limits[0], vmax=10.0 ** limits[1]),
+                    norm=norm,
                     extend="both",
                 )
                 ax.set_title(f"{label}")
@@ -142,6 +180,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                     levels=n_levels,
                     extend="both",
                     cmap=cmap,
+                    norm=norm,
                 )
             else:
                 im = ax.tricontourf(
@@ -152,6 +191,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                     cmap=cmap,
                     vmin=limits[0],
                     vmax=limits[1],
+                    norm=norm,
                 )
             ax.set_title(f"{label}")
         cbar = plt.colorbar(im, ax=ax, extendrect=True)
