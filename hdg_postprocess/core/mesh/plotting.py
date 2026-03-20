@@ -90,6 +90,18 @@ def _default_norm(data, *, log, limits):
     return Normalize(vmin=float(finite.min()), vmax=float(finite.max()))
 
 
+def _default_ticks(norm, *, ticks):
+    if ticks is not None or norm is None:
+        return ticks
+    vmin = getattr(norm, "vmin", None)
+    vmax = getattr(norm, "vmax", None)
+    if vmin is None or vmax is None:
+        return ticks
+    if np.isfinite(vmin) and np.isfinite(vmax) and np.isclose(vmin, -vmax):
+        return np.linspace(vmin, vmax, 5)
+    return ticks
+
+
 def plot_raw_meshes(mesh, data=None, ax=None):
     colors = cm.get_cmap("hsv", mesh.n_partitions)
     if ax is None:
@@ -124,6 +136,7 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
     _ensure_full_mesh(mesh)
     cmap = _default_cmap(data, log=log, cmap=cmap)
     norm = _default_norm(data, log=log, limits=limits)
+    ticks = _default_ticks(norm, ticks=ticks)
 
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
