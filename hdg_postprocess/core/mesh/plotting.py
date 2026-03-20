@@ -6,6 +6,10 @@ from matplotlib.collections import PolyCollection
 from matplotlib.colors import LogNorm
 
 
+DEFAULT_POSITIVE_CMAP = "magma"
+DEFAULT_SIGNED_CMAP = "RdBu_r"
+
+
 def _ensure_full_mesh(mesh):
     mesh.assembly.full()
 
@@ -52,6 +56,22 @@ def _make_triangulation(vertices, connectivity):
     return Triangulation(vertices[:, 0], vertices[:, 1], triangles=connectivity)
 
 
+def _default_cmap(data, *, log, cmap):
+    if cmap is not None:
+        return cmap
+    if log:
+        return DEFAULT_POSITIVE_CMAP
+    if data is None:
+        return DEFAULT_POSITIVE_CMAP
+    finite = np.asarray(data, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        return DEFAULT_POSITIVE_CMAP
+    if np.any(finite < 0) and np.any(finite > 0):
+        return DEFAULT_SIGNED_CMAP
+    return DEFAULT_POSITIVE_CMAP
+
+
 def plot_raw_meshes(mesh, data=None, ax=None):
     colors = cm.get_cmap("hsv", mesh.n_partitions)
     if ax is None:
@@ -82,8 +102,9 @@ def plot_raw_meshes(mesh, data=None, ax=None):
 
 
 def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity=None,
-                   n_levels=100, limits=None, ticks=None, tick_labels=None, cmap="jet", linewidth=0.1):
+                   n_levels=100, limits=None, ticks=None, tick_labels=None, cmap=None, linewidth=0.1):
     _ensure_full_mesh(mesh)
+    cmap = _default_cmap(data, log=log, cmap=cmap)
 
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
