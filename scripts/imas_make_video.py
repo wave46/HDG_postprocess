@@ -53,9 +53,10 @@ def parse_args():
     parser.add_argument("db_path", help="Path to the IMAS netCDF file.")
     parser.add_argument(
         "--field",
-        default="te",
+        nargs="+",
+        default=None,
         choices=sorted(FIELD_LABELS),
-        help="Saved field to visualize.",
+        help="Saved field(s) to visualize. If omitted, all supported fields are rendered.",
     )
     parser.add_argument("--occurrence", type=int, default=0, help="IDS occurrence to read.")
     parser.add_argument("--start", type=int, default=0, help="First time index to include.")
@@ -236,10 +237,17 @@ def export_png_frames(
         list(executor.map(render_png_frame, payloads))
 
 
+def resolve_output_path(output, field_name, *, multiple_fields):
+    path = Path(output)
+    if not multiple_fields:
+        return path
+    return path.with_name(f"{path.stem}_{field_name}{path.suffix}")
+
+
 def main():
     args = parse_args()
     styles = field_style_presets()
-    cmap = args.cmap or styles[args.field]["cmap"]
+    selected_fields = list(args.field) if args.field is not None else list(FIELD_LABELS)
 
     _, equilibrium, _ = load_ids(args.db_path, occurrence=args.occurrence)
     total_times = len(equilibrium.time)
@@ -248,47 +256,53 @@ def main():
     if not time_indices:
         raise ValueError("No time indices selected for rendering.")
 
-    series = load_selected_frames(
-        args.db_path,
-        occurrence=args.occurrence,
-        field_name=args.field,
-        time_indices=time_indices,
-        separatrix_level=args.separatrix_level,
-    )
+    for field_name in selected_fields:
+        cmap = args.cmap or styles[field_name]["cmap"]
+        series = load_selected_frames(
+            args.db_path,
+            occurrence=args.occurrence,
+            field_name=field_name,
+            time_indices=time_indices,
+            separatrix_level=args.separatrix_level,
+        )
 
-    if args.frames_dir:
-        export_png_frames(
-            Path(args.frames_dir),
-            field_name=args.field,
+        if args.frames_dir:
+            frames_dir = Path(args.frames_dir)
+            if len(selected_fields) > 1:
+                frames_dir = frames_dir / field_name
+            export_png_frames(
+                frames_dir,
+                field_name=field_name,
+                frames=series["frames"],
+                times=series["times"],
+                r_frames=series["r_frames"],
+                z_frames=series["z_frames"],
+                separatrix_frames=series["separatrix_frames"],
+                cmap=cmap,
+                dpi=args.dpi,
+                workers=args.workers,
+            )
+            print(f"Saved {len(series['frames'])} PNG frames to {frames_dir}")
+            continue
+
+        norm = build_norm(field_name, series["frames"])
+        fig, animation = make_field_animation(
             frames=series["frames"],
             times=series["times"],
+            title=field_name,
+            label=FIELD_LABELS[field_name],
+            cmap=cmap,
+            norm=norm,
+            separatrix_frames=series["separatrix_frames"],
             r_frames=series["r_frames"],
             z_frames=series["z_frames"],
-            separatrix_frames=series["separatrix_frames"],
-            cmap=cmap,
-            dpi=args.dpi,
-            workers=args.workers,
         )
-        print(f"Saved {len(series['frames'])} PNG frames to {args.frames_dir}")
-        return
-
-    norm = build_norm(args.field, series["frames"])
-    fig, animation = make_field_animation(
-        frames=series["frames"],
-        times=series["times"],
-        title=args.field,
-        label=FIELD_LABELS[args.field],
-        cmap=cmap,
-        norm=norm,
-        separatrix_frames=series["separatrix_frames"],
-        r_frames=series["r_frames"],
-        z_frames=series["z_frames"],
-    )
-    try:
-        save_animation(animation, args.output, fps=args.fps, dpi=args.dpi)
-    finally:
-        plt.close(fig)
-    print(f"Saved animation to {args.output}")
+        output_path = resolve_output_path(args.output, field_name, multiple_fields=len(selected_fields) > 1)
+        try:
+            save_animation(animation, output_path, fps=args.fps, dpi=args.dpi)
+        finally:
+            plt.close(fig)
+        print(f"Saved animation to {output_path}")
 
 
 if __name__ == "__main__":
