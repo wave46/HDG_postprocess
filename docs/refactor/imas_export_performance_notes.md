@@ -196,6 +196,19 @@ Conclusion:
 - process-parallel sampling is the strongest remaining acceleration candidate
 - this does not imply safe parallel writing to one DBEntry; it supports a design with parallel sampling and serial IMAS assembly/write
 
+Full discharge export after the shared sampling refactor (`IMAS_AL_DISABLE_VALIDATE=1`):
+
+- `sample_workers=1`: `76.862 s`
+- `sample_workers=4`: `45.206 s`
+- `sample_workers=8`: `42.888 s`
+- `sample_workers=20`: `40.536 s`
+
+Conclusion:
+
+- sharing one sampling pass already helps
+- higher worker counts still improve wall time on a 24-CPU machine
+- returns are clearly diminishing beyond about `4-8` workers on this benchmark
+
 ## Current hotspots after path reuse
 
 `cProfile` on the same 12-snapshot mixed-grid case:
