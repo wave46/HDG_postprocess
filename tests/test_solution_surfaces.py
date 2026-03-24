@@ -83,6 +83,8 @@ def test_transport_bohm_gyrobohm_returns_finite_profiles(manifest_path):
     assert np.isfinite(bohm["chi_bohm"]).all()
     assert np.isfinite(gyrobohm["chi_gyrobohm"]).all()
     assert np.isfinite(profiles["chi_i"]).all()
+    assert (bohm["chi_bohm"] >= 0.0).all()
+    assert (gyrobohm["chi_gyrobohm"] >= 0.0).all()
     assert np.isfinite(profiles["chi_e"]).all()
     assert np.isfinite(profiles["diffusion"]).all()
 

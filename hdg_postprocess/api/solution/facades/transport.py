@@ -48,6 +48,7 @@ class SolutionTransport:
         rho_edge=0.99,
         method="gauss_shell",
         width=1e-3,
+        derivative_mode="flux_normal",
         ion_mass_amu=2.0,
         ion_charge=1.0,
     ):
@@ -58,6 +59,7 @@ class SolutionTransport:
             rho_edge=rho_edge,
             method=method,
             width=width,
+            derivative_mode=derivative_mode,
             ion_mass_amu=ion_mass_amu,
             ion_charge=ion_charge,
         )
@@ -70,6 +72,7 @@ class SolutionTransport:
         rho_edge=0.99,
         method="gauss_shell",
         width=1e-3,
+        derivative_mode="flux_normal",
         ion_mass_amu=2.0,
         ion_charge=1.0,
     ):
@@ -80,6 +83,7 @@ class SolutionTransport:
             rho_edge=rho_edge,
             method=method,
             width=width,
+            derivative_mode=derivative_mode,
             ion_mass_amu=ion_mass_amu,
             ion_charge=ion_charge,
         )
@@ -92,6 +96,7 @@ class SolutionTransport:
         rho_edge=0.99,
         method="gauss_shell",
         width=1e-3,
+        derivative_mode="flux_normal",
         ion_mass_amu=2.0,
         ion_charge=1.0,
     ):
@@ -102,6 +107,7 @@ class SolutionTransport:
             rho_edge=rho_edge,
             method=method,
             width=width,
+            derivative_mode=derivative_mode,
             ion_mass_amu=ion_mass_amu,
             ion_charge=ion_charge,
         )
