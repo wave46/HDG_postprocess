@@ -92,6 +92,77 @@ def collisionality_on_surfaces(
     return result
 
 
+def pinch_factor_on_surfaces(
+    solution,
+    rho,
+    *,
+    z_effective=1.0,
+    coulomb_logarithm=None,
+    threshold=0.04,
+    method="gauss_shell",
+    width=1e-3,
+):
+    collisionality = np.asarray(
+        collisionality_on_surfaces(
+            solution,
+            rho,
+            z_effective=z_effective,
+            coulomb_logarithm=coulomb_logarithm,
+            method=method,
+            width=width,
+        ),
+        dtype=float,
+    )
+    factor = np.minimum(1.0, np.exp(1.0 - collisionality / threshold))
+    if np.asarray(rho).ndim == 0:
+        return float(np.asarray(factor, dtype=float)[0] if np.asarray(factor).ndim > 0 else factor)
+    return np.asarray(factor, dtype=float)
+
+
+def pinch_velocity_on_surfaces(
+    solution,
+    rho,
+    diffusivity,
+    *,
+    rho_edge=0.99,
+    z_effective=1.0,
+    coulomb_logarithm=None,
+    threshold=0.04,
+    method="gauss_shell",
+    width=1e-3,
+):
+    rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
+    diffusivity_values = np.asarray(diffusivity, dtype=float)
+    if diffusivity_values.ndim == 0:
+        diffusivity_values = np.full_like(rho_values, float(diffusivity_values))
+    elif diffusivity_values.shape != rho_values.shape:
+        raise ValueError("diffusivity must be scalar or have the same shape as rho")
+
+    factor = np.asarray(
+        pinch_factor_on_surfaces(
+            solution,
+            rho_values,
+            z_effective=z_effective,
+            coulomb_logarithm=coulomb_logarithm,
+            threshold=threshold,
+            method=method,
+            width=width,
+        ),
+        dtype=float,
+    )
+    minor_radius = np.asarray(minor_radius_on_surfaces(solution, rho_values, method=method, width=width), dtype=float)
+    edge_minor_radius = float(minor_radius_on_surfaces(solution, rho_edge, method=method, width=width))
+
+    if np.isclose(edge_minor_radius, 0.0):
+        result = np.full_like(rho_values, np.nan, dtype=float)
+    else:
+        result = factor * 0.5 * diffusivity_values * minor_radius / (edge_minor_radius**2)
+
+    if np.asarray(rho).ndim == 0:
+        return float(result[0])
+    return result
+
+
 def _surface_average_scalar(solution, field, rho0, *, method, width):
     if method == "node_band":
         values, rho_values = _node_scalar_and_rho(solution, field)

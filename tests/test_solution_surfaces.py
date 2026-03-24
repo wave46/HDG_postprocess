@@ -37,6 +37,8 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     epsilon = sol.flux_surface.epsilon(0.8, method="gauss_shell", width=2e-3)
     q_value = sol.flux_surface.q(0.8, method="gauss_shell", width=2e-3)
     collisionality = sol.flux_surface.collisionality(0.8, method="gauss_shell", width=2e-3)
+    pinch_factor = sol.flux_surface.pinch_factor(0.8, method="gauss_shell", width=2e-3)
+    pinch_velocity = sol.flux_surface.pinch_velocity(0.8, 1.0, rho_edge=0.99, method="gauss_shell", width=2e-3)
 
     assert np.isfinite(te_node)
     assert np.isfinite(te_gauss)
@@ -47,3 +49,5 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     assert np.isfinite(epsilon)
     assert np.isfinite(q_value)
     assert np.isfinite(collisionality)
+    assert np.isfinite(pinch_factor)
+    assert np.isfinite(pinch_velocity)

@@ -49,3 +49,47 @@ class SolutionFluxSurface:
             method=method,
             width=width,
         )
+
+    def pinch_factor(
+        self,
+        rho,
+        *,
+        z_effective=1.0,
+        coulomb_logarithm=None,
+        threshold=0.04,
+        method="gauss_shell",
+        width=1e-3,
+    ):
+        return surface_ops.pinch_factor_on_surfaces(
+            self._solution,
+            rho,
+            z_effective=z_effective,
+            coulomb_logarithm=coulomb_logarithm,
+            threshold=threshold,
+            method=method,
+            width=width,
+        )
+
+    def pinch_velocity(
+        self,
+        rho,
+        diffusivity,
+        *,
+        rho_edge=0.99,
+        z_effective=1.0,
+        coulomb_logarithm=None,
+        threshold=0.04,
+        method="gauss_shell",
+        width=1e-3,
+    ):
+        return surface_ops.pinch_velocity_on_surfaces(
+            self._solution,
+            rho,
+            diffusivity,
+            rho_edge=rho_edge,
+            z_effective=z_effective,
+            coulomb_logarithm=coulomb_logarithm,
+            threshold=threshold,
+            method=method,
+            width=width,
+        )
