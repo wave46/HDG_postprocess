@@ -128,6 +128,37 @@ def test_flux_surface_projection_returns_plot_ready_fields(manifest_path):
     assert np.isfinite(gauss_field).all()
 
 
+def test_flux_surface_projection_ignores_nonfinite_profile_points(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+
+    configure_solution_setup(
+        sol,
+        reference_element=cfg["reference_element"],
+        radiation_model=cfg["radiation_model"],
+        atomic_data_dir="demos/data/atomic",
+        neutral_diffusion=True,
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    rho = np.linspace(0.0, 1.0, 8)
+    values = np.linspace(1.0, 2.0, 8)
+    values[0] = np.nan
+
+    projected = sol.flux_surface.project(rho, values, target="node")
+
+    assert np.isfinite(projected).all()
+
+
 def test_pointwise_flux_normal_gradients_are_finite(manifest_path):
     scenarios = scenario_map(manifest_path)
     cfg = scenarios["power_balance_with_cooling"]

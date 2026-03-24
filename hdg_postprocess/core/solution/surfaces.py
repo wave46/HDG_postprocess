@@ -226,9 +226,13 @@ def project_profile_to_solution(solution, rho, values, *, target="node"):
     if rho_grid.size < 2:
         raise ValueError("rho and values must contain at least two points")
 
-    order = np.argsort(rho_grid)
-    rho_sorted = rho_grid[order]
-    values_sorted = profile_values[order]
+    finite_mask = np.isfinite(rho_grid) & np.isfinite(profile_values)
+    if np.count_nonzero(finite_mask) < 2:
+        raise ValueError("rho and values must contain at least two finite points")
+
+    order = np.argsort(rho_grid[finite_mask])
+    rho_sorted = rho_grid[finite_mask][order]
+    values_sorted = profile_values[finite_mask][order]
     local_rho = rho_field(solution, target=target)
     clipped_rho = np.clip(local_rho, rho_sorted[0], rho_sorted[-1])
     projected = np.interp(clipped_rho.reshape(-1), rho_sorted, values_sorted)
