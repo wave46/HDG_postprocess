@@ -120,15 +120,13 @@ def pinch_factor_on_surfaces(
     return np.asarray(factor, dtype=float)
 
 
-def pinch_velocity_on_surfaces(
+def geometric_pinch_velocity_on_surfaces(
     solution,
     rho,
     diffusivity,
     *,
     rho_edge=0.99,
-    z_effective=1.0,
-    coulomb_logarithm=None,
-    threshold=0.04,
+    coefficient=0.5,
     method="gauss_shell",
     width=1e-3,
 ):
@@ -139,6 +137,47 @@ def pinch_velocity_on_surfaces(
     elif diffusivity_values.shape != rho_values.shape:
         raise ValueError("diffusivity must be scalar or have the same shape as rho")
 
+    minor_radius = np.asarray(minor_radius_on_surfaces(solution, rho_values, method=method, width=width), dtype=float)
+    edge_minor_radius = float(minor_radius_on_surfaces(solution, rho_edge, method=method, width=width))
+
+    if np.isclose(edge_minor_radius, 0.0):
+        result = np.full_like(rho_values, np.nan, dtype=float)
+    else:
+        result = coefficient * diffusivity_values * minor_radius / (edge_minor_radius**2)
+
+    if np.asarray(rho).ndim == 0:
+        return float(result[0])
+    return result
+
+
+def pinch_velocity_on_surfaces(
+    solution,
+    rho,
+    diffusivity,
+    *,
+    model="militello",
+    rho_edge=0.99,
+    coefficient=0.5,
+    z_effective=1.0,
+    coulomb_logarithm=None,
+    threshold=0.04,
+    method="gauss_shell",
+    width=1e-3,
+):
+    if model == "geometric":
+        return geometric_pinch_velocity_on_surfaces(
+            solution,
+            rho,
+            diffusivity,
+            rho_edge=rho_edge,
+            coefficient=coefficient,
+            method=method,
+            width=width,
+        )
+    if model != "militello":
+        raise ValueError(f"Unsupported pinch model: {model}")
+
+    rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
     factor = np.asarray(
         pinch_factor_on_surfaces(
             solution,
@@ -151,13 +190,18 @@ def pinch_velocity_on_surfaces(
         ),
         dtype=float,
     )
-    minor_radius = np.asarray(minor_radius_on_surfaces(solution, rho_values, method=method, width=width), dtype=float)
-    edge_minor_radius = float(minor_radius_on_surfaces(solution, rho_edge, method=method, width=width))
-
-    if np.isclose(edge_minor_radius, 0.0):
-        result = np.full_like(rho_values, np.nan, dtype=float)
-    else:
-        result = factor * 0.5 * diffusivity_values * minor_radius / (edge_minor_radius**2)
+    result = factor * np.asarray(
+        geometric_pinch_velocity_on_surfaces(
+            solution,
+            rho_values,
+            diffusivity,
+            rho_edge=rho_edge,
+            coefficient=coefficient,
+            method=method,
+            width=width,
+        ),
+        dtype=float,
+    )
 
     if np.asarray(rho).ndim == 0:
         return float(result[0])

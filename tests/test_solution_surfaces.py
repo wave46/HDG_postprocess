@@ -39,6 +39,9 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     collisionality = sol.flux_surface.collisionality(0.8, method="gauss_shell", width=2e-3)
     pinch_factor = sol.flux_surface.pinch_factor(0.8, method="gauss_shell", width=2e-3)
     pinch_velocity = sol.flux_surface.pinch_velocity(0.8, 1.0, rho_edge=0.99, method="gauss_shell", width=2e-3)
+    pinch_velocity_geometric = sol.flux_surface.pinch_velocity(
+        0.8, 1.0, model="geometric", coefficient=0.3, rho_edge=0.99, method="gauss_shell", width=2e-3
+    )
 
     assert np.isfinite(te_node)
     assert np.isfinite(te_gauss)
@@ -51,6 +54,8 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     assert np.isfinite(collisionality)
     assert np.isfinite(pinch_factor)
     assert np.isfinite(pinch_velocity)
+    assert np.isfinite(pinch_velocity_geometric)
+    assert pinch_velocity_geometric >= 0.0
 
 
 def test_transport_bohm_gyrobohm_returns_finite_profiles(manifest_path):
