@@ -51,3 +51,33 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     assert np.isfinite(collisionality)
     assert np.isfinite(pinch_factor)
     assert np.isfinite(pinch_velocity)
+
+
+def test_transport_bohm_gyrobohm_returns_finite_profiles(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+
+    configure_solution_setup(
+        sol,
+        reference_element=cfg["reference_element"],
+        radiation_model=cfg["radiation_model"],
+        atomic_data_dir="demos/data/atomic",
+        neutral_diffusion=True,
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    rho = np.linspace(0.3, 0.95, 8)
+    profiles = sol.transport.bohm_gyrobohm(rho, rho_edge=0.99, method="gauss_shell", width=2e-3)
+
+    assert np.isfinite(profiles["chi_i"]).all()
+    assert np.isfinite(profiles["chi_e"]).all()
+    assert np.isfinite(profiles["diffusion"]).all()

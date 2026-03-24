@@ -13,6 +13,7 @@ from hdg_postprocess.api.solution import (
     SolutionEquilibrium,
     SolutionFields,
     SolutionNeutrals,
+    SolutionTransport,
     SolutionPointwise,
     SolutionPlotting,
     SolutionSampling,
@@ -77,6 +78,7 @@ class HDGsolution:
         self._equilibrium = SolutionEquilibrium(self)
         self._sources = SolutionSources(self)
         self._neutrals = SolutionNeutrals(self)
+        self._transport = SolutionTransport(self)
         self._turbulence = SolutionTurbulence(self)
         self._sample = SolutionSampling(self)
         self._plot = SolutionPlotting(self)
@@ -217,6 +219,11 @@ class HDGsolution:
     def neutrals(self):
         """Facade for neutral transport-derived workflows."""
         return self._neutrals
+
+    @property
+    def transport(self):
+        """Facade for transport-model postprocessing workflows."""
+        return self._transport
 
     @property
     def turbulence(self):

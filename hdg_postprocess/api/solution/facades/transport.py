@@ -1,4 +1,5 @@
 from hdg_postprocess.core.solution import neutrals as neutrals_ops
+from hdg_postprocess.core.solution import transport_postprocess as transport_postprocess_ops
 from hdg_postprocess.core.solution import turbulent_model as turbulent_model_ops
 
 
@@ -33,3 +34,30 @@ class SolutionTurbulence:
         if view == "full":
             return self._solution.views.glob.derived.dk
         return self._solution.views.simple.derived.dk
+
+
+class SolutionTransport:
+    def __init__(self, solution):
+        self._solution = solution
+
+    def bohm_gyrobohm(
+        self,
+        rho,
+        *,
+        rho_inner=0.8,
+        rho_edge=0.99,
+        method="gauss_shell",
+        width=1e-3,
+        ion_mass_amu=2.0,
+        ion_charge=1.0,
+    ):
+        return transport_postprocess_ops.mixed_bohm_gyrobohm(
+            self._solution,
+            rho,
+            rho_inner=rho_inner,
+            rho_edge=rho_edge,
+            method=method,
+            width=width,
+            ion_mass_amu=ion_mass_amu,
+            ion_charge=ion_charge,
+        )

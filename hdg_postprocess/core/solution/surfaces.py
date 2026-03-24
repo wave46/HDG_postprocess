@@ -12,7 +12,8 @@ _PHYSICAL_FIELDS = {
 }
 
 
-_GEOMETRY_FIELDS = {"minor_radius", "major_radius", "epsilon", "q", "psi"}
+
+_GEOMETRY_FIELDS = {"minor_radius", "major_radius", "epsilon", "q", "psi", "btor"}
 
 
 def average_on_surfaces(solution, field, rho, *, method="gauss_shell", width=1e-3):
@@ -203,6 +204,8 @@ def _node_field(solution, field):
             return minor_radius / major_radius
     if field == "q":
         return _node_q(solution)
+    if field == "btor":
+        return _node_btor(solution)
 
     physical_name = _PHYSICAL_FIELDS.get(field)
     if physical_name is None:
@@ -227,6 +230,8 @@ def _gauss_field(solution, field):
             return minor_radius / major_radius
     if field == "q":
         return _gauss_q(solution)
+    if field == "btor":
+        return _gauss_btor(solution)
 
     physical_name = _PHYSICAL_FIELDS.get(field)
     if physical_name is None:
@@ -269,6 +274,18 @@ def _gauss_minor_radius(solution):
 
 def _node_q(solution):
     return solution.equilibrium.define_qcyl(view="simple")
+
+
+def _node_btor(solution):
+    if not solution.metadata.flags.combined_simple_solution:
+        solution.assembly.simple()
+    return solution.views.simple.equilibrium.magnetic_field[:, 2]
+
+
+def _gauss_btor(solution):
+    if not solution.metadata.flags.combined_gauss:
+        solution.assembly.gauss()
+    return solution.views.gauss.equilibrium.magnetic_field[:, :, 2]
 
 
 def _gauss_q(solution):
