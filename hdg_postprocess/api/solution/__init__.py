@@ -16,6 +16,7 @@ from hdg_postprocess.api.solution.facades import (
     SolutionPlotting,
     SolutionPointwise,
     SolutionSampling,
+    SolutionFluxSurface,
     SolutionSources,
     SolutionTurbulence,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "SolutionPlotting",
     "SolutionPointwise",
     "SolutionSampling",
+    "SolutionFluxSurface",
     "SolutionSources",
     "SolutionTurbulence",
 ]

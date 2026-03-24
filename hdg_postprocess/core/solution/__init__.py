@@ -82,4 +82,7 @@ __all__ = [
     "plot_variables_overview",
     "save_summary_line",
     "summary_along_the_wall",
+    "average_on_surfaces",
+    "te_on_surfaces",
 ]
+

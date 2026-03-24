@@ -17,6 +17,7 @@ from hdg_postprocess.api.solution import (
     SolutionPlotting,
     SolutionSampling,
     SolutionSources,
+    SolutionFluxSurface,
     SolutionTurbulence,
 )
 
@@ -80,6 +81,7 @@ class HDGsolution:
         self._sample = SolutionSampling(self)
         self._plot = SolutionPlotting(self)
         self._pointwise = SolutionPointwise(self)
+        self._flux_surface = SolutionFluxSurface(self)
 
     def _init_flags(self):
         self._metadata.flags.combined_simple_solution = False
@@ -235,3 +237,8 @@ class HDGsolution:
     def pointwise(self):
         """Facade for direct pointwise sampling of derived quantities."""
         return self._pointwise
+
+    @property
+    def flux_surface(self):
+        """Facade for flux-surface-reduced postprocessing quantities."""
+        return self._flux_surface
