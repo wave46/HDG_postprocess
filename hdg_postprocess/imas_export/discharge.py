@@ -1,5 +1,6 @@
 import gc
 import json
+from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
@@ -22,6 +23,7 @@ def write_discharge(
     include_plasma_profiles=True,
     sort_by_time=False,
     time_getter=None,
+    sample_workers=None,
 ):
     if not solutions:
         raise ValueError("Full-discharge export requires at least one solution snapshot.")
@@ -36,6 +38,12 @@ def write_discharge(
         time_getter=time_getter,
     )
     times = [time_value for time_value, _, _ in timed_snapshots]
+    sampled_snapshots = build_sampled_discharge_snapshots(
+        timed_snapshots,
+        include_plasma_profiles=include_plasma_profiles,
+        include_equilibrium=include_equilibrium,
+        sample_workers=sample_workers,
+    )
 
     written = {}
     if include_summary:
@@ -44,12 +52,23 @@ def write_discharge(
         written["summary"] = build_written_ids_info(metadata, times)
         release_large_object(summary)
 
-    grid_reference_paths = None
+    plasma_grid_reference_paths = None
+    equilibrium_grid_reference_paths = None
+    if include_plasma_profiles:
+        plasma_grid_reference_paths = build_discharge_grid_reference_paths(metadata.occurrence, timed_snapshots)
     if include_equilibrium and include_plasma_profiles:
-        grid_reference_paths = build_plasma_grid_reference_paths(metadata.occurrence, len(timed_snapshots))
+        equilibrium_grid_reference_paths = build_equilibrium_grid_reference_paths(
+            metadata.occurrence,
+            timed_snapshots,
+        )
 
     if include_plasma_profiles:
-        plasma = build_discharge_plasma_profiles_ids(timed_snapshots, metadata)
+        plasma = build_discharge_plasma_profiles_ids(
+            timed_snapshots,
+            metadata,
+            grid_reference_paths=plasma_grid_reference_paths,
+            sampled_snapshots=sampled_snapshots,
+        )
         entry.put(plasma, metadata.occurrence)
         written["plasma_profiles"] = build_written_ids_info(metadata, times)
         release_large_object(plasma)
@@ -58,7 +77,8 @@ def write_discharge(
         equilibrium = build_discharge_equilibrium_ids(
             timed_snapshots,
             metadata,
-            grid_reference_paths=grid_reference_paths,
+            grid_reference_paths=equilibrium_grid_reference_paths,
+            sampled_snapshots=sampled_snapshots,
         )
         entry.put(equilibrium, metadata.occurrence)
         written["equilibrium"] = build_written_ids_info(metadata, times)
@@ -91,7 +111,13 @@ def build_discharge_summary_ids(timed_snapshots, metadata, times):
     return summary
 
 
-def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMetadata):
+def build_discharge_plasma_profiles_ids(
+    timed_snapshots,
+    metadata: IMASExportMetadata,
+    *,
+    grid_reference_paths=None,
+    sampled_snapshots=None,
+):
     import imas
 
     first_time, first_snapshot, first_grid = timed_snapshots[0]
@@ -103,24 +129,39 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
     plasma.time = times
 
     plasma.grid_ggd.resize(len(timed_snapshots))
+    if grid_reference_paths is None:
+        grid_reference_paths = build_discharge_grid_reference_paths(metadata.occurrence, timed_snapshots)
     for grid_index, (time_value, _, grid) in enumerate(timed_snapshots, start=1):
-        populate_rectangular_grid_ggd_entry(
-            plasma.grid_ggd[grid_index - 1],
-            grid,
-            float(time_value),
-            grid_name="rectangular_rz",
-            grid_index=grid_index,
-        )
+        reference_path = grid_reference_paths[grid_index - 1]
+        if reference_path is None:
+            populate_rectangular_grid_ggd_entry(
+                plasma.grid_ggd[grid_index - 1],
+                grid,
+                float(time_value),
+                grid_name="rectangular_rz",
+                grid_index=grid_index,
+            )
+        else:
+            populate_grid_reference_ggd_entry(
+                plasma.grid_ggd[grid_index - 1],
+                time_value=float(time_value),
+                path=reference_path,
+                grid_name="rectangular_rz",
+                grid_index=grid_index,
+            )
 
     plasma.ggd.resize(len(timed_snapshots))
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
-        solution, snapshot_owned = load_snapshot(snapshot)
-        try:
-            sampled = sample_plasma_fields(solution, grid)
-            plasma.ggd[index].time = float(time_value)
-            populate_plasma_ggd(plasma.ggd[index], sampled, grid_index=index + 1)
-        finally:
-            release_snapshot(solution, snapshot_owned)
+        if sampled_snapshots is None:
+            solution, snapshot_owned = load_snapshot(snapshot)
+            try:
+                sampled = sample_plasma_fields(solution, grid)
+            finally:
+                release_snapshot(solution, snapshot_owned)
+        else:
+            sampled = sampled_snapshots[index]["plasma"]
+        plasma.ggd[index].time = float(time_value)
+        populate_plasma_ggd(plasma.ggd[index], sampled, grid_index=index + 1)
 
     try:
         set_constant_zeff(plasma, first_solution, count=len(timed_snapshots))
@@ -129,7 +170,12 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
         plasma.code.repository = "hdg_postprocess"
         plasma.code.description = "Time-resolved plasma profiles exported from SOLEDGE-HDG by hdg_postprocess."
         plasma.code.parameters = json.dumps(
-            build_discharge_plasma_profiles_metadata(first_solution, first_grid, times),
+            build_discharge_plasma_profiles_metadata(
+                first_solution,
+                first_grid,
+                times,
+                grid_reference_paths=grid_reference_paths,
+            ),
             sort_keys=True,
         )
     finally:
@@ -138,7 +184,13 @@ def build_discharge_plasma_profiles_ids(timed_snapshots, metadata: IMASExportMet
     return plasma
 
 
-def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadata, *, grid_reference_paths=None):
+def build_discharge_equilibrium_ids(
+    timed_snapshots,
+    metadata: IMASExportMetadata,
+    *,
+    grid_reference_paths=None,
+    sampled_snapshots=None,
+):
     import imas
 
     first_time, first_snapshot, first_grid = timed_snapshots[0]
@@ -161,13 +213,16 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
 
     eq.time_slice.resize(len(timed_snapshots))
     for index, (time_value, snapshot, grid) in enumerate(timed_snapshots):
-        solution, snapshot_owned = load_snapshot(snapshot)
-        try:
-            sampled_fields = sample_equilibrium_fields(solution, grid)
-            eq.time_slice[index].time = float(time_value)
-            populate_equilibrium_timeslice(eq.time_slice[index], sampled_fields, grid_index=index + 1)
-        finally:
-            release_snapshot(solution, snapshot_owned)
+        if sampled_snapshots is None:
+            solution, snapshot_owned = load_snapshot(snapshot)
+            try:
+                sampled_fields = sample_equilibrium_fields(solution, grid)
+            finally:
+                release_snapshot(solution, snapshot_owned)
+        else:
+            sampled_fields = sampled_snapshots[index]["equilibrium"]
+        eq.time_slice[index].time = float(time_value)
+        populate_equilibrium_timeslice(eq.time_slice[index], sampled_fields, grid_index=index + 1)
 
     try:
         eq.code.name = "SOLEDGE-HDG"
@@ -177,8 +232,10 @@ def build_discharge_equilibrium_ids(timed_snapshots, metadata: IMASExportMetadat
         eq_metadata = build_equilibrium_metadata(first_solution, metadata, first_grid)
         eq_metadata["snapshot_count"] = len(timed_snapshots)
         eq_metadata["exported_times_s"] = times.tolist()
-        eq_metadata["grid_count"] = len(timed_snapshots)
-        eq_metadata["time_varying_grid"] = True
+        explicit_grid_count = count_explicit_grids(grid_reference_paths, len(timed_snapshots))
+        eq_metadata["grid_count"] = explicit_grid_count
+        eq_metadata["grid_reference_count"] = len(timed_snapshots) - explicit_grid_count
+        eq_metadata["time_varying_grid"] = explicit_grid_count > 1
         eq_metadata["representation_note"] = (
             "Exported as a time-resolved discharge on rectangular cylindrical (R,Z) GGD meshes "
             "through equilibrium.grids_ggd[i]/time_slice[i].ggd."
@@ -270,15 +327,78 @@ def populate_discharge_equilibrium_grid(
     )
 
 
-def build_plasma_grid_reference_paths(occurrence, grid_count):
-    return [
-        f"#plasma_profiles:{int(occurrence)}/grid_ggd({index})"
-        for index in range(1, grid_count + 1)
-    ]
+def build_discharge_grid_reference_paths(occurrence, timed_snapshots):
+    reference_paths = []
+    first_seen = {}
+    for grid_index, (_, _, grid) in enumerate(timed_snapshots, start=1):
+        signature = grid_signature(grid)
+        if signature not in first_seen:
+            first_seen[signature] = grid_index
+            reference_paths.append(None)
+        else:
+            source_index = first_seen[signature]
+            reference_paths.append(
+                f"#plasma_profiles:{int(occurrence)}/grid_ggd({int(source_index)})"
+            )
+    return reference_paths
+
+
+def build_equilibrium_grid_reference_paths(occurrence, timed_snapshots):
+    reference_paths = []
+    first_seen = {}
+    for grid_index, (_, _, grid) in enumerate(timed_snapshots, start=1):
+        signature = grid_signature(grid)
+        if signature not in first_seen:
+            first_seen[signature] = grid_index
+        source_index = first_seen[signature]
+        reference_paths.append(
+            f"#plasma_profiles:{int(occurrence)}/grid_ggd({int(source_index)})"
+        )
+    return reference_paths
 
 
 def build_written_ids_info(metadata, times):
     return {"occurrence": int(metadata.occurrence), "time_count": len(times)}
+
+
+def build_sampled_discharge_snapshots(
+    timed_snapshots,
+    *,
+    include_plasma_profiles,
+    include_equilibrium,
+    sample_workers=None,
+):
+    if not include_plasma_profiles and not include_equilibrium:
+        return None
+    if sample_workers is None:
+        sample_workers = 1
+    sample_workers = int(sample_workers)
+    if sample_workers < 1:
+        raise ValueError("sample_workers must be >= 1.")
+
+    payload = [
+        (snapshot, grid, include_plasma_profiles, include_equilibrium)
+        for _, snapshot, grid in timed_snapshots
+    ]
+    if sample_workers == 1 or not all(isinstance(snapshot, SolutionSnapshotSource) for _, snapshot, _ in timed_snapshots):
+        return [sample_discharge_snapshot_fields(item) for item in payload]
+
+    with ProcessPoolExecutor(max_workers=sample_workers) as executor:
+        return list(executor.map(sample_discharge_snapshot_fields, payload))
+
+
+def sample_discharge_snapshot_fields(payload):
+    snapshot, grid, include_plasma_profiles, include_equilibrium = payload
+    solution, owned = load_snapshot(snapshot)
+    try:
+        sampled = {}
+        if include_plasma_profiles:
+            sampled["plasma"] = sample_plasma_fields(solution, grid)
+        if include_equilibrium:
+            sampled["equilibrium"] = sample_equilibrium_fields(solution, grid)
+        return sampled
+    finally:
+        release_snapshot(solution, owned)
 
 
 def load_snapshot(snapshot):
@@ -298,7 +418,34 @@ def release_large_object(value):
     gc.collect()
 
 
-def build_discharge_plasma_profiles_metadata(solution, grid, times):
+def build_discharge_plasma_profiles_metadata(solution, grid, times, *, grid_reference_paths=None):
     metadata_dict = build_plasma_profiles_metadata(solution, grid)
     extend_time_metadata(metadata_dict, times)
+    explicit_grid_count = count_explicit_grids(grid_reference_paths, len(times))
+    metadata_dict["grid_count"] = explicit_grid_count
+    metadata_dict["grid_reference_count"] = len(times) - explicit_grid_count
+    metadata_dict["time_varying_grid"] = explicit_grid_count > 1
+    if grid_reference_paths is not None and any(path is not None for path in grid_reference_paths):
+        metadata_dict["ggd_grid_reference_note"] = (
+            "When consecutive snapshots reuse the same rectangular grid, plasma_profiles.grid_ggd[i] "
+            "may reference the first explicit topology entry through the IMAS path field instead of "
+            "repeating the full grid description."
+        )
     return metadata_dict
+
+
+def grid_signature(grid):
+    return (
+        float(grid.r_min),
+        float(grid.r_max),
+        int(grid.nr),
+        float(grid.z_min),
+        float(grid.z_max),
+        int(grid.nz),
+    )
+
+
+def count_explicit_grids(grid_reference_paths, snapshot_count):
+    if grid_reference_paths is None:
+        return int(snapshot_count)
+    return sum(path is None for path in grid_reference_paths)

@@ -217,11 +217,13 @@ write_discharge_imas_netcdf(
     metadata,
     grids,
     file_mode="w",
+    sample_workers=4,
 )
 ```
 
 By default, `write_discharge_imas_netcdf(...)` uses `solution_time_seconds` and expects snapshots to already be ordered in time.
 If the stored solver time is not physically meaningful for the exported discharge, or if you need a stricter validity rule, pass your own `time_getter` callable instead.
+When the input is given as `SolutionSnapshotSource` objects, `sample_workers` lets the exporter load snapshots and sample plasma/equilibrium fields in multiple Python processes before the final IMAS IDS assembly and `put()` phase.
 
 ## Performance Notes
 
@@ -229,9 +231,10 @@ The current exporter is correct and reasonably reusable, but it is not lightweig
 
 The main costs are:
 
-- building the explicit GGD node/edge/cell topology for both `equilibrium` and `plasma_profiles`
-- evaluating equilibrium fields on every `(R, Z)` sample point
-- evaluating plasma fields, which currently still goes through the pointwise line-sampling path
+- repeated snapshot loading
+- evaluating plasma and equilibrium fields on every `(R, Z)` sample point
+- building the explicit GGD node/edge/cell topology for the explicit grid entries
+- the final `put()` calls, especially when validation is enabled
 
 Recent improvements already in the current branch:
 
@@ -239,12 +242,15 @@ Recent improvements already in the current branch:
 - unchanged meshes can reuse the shared sample-interpolator geometry cache across separately loaded solutions
 - full-discharge export can stream snapshots from `SolutionSnapshotSource` instead of keeping all `HDGsolution` objects resident
 - when `equilibrium` and `plasma_profiles` are exported together, `equilibrium` references `plasma_profiles.grid_ggd` instead of duplicating the same rectangular topology
+- discharge export now shares one sampling pass between plasma and equilibrium and can parallelize that sampling stage with `sample_workers`
 
 Still worth keeping in mind:
 
 - the interpolator geometry cache is currently unbounded
-- plasma export is still slower than equilibrium export because it samples derived variables through the pointwise layer
-- `dr=dz=0.005` on a large WEST mesh produces a very large GGD topology, so coarser grids or cropped domains can reduce export time substantially
+- plasma export is still slower than equilibrium export because it samples more derived variables
+- `IMAS_AL_DISABLE_VALIDATE=1` can reduce `put()` time noticeably in production runs, but only use it after one validated smoke test of the same workflow
+- `sample_workers` controls the number of Python worker processes used for snapshot loading and sampling; it is independent of `OMP_NUM_THREADS`
+- on cluster, start with something like `sample_workers=4` or `8` and benchmark before going much higher, because returns become smaller as worker count increases
 
 ## Inspecting the Written File
 
@@ -274,3 +280,11 @@ For cluster use, the usual pattern is:
 4. write one netCDF file per steady case, per bundled scan, or per full discharge
 
 That keeps the export script simple and makes it easy to transfer the resulting `.nc` files to other users.
+
+For a large full discharge on cluster, a practical pattern is:
+
+1. request enough CPUs from the scheduler
+2. set `sample_workers` explicitly to the number of Python sampling processes you want to use
+3. optionally set `IMAS_AL_DISABLE_VALIDATE=1` after one validated smoke test
+
+`sample_workers` is not inferred from `OMP_NUM_THREADS`. The exporter uses Python worker processes for the sampling stage, so you should tune `sample_workers` directly in the export call to match the CPU allocation you want to use.

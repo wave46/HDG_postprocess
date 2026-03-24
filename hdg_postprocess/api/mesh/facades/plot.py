@@ -19,7 +19,7 @@ class MeshPlot:
         limits=None,
         ticks=None,
         tick_labels=None,
-        cmap="jet",
+        cmap=None,
         linewidth=1.0,
     ):
         return plotting_ops.plot_full_mesh(

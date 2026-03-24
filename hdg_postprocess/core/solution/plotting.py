@@ -12,6 +12,10 @@ from hdg_postprocess.routines.plasma import (
 from hdg_postprocess.core.solution import preparation as prep_ops
 
 
+SIGNED_CMAP = "RdBu_r"
+POSITIVE_CMAP = "magma"
+
+
 def plot_overview(solution, n_levels=100):
     prep_ops.ensure_simple_solution(solution)
     simple_solution = solution.views.simple.solution.conservative
@@ -67,7 +71,7 @@ def plot_overview(solution, n_levels=100):
                 label=colorbar_labels[i],
                 connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
-                cmap="bwr",
+                cmap=POSITIVE_CMAP,
             )
         else:
             axes[i // 2, i % 2] = solution.mesh.plot.full(
@@ -145,7 +149,7 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
                 label=colorbar_labels[i],
                 connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
-                cmap="bwr",
+                cmap=SIGNED_CMAP,
             )
     return fig, axes, difference_dimensional
 
@@ -202,7 +206,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
                     connectivity=solution.mesh.derived_geometry.connectivity_big,
                     n_levels=n_levels,
                     limits=limit,
-                    cmap="bwr",
+                    cmap=SIGNED_CMAP,
                 )
             else:
                 axes[i // 2, i % 2] = solution.mesh.plot.full(
@@ -248,7 +252,7 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
                 label=colorbar_labels[i],
                 connectivity=solution.mesh.derived_geometry.connectivity_big,
                 n_levels=n_levels,
-                cmap="bwr",
+                cmap=SIGNED_CMAP,
             )
         else:
             axes[i // 2, i % 2] = solution.mesh.plot.full(
@@ -323,7 +327,7 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
         if log:
             data[data < 0] = 10.0 ** limit[0]
         res[variable] = data
-        cmap = "bwr" if variable == "M" else "jet"
+        cmap = SIGNED_CMAP if variable == "M" else POSITIVE_CMAP
         if var_to_plot > 2:
             axes[i // 2, i % 2] = solution.mesh.plot.full(
                 data,
