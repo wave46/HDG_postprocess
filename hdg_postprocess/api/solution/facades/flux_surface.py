@@ -31,3 +31,21 @@ class SolutionFluxSurface:
 
     def q(self, rho, *, method="gauss_shell", width=1e-3):
         return surface_ops.q_on_surfaces(self._solution, rho, method=method, width=width)
+
+    def collisionality(
+        self,
+        rho,
+        *,
+        z_effective=1.0,
+        coulomb_logarithm=None,
+        method="gauss_shell",
+        width=1e-3,
+    ):
+        return surface_ops.collisionality_on_surfaces(
+            self._solution,
+            rho,
+            z_effective=z_effective,
+            coulomb_logarithm=coulomb_logarithm,
+            method=method,
+            width=width,
+        )

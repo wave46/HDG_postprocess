@@ -51,6 +51,47 @@ def q_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
     return average_on_surfaces(solution, "q", rho, method=method, width=width)
 
 
+def collisionality_on_surfaces(
+    solution,
+    rho,
+    *,
+    z_effective=1.0,
+    coulomb_logarithm=None,
+    method="gauss_shell",
+    width=1e-3,
+):
+    rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
+    q_values = np.asarray(q_on_surfaces(solution, rho_values, method=method, width=width), dtype=float)
+    r_values = np.asarray(major_radius_on_surfaces(solution, rho_values, method=method, width=width), dtype=float)
+    epsilon_values = np.asarray(epsilon_on_surfaces(solution, rho_values, method=method, width=width), dtype=float)
+    ne_values = np.asarray(average_on_surfaces(solution, "n", rho_values, method=method, width=width), dtype=float)
+    te_values = np.asarray(te_on_surfaces(solution, rho_values, method=method, width=width), dtype=float)
+
+    if coulomb_logarithm is None:
+        with np.errstate(divide="ignore", invalid="ignore"):
+            coulomb_log = 31.3 - np.log(np.sqrt(ne_values) / te_values)
+    else:
+        coulomb_log = np.asarray(coulomb_logarithm, dtype=float)
+        if coulomb_log.ndim == 0:
+            coulomb_log = np.full_like(rho_values, float(coulomb_log))
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        result = (
+            6.921e-18
+            * q_values
+            * r_values
+            * ne_values
+            * z_effective
+            * coulomb_log
+            / (te_values**2 * epsilon_values**1.5)
+        )
+
+    result = np.asarray(result, dtype=float)
+    if np.asarray(rho).ndim == 0:
+        return float(result[0])
+    return result
+
+
 def _surface_average_scalar(solution, field, rho0, *, method, width):
     if method == "node_band":
         values, rho_values = _node_scalar_and_rho(solution, field)

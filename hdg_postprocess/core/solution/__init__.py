@@ -83,6 +83,7 @@ __all__ = [
     "save_summary_line",
     "summary_along_the_wall",
     "average_on_surfaces",
+    "collisionality_on_surfaces",
     "delta_te_on_surfaces",
     "minor_radius_on_surfaces",
     "major_radius_on_surfaces",

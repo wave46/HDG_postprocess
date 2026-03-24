@@ -36,6 +36,7 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     major_radius = sol.flux_surface.major_radius(0.8, method="gauss_shell", width=2e-3)
     epsilon = sol.flux_surface.epsilon(0.8, method="gauss_shell", width=2e-3)
     q_value = sol.flux_surface.q(0.8, method="gauss_shell", width=2e-3)
+    collisionality = sol.flux_surface.collisionality(0.8, method="gauss_shell", width=2e-3)
 
     assert np.isfinite(te_node)
     assert np.isfinite(te_gauss)
@@ -45,3 +46,4 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     assert np.isfinite(major_radius)
     assert np.isfinite(epsilon)
     assert np.isfinite(q_value)
+    assert np.isfinite(collisionality)
