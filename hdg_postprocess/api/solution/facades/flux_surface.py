@@ -10,3 +10,12 @@ class SolutionFluxSurface:
 
     def te(self, rho, *, method="gauss_shell", width=1e-3):
         return surface_ops.te_on_surfaces(self._solution, rho, method=method, width=width)
+
+    def delta_te(self, *, rho_inner=0.8, rho_outer=1.0, method="gauss_shell", width=1e-3):
+        return surface_ops.delta_te_on_surfaces(
+            self._solution,
+            rho_inner=rho_inner,
+            rho_outer=rho_outer,
+            method=method,
+            width=width,
+        )

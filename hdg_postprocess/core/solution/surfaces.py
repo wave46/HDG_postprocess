@@ -24,6 +24,14 @@ def te_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
     return average_on_surfaces(solution, "te", rho, method=method, width=width)
 
 
+def delta_te_on_surfaces(solution, *, rho_inner=0.8, rho_outer=1.0, method="gauss_shell", width=1e-3):
+    te_inner = te_on_surfaces(solution, rho_inner, method=method, width=width)
+    te_outer = te_on_surfaces(solution, rho_outer, method=method, width=width)
+    if not np.isfinite(te_inner) or not np.isfinite(te_outer) or np.isclose(te_outer, 0.0):
+        return np.nan
+    return float((te_inner - te_outer) / te_outer)
+
+
 def _surface_average_scalar(solution, field, rho0, *, method, width):
     if method == "node_band":
         values, rho_values = _node_scalar_and_rho(solution, field)

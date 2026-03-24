@@ -31,7 +31,9 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     te_node = sol.flux_surface.te(0.8, method="node_band", width=2e-3)
     te_gauss = sol.flux_surface.te(0.8, method="gauss_band", width=2e-3)
     te_shell = sol.flux_surface.te(0.8, method="gauss_shell", width=2e-3)
+    delta_te = sol.flux_surface.delta_te(rho_inner=0.8, rho_outer=0.99, method="gauss_shell", width=2e-3)
 
     assert np.isfinite(te_node)
     assert np.isfinite(te_gauss)
     assert np.isfinite(te_shell)
+    assert np.isfinite(delta_te)
