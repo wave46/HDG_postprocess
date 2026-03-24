@@ -7,6 +7,60 @@ _ELECTRON_CHARGE = 1.602176634e-19
 _ATOMIC_MASS_UNIT = 1.66053906660e-27
 
 
+def bohm_profile(
+    solution,
+    rho,
+    *,
+    rho_inner=0.8,
+    rho_edge=0.99,
+    method="gauss_shell",
+    width=1e-3,
+    ion_mass_amu=2.0,
+    ion_charge=1.0,
+):
+    profiles = surface_transport_inputs(
+        solution,
+        rho,
+        rho_inner=rho_inner,
+        rho_edge=rho_edge,
+        method=method,
+        width=width,
+    )
+    profiles["chi_bohm"] = bohm_component(
+        profiles,
+        ion_mass_amu=ion_mass_amu,
+        ion_charge=ion_charge,
+    )
+    return profiles
+
+
+def gyrobohm_profile(
+    solution,
+    rho,
+    *,
+    rho_inner=0.8,
+    rho_edge=0.99,
+    method="gauss_shell",
+    width=1e-3,
+    ion_mass_amu=2.0,
+    ion_charge=1.0,
+):
+    profiles = surface_transport_inputs(
+        solution,
+        rho,
+        rho_inner=rho_inner,
+        rho_edge=rho_edge,
+        method=method,
+        width=width,
+    )
+    profiles["chi_gyrobohm"] = gyrobohm_component(
+        profiles,
+        ion_mass_amu=ion_mass_amu,
+        ion_charge=ion_charge,
+    )
+    return profiles
+
+
 def mixed_bohm_gyrobohm(
     solution,
     rho,

@@ -38,7 +38,7 @@ from .sampling import (
     define_interpolators,
     save_summary_line,
 )
-from .transport_postprocess import mixed_bohm_gyrobohm
+from .transport_postprocess import bohm_profile, gyrobohm_profile, mixed_bohm_gyrobohm
 from .turbulent_model import calculate_dk
 
 __all__ = [
@@ -48,6 +48,8 @@ __all__ = [
     "calculate_dnn",
     "calculate_dnn_with_nn_collision",
     "calculate_dk",
+    "bohm_profile",
+    "gyrobohm_profile",
     "mixed_bohm_gyrobohm",
     "calculate_cooling_factor",
     "calculate_cx_rate",

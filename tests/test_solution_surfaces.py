@@ -76,8 +76,12 @@ def test_transport_bohm_gyrobohm_returns_finite_profiles(manifest_path):
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
     rho = np.linspace(0.3, 0.95, 8)
+    bohm = sol.transport.bohm(rho, rho_edge=0.99, method="gauss_shell", width=2e-3)
+    gyrobohm = sol.transport.gyrobohm(rho, rho_edge=0.99, method="gauss_shell", width=2e-3)
     profiles = sol.transport.bohm_gyrobohm(rho, rho_edge=0.99, method="gauss_shell", width=2e-3)
 
+    assert np.isfinite(bohm["chi_bohm"]).all()
+    assert np.isfinite(gyrobohm["chi_gyrobohm"]).all()
     assert np.isfinite(profiles["chi_i"]).all()
     assert np.isfinite(profiles["chi_e"]).all()
     assert np.isfinite(profiles["diffusion"]).all()
