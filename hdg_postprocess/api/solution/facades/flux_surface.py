@@ -19,3 +19,15 @@ class SolutionFluxSurface:
             method=method,
             width=width,
         )
+
+    def minor_radius(self, rho, *, method="gauss_shell", width=1e-3):
+        return surface_ops.minor_radius_on_surfaces(self._solution, rho, method=method, width=width)
+
+    def major_radius(self, rho, *, method="gauss_shell", width=1e-3):
+        return surface_ops.major_radius_on_surfaces(self._solution, rho, method=method, width=width)
+
+    def epsilon(self, rho, *, method="gauss_shell", width=1e-3):
+        return surface_ops.epsilon_on_surfaces(self._solution, rho, method=method, width=width)
+
+    def q(self, rho, *, method="gauss_shell", width=1e-3):
+        return surface_ops.q_on_surfaces(self._solution, rho, method=method, width=width)

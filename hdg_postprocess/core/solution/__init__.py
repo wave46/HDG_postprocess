@@ -84,6 +84,10 @@ __all__ = [
     "summary_along_the_wall",
     "average_on_surfaces",
     "delta_te_on_surfaces",
+    "minor_radius_on_surfaces",
+    "major_radius_on_surfaces",
+    "epsilon_on_surfaces",
+    "q_on_surfaces",
     "te_on_surfaces",
 ]
 

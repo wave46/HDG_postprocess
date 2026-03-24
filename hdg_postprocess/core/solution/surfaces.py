@@ -12,6 +12,9 @@ _PHYSICAL_FIELDS = {
 }
 
 
+_GEOMETRY_FIELDS = {"minor_radius", "major_radius", "epsilon", "q", "psi"}
+
+
 def average_on_surfaces(solution, field, rho, *, method="gauss_shell", width=1e-3):
     rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
     results = np.array([_surface_average_scalar(solution, field, one_rho, method=method, width=width) for one_rho in rho_values])
@@ -30,6 +33,22 @@ def delta_te_on_surfaces(solution, *, rho_inner=0.8, rho_outer=1.0, method="gaus
     if not np.isfinite(te_inner) or not np.isfinite(te_outer) or np.isclose(te_outer, 0.0):
         return np.nan
     return float((te_inner - te_outer) / te_outer)
+
+
+def minor_radius_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
+    return average_on_surfaces(solution, "minor_radius", rho, method=method, width=width)
+
+
+def major_radius_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
+    return average_on_surfaces(solution, "major_radius", rho, method=method, width=width)
+
+
+def epsilon_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
+    return average_on_surfaces(solution, "epsilon", rho, method=method, width=width)
+
+
+def q_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
+    return average_on_surfaces(solution, "q", rho, method=method, width=width)
 
 
 def _surface_average_scalar(solution, field, rho0, *, method, width):
@@ -60,13 +79,22 @@ def _gauss_scalar_and_rho(solution, field):
 
 def _node_field(solution, field):
     if field == "psi":
-        if not solution.metadata.flags.combined_simple_solution:
-            solution.assembly.simple()
-        return solution.views.simple.equilibrium.poloidal_flux
+        return _node_psi(solution)
+    if field == "major_radius":
+        return _node_major_radius(solution)
+    if field == "minor_radius":
+        return _node_minor_radius(solution)
+    if field == "epsilon":
+        major_radius = _node_major_radius(solution)
+        minor_radius = _node_minor_radius(solution)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return minor_radius / major_radius
+    if field == "q":
+        return _node_q(solution)
 
     physical_name = _PHYSICAL_FIELDS.get(field)
     if physical_name is None:
-        raise KeyError(f"Unsupported surface field: {field}")
+        raise KeyError(f"Unsupported flux-surface field: {field}")
     if not solution.metadata.flags.simple_phys_initialized:
         solution.fields.initialize_physical("simple")
     index = solution._phys_idx[physical_name]
@@ -75,13 +103,22 @@ def _node_field(solution, field):
 
 def _gauss_field(solution, field):
     if field == "psi":
-        if not solution.metadata.flags.combined_gauss:
-            solution.assembly.gauss()
-        return solution.views.gauss.equilibrium.poloidal_flux
+        return _gauss_psi(solution)
+    if field == "major_radius":
+        return _gauss_major_radius(solution)
+    if field == "minor_radius":
+        return _gauss_minor_radius(solution)
+    if field == "epsilon":
+        major_radius = _gauss_major_radius(solution)
+        minor_radius = _gauss_minor_radius(solution)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return minor_radius / major_radius
+    if field == "q":
+        return _gauss_q(solution)
 
     physical_name = _PHYSICAL_FIELDS.get(field)
     if physical_name is None:
-        raise KeyError(f"Unsupported surface field: {field}")
+        raise KeyError(f"Unsupported flux-surface field: {field}")
     if not solution.metadata.flags.gauss_phys_initialized:
         solution.fields.initialize_physical("gauss")
     index = solution._phys_idx[physical_name]
@@ -98,6 +135,39 @@ def _gauss_psi(solution):
     if not solution.metadata.flags.combined_gauss:
         solution.assembly.gauss()
     return solution.views.gauss.equilibrium.poloidal_flux
+
+
+def _node_major_radius(solution):
+    return solution.mesh.global_state.vertices[:, 0]
+
+
+def _gauss_major_radius(solution):
+    solution.mesh.geometry.gauss_volumes
+    return solution.mesh.derived_geometry.vertices_gauss[:, :, 0]
+
+
+def _node_minor_radius(solution):
+    return solution.equilibrium.define_minor_radii(view="simple")
+
+
+def _gauss_minor_radius(solution):
+    full_values = solution.equilibrium.define_minor_radii(view="glob")
+    return _interpolate_full_to_gauss(solution, full_values)
+
+
+def _node_q(solution):
+    return solution.equilibrium.define_qcyl(view="simple")
+
+
+def _gauss_q(solution):
+    full_values = solution.equilibrium.define_qcyl(view="glob")
+    return _interpolate_full_to_gauss(solution, full_values)
+
+
+def _interpolate_full_to_gauss(solution, full_values):
+    if not solution.metadata.flags.combined_gauss:
+        solution.assembly.gauss()
+    return np.einsum("ij,kj->ki", solution.mesh.metadata.reference_element["N"], np.asarray(full_values, dtype=float))
 
 
 def _gauss_weights(solution):
