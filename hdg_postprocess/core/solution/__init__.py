@@ -39,6 +39,7 @@ from .sampling import (
     save_summary_line,
 )
 from .transport_postprocess import bohm_profile, gyrobohm_profile, mixed_bohm_gyrobohm
+from .surfaces import project_profile_to_solution, rho_field
 from .turbulent_model import calculate_dk
 
 __all__ = [
@@ -96,5 +97,7 @@ __all__ = [
     "epsilon_on_surfaces",
     "q_on_surfaces",
     "te_on_surfaces",
+    "rho_field",
+    "project_profile_to_solution",
 ]
 

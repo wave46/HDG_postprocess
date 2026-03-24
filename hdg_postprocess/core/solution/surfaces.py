@@ -164,6 +164,33 @@ def pinch_velocity_on_surfaces(
     return result
 
 
+def rho_field(solution, *, target="node"):
+    if target == "node":
+        return np.sqrt(np.clip(np.asarray(_node_psi(solution), dtype=float), 0.0, None))
+    if target == "gauss":
+        return np.sqrt(np.clip(np.asarray(_gauss_psi(solution), dtype=float), 0.0, None))
+    raise ValueError(f"Unsupported projection target: {target}")
+
+
+def project_profile_to_solution(solution, rho, values, *, target="node"):
+    rho_grid = np.asarray(rho, dtype=float)
+    profile_values = np.asarray(values, dtype=float)
+    if rho_grid.ndim != 1 or profile_values.ndim != 1:
+        raise ValueError("rho and values must be one-dimensional arrays")
+    if rho_grid.size != profile_values.size:
+        raise ValueError("rho and values must have the same length")
+    if rho_grid.size < 2:
+        raise ValueError("rho and values must contain at least two points")
+
+    order = np.argsort(rho_grid)
+    rho_sorted = rho_grid[order]
+    values_sorted = profile_values[order]
+    local_rho = rho_field(solution, target=target)
+    clipped_rho = np.clip(local_rho, rho_sorted[0], rho_sorted[-1])
+    projected = np.interp(clipped_rho.reshape(-1), rho_sorted, values_sorted)
+    return projected.reshape(local_rho.shape)
+
+
 def _surface_average_scalar(solution, field, rho0, *, method, width):
     if method == "node_band":
         values, rho_values = _node_scalar_and_rho(solution, field)

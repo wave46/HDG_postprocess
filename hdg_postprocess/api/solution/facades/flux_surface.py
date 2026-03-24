@@ -70,6 +70,12 @@ class SolutionFluxSurface:
             width=width,
         )
 
+
+    def rho(self, *, target="node"):
+        return surface_ops.rho_field(self._solution, target=target)
+
+    def project(self, rho, values, *, target="node"):
+        return surface_ops.project_profile_to_solution(self._solution, rho, values, target=target)
     def pinch_velocity(
         self,
         rho,
