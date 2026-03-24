@@ -54,6 +54,9 @@ class PointwiseGradients(_PointwiseSection):
     def pe(self, r, z, coordinate):
         return pointwise_fields_ops.grad_pe(self._solution, r, z, coordinate)
 
+    def psi(self, r, z, coordinate):
+        return pointwise_fields_ops.grad_psi(self._solution, r, z, coordinate)
+
     def ti(self, r, z, coordinate):
         return pointwise_fields_ops.grad_ti(self._solution, r, z, coordinate)
 
@@ -68,6 +71,15 @@ class PointwiseGradients(_PointwiseSection):
 
     def te_parallel(self, r, z):
         return pointwise_fields_ops.grad_te_par(self._solution, r, z)
+
+    def ti_flux_normal(self, r, z):
+        return pointwise_fields_ops.grad_ti_flux_normal(self._solution, r, z)
+
+    def te_flux_normal(self, r, z):
+        return pointwise_fields_ops.grad_te_flux_normal(self._solution, r, z)
+
+    def pe_flux_normal(self, r, z):
+        return pointwise_fields_ops.grad_pe_flux_normal(self._solution, r, z)
 
 
 class PointwiseFluxes(_PointwiseSection):
@@ -96,6 +108,9 @@ class PointwiseFluxes(_PointwiseSection):
 class PointwiseFields(_PointwiseSection):
     def psi(self, r, z):
         return pointwise_fields_ops.psi(self._solution, r, z)
+
+    def flux_normal(self, r, z):
+        return pointwise_fields_ops.flux_normal(self._solution, r, z)
 
     def magnetic_field(self, r, z, component):
         return pointwise_fields_ops.B(self._solution, r, z, component)

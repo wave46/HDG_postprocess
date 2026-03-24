@@ -121,3 +121,41 @@ def test_flux_surface_projection_returns_plot_ready_fields(manifest_path):
     assert gauss_field.shape == sol.views.gauss.equilibrium.poloidal_flux.shape
     assert np.isfinite(node_field).all()
     assert np.isfinite(gauss_field).all()
+
+
+def test_pointwise_flux_normal_gradients_are_finite(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+
+    configure_solution_setup(
+        sol,
+        reference_element=cfg["reference_element"],
+        radiation_model=cfg["radiation_model"],
+        atomic_data_dir="demos/data/atomic",
+        neutral_diffusion=True,
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    r = float(sol.mesh.global_state.vertices[:, 0].mean())
+    z = float(sol.mesh.global_state.vertices[:, 1].mean())
+
+    normal = sol.pointwise.fields.flux_normal(r, z)
+    grad_psi_x = sol.pointwise.gradients.psi(r, z, "x")
+    grad_psi_y = sol.pointwise.gradients.psi(r, z, "y")
+    grad_te_n = sol.pointwise.gradients.te_flux_normal(r, z)
+    grad_pe_n = sol.pointwise.gradients.pe_flux_normal(r, z)
+
+    assert np.isfinite(normal).all()
+    assert np.isfinite(grad_psi_x)
+    assert np.isfinite(grad_psi_y)
+    assert np.isfinite(grad_te_n)
+    assert np.isfinite(grad_pe_n)

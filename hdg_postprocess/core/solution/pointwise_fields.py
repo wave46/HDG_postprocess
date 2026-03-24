@@ -314,6 +314,41 @@ def grad_pe(solution, r, z, coordinate):
     return batched_sampling_ops.sample_variable_at_point(solution, r, z, variable)[0]
 
 
+def grad_psi(solution, r, z, coordinate):
+    if coordinate == "x":
+        idx = 0
+    elif coordinate == "y":
+        idx = 1
+    else:
+        raise ValueError(f"{coordinate} is not a coordinate of the problem")
+    prep_ops.ensure_interpolators(solution)
+    return solution.interpolators.psi.gradient(r, z)[idx]
+
+
+def flux_normal(solution, r, z):
+    prep_ops.ensure_interpolators(solution)
+    grad = np.asarray(solution.interpolators.psi.gradient(r, z), dtype=float)
+    norm = np.linalg.norm(grad)
+    if norm <= 0.0:
+        return np.array([0.0, 0.0])
+    return grad / norm
+
+
+def grad_ti_flux_normal(solution, r, z):
+    grad = np.array([grad_ti(solution, r, z, "x"), grad_ti(solution, r, z, "y")], dtype=float)
+    return float(np.dot(grad, flux_normal(solution, r, z)))
+
+
+def grad_te_flux_normal(solution, r, z):
+    grad = np.array([grad_te(solution, r, z, "x"), grad_te(solution, r, z, "y")], dtype=float)
+    return float(np.dot(grad, flux_normal(solution, r, z)))
+
+
+def grad_pe_flux_normal(solution, r, z):
+    grad = np.array([grad_pe(solution, r, z, "x"), grad_pe(solution, r, z, "y")], dtype=float)
+    return float(np.dot(grad, flux_normal(solution, r, z)))
+
+
 def grad_ti_par(solution, r, z):
     state, gradient = _sample_state_and_gradient(solution, r, z)
     if state[0, 0] == 0:
