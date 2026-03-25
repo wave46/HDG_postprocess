@@ -270,8 +270,8 @@ def _gauss_grad_psi(solution):
     det_j = j11 * j22 - j21 * j12
 
     inv_j11 = j22 / det_j
-    inv_j12 = -j12 / det_j
-    inv_j21 = -j21 / det_j
+    inv_j12 = -j21 / det_j
+    inv_j21 = -j12 / det_j
     inv_j22 = j11 / det_j
 
     dpsi_dxi = np.einsum("ij,kj->ki", nxi, psi)

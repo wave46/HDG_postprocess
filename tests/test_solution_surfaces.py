@@ -2,6 +2,8 @@ import numpy as np
 
 from hdg_postprocess.formats import load_from_file
 from hdg_postprocess.api import configure_solution_setup
+from hdg_postprocess.core.solution import preparation as prep_ops
+from hdg_postprocess.core.solution.transport_postprocess import _gauss_grad_psi
 
 from helpers import require_scenario_data, scenario_map
 
@@ -195,3 +197,43 @@ def test_pointwise_flux_normal_gradients_are_finite(manifest_path):
     assert np.isfinite(grad_psi_y)
     assert np.isfinite(grad_te_n)
     assert np.isfinite(grad_pe_n)
+
+
+def test_transport_gauss_grad_psi_matches_interpolator(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+
+    configure_solution_setup(
+        sol,
+        reference_element=cfg["reference_element"],
+        radiation_model=cfg["radiation_model"],
+        atomic_data_dir="demos/data/atomic",
+        neutral_diffusion=True,
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    sol.assembly.full()
+    sol.assembly.gauss()
+    prep_ops.ensure_interpolators(sol)
+    grad_psi_gauss = _gauss_grad_psi(sol)
+    reference_element = sol.mesh.metadata.reference_element
+    connectivity = sol.mesh.global_state.connectivity
+    vertices = sol.mesh.global_state.vertices
+    coords = np.einsum("ij,kjd->kid", reference_element["N"], vertices[connectivity])
+
+    sample_indices = [(0, 0), (0, -1), (min(5, coords.shape[0] - 1), 0)]
+    for elem_idx, gauss_idx in sample_indices:
+        r = float(coords[elem_idx, gauss_idx, 0])
+        z = float(coords[elem_idx, gauss_idx, 1])
+        interpolated = np.asarray(sol.interpolators.psi.gradient(r, z), dtype=float)
+        reconstructed = grad_psi_gauss[elem_idx, gauss_idx, :]
+        assert np.allclose(reconstructed, interpolated, rtol=1e-6, atol=1e-6)
