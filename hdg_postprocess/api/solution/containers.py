@@ -177,6 +177,7 @@ class RawPartitionState:
     gradients: object = None
     equilibriums: object = None
     boundary_infos: object = None
+    transport_1d: object = None
 
 
 @dataclass

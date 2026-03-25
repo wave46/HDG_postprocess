@@ -9,6 +9,7 @@ from hdg_postprocess.api.solution.facades.core import (
 from hdg_postprocess.api.solution.facades.pointwise import SolutionPointwise
 from hdg_postprocess.api.solution.facades.sources import SolutionSources
 from hdg_postprocess.api.solution.facades.flux_surface import SolutionFluxSurface
+from hdg_postprocess.api.solution.facades.transport_1d import SolutionTransport1D
 from hdg_postprocess.api.solution.facades.transport import SolutionNeutrals, SolutionTransport, SolutionTurbulence
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     "SolutionPointwise",
     "SolutionSampling",
     "SolutionFluxSurface",
+    "SolutionTransport1D",
     "SolutionSources",
     "SolutionTurbulence",
 ]

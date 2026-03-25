@@ -11,10 +11,11 @@ class NormalizedSolutionData:
     raw_gradients: List[np.ndarray]
     raw_equilibriums: List[Dict[str, np.ndarray]]
     raw_solution_boundary_infos: List[Dict[str, np.ndarray]]
-    parameters: Dict
-    n_partitions: int
-    mesh_path: str
-    mesh_name_base: str
+    raw_transport_1d: Optional[List[Dict[str, np.ndarray]]] = None
+    parameters: Dict = None
+    n_partitions: int = 1
+    mesh_path: str = ""
+    mesh_name_base: str = ""
 
 
 @dataclass

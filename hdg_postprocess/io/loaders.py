@@ -59,12 +59,18 @@ def _extract_solution_partition(solution_file, parameters):
     elif "extfaces" in boundary_group:
         solution_boundary_data["exterior_faces"] = boundary_group["extfaces"].T.astype(int) - 1
 
+    transport_1d = {}
+    if "transport_1d" in solution_file:
+        for key, value in solution_file["transport_1d"].items():
+            transport_1d[key] = value
+
     return {
         "raw_solution": solution_group["u"],
         "raw_solution_skeleton": solution_group["u_tilde"],
         "raw_gradient": solution_group["q"],
         "equilibrium": equilibrium,
         "boundary_info": solution_boundary_data,
+        "transport_1d": transport_1d,
     }
 
 
@@ -74,6 +80,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
     raw_gradients = []
     raw_equilibriums = []
     raw_solution_boundary_infos = []
+    raw_transport_1d = []
 
     parameters = None
 
@@ -90,6 +97,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
         raw_gradients.append(partition_data["raw_gradient"])
         raw_equilibriums.append(partition_data["equilibrium"])
         raw_solution_boundary_infos.append(partition_data["boundary_info"])
+        raw_transport_1d.append(partition_data["transport_1d"])
 
     if meshpath is None and meshname_base is None:
         meshpath = solpath
@@ -103,6 +111,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
         raw_gradients=raw_gradients,
         raw_equilibriums=raw_equilibriums,
         raw_solution_boundary_infos=raw_solution_boundary_infos,
+        raw_transport_1d=raw_transport_1d,
         parameters=parameters,
         n_partitions=n_partitions,
         mesh_path=meshpath,

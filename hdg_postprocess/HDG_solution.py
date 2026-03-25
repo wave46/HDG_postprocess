@@ -19,6 +19,7 @@ from hdg_postprocess.api.solution import (
     SolutionSampling,
     SolutionSources,
     SolutionFluxSurface,
+    SolutionTransport1D,
     SolutionTurbulence,
 )
 
@@ -26,13 +27,13 @@ from hdg_postprocess.api.solution import (
 class HDGsolution:
     ""
     def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
-                 raw_equilibriums,raw_solution_boundary_infos, parameters, 
-                 n_partitions, mesh):
-        self._store_input_metadata(parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh)
+                 raw_equilibriums,raw_solution_boundary_infos, parameters,
+                 n_partitions, mesh, raw_transport_1d=None):
+        self._store_input_metadata(parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh, raw_transport_1d)
         self._store_raw_partitions(raw_solutions, raw_solutions_skeleton, raw_gradients)
         self._initial_setup()
 
-    def _store_input_metadata(self, parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh):
+    def _store_input_metadata(self, parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh, raw_transport_1d=None):
         self._parameters = parameters
         self._neq = parameters["Neq"][0]
         self._nphys = len(parameters["physics"]["physical_variable_names"])
@@ -45,6 +46,7 @@ class HDGsolution:
             gradients=[],
             equilibriums=raw_equilibriums,
             boundary_infos=raw_solution_boundary_infos,
+            transport_1d=raw_transport_1d if raw_transport_1d is not None else [],
         )
 
     def _store_raw_partitions(self, raw_solutions, raw_solutions_skeleton, raw_gradients):
@@ -84,6 +86,7 @@ class HDGsolution:
         self._plot = SolutionPlotting(self)
         self._pointwise = SolutionPointwise(self)
         self._flux_surface = SolutionFluxSurface(self)
+        self._transport_1d = SolutionTransport1D(self)
 
     def _init_flags(self):
         self._metadata.flags.combined_simple_solution = False
@@ -249,3 +252,9 @@ class HDGsolution:
     def flux_surface(self):
         """Facade for flux-surface-reduced postprocessing quantities."""
         return self._flux_surface
+
+
+    @property
+    def transport_1d(self):
+        """Facade for optional 1D transport profiles stored in the solution file."""
+        return self._transport_1d

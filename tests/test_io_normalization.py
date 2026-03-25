@@ -1,5 +1,9 @@
 import json
 
+import h5py
+import numpy as np
+
+from hdg_postprocess.HDG_solution import HDGsolution
 from hdg_postprocess.io import detect_mesh_format, detect_solution_format, load_mesh_data, load_solution_data
 from silx.io.dictdump import h5todict
 
@@ -66,3 +70,75 @@ def test_normalized_mesh_data_contains_parallel_metadata(manifest_path):
     assert len(mesh_data.raw_vertices) == 8
     assert len(mesh_data.raw_rest_mesh_data) == 8
     assert "loc2glob_el" in mesh_data.raw_rest_mesh_data[0]
+
+
+def test_load_solution_data_extracts_optional_transport_1d_group(tmp_path):
+    path = tmp_path / "toy_solution.h5"
+    with h5py.File(path, "w") as h5:
+        sim = h5.create_group("simulation_parameters")
+        sim.create_group("switches").create_dataset("ohmicsrc", data=np.array([0]))
+        adim = sim.create_group("adimensionalization")
+        adim.create_dataset("time_scale", data=np.array([1.0]))
+        phys = sim.create_group("physics")
+        phys.create_dataset("n0", data=np.array([1.0]))
+
+        sol = h5.create_group("solution")
+        sol.create_dataset("u", data=np.zeros((4, 1)))
+        sol.create_dataset("u_tilde", data=np.zeros((4, 1)))
+        sol.create_dataset("q", data=np.zeros((4, 1)))
+
+        mag = h5.create_group("magnetic")
+        mag.create_dataset("magnetic_field", data=np.zeros((2, 1)))
+
+        mesh = h5.create_group("mesh")
+        mesh.create_dataset("boundaryFlag", data=np.array([[1]]))
+        mesh.create_dataset("extfaces", data=np.array([[1]]))
+
+        tr = h5.create_group("transport_1d")
+        tr.create_dataset("rho_grid", data=np.linspace(0.0, 1.0, 5))
+        tr.create_dataset("shell_weight", data=np.arange(5.0))
+        tr.create_dataset("U_fs", data=np.arange(10.0).reshape(5, 2))
+
+    solution_data = load_solution_data(str(tmp_path) + "/", "toy_solution", None, None, 1)
+
+    assert solution_data.raw_transport_1d is not None
+    assert np.allclose(solution_data.raw_transport_1d[0]["rho_grid"], np.linspace(0.0, 1.0, 5))
+    assert solution_data.raw_transport_1d[0]["U_fs"].shape == (5, 2)
+
+
+def test_solution_transport_1d_facade_exposes_optional_arrays():
+    parameters = {
+        "Neq": np.array([1]),
+        "Ndim": np.array([1]),
+        "physics": {
+            "physical_variable_names": [b"rho"],
+            "conservative_variable_names": [b"rho"],
+        },
+        "adimensionalization": {
+            "specific_energy_density_scale": 1.0,
+            "time_scale": 1.0,
+            "mass_scale": 1.0,
+        },
+    }
+
+    sol = HDGsolution(
+        raw_solutions=[np.zeros((1, 1))],
+        raw_solutions_skeleton=[np.zeros((1, 1))],
+        raw_gradients=[np.zeros((1, 1))],
+        raw_equilibriums=[{}],
+        raw_solution_boundary_infos=[{}],
+        parameters=parameters,
+        n_partitions=1,
+        mesh=object(),
+        raw_transport_1d=[{
+            "rho_grid": np.linspace(0.0, 1.0, 4),
+            "shell_weight": np.arange(4.0),
+            "U_fs": np.arange(8.0).reshape(4, 2),
+        }],
+    )
+
+    assert sol.transport_1d.available is True
+    assert sol.transport_1d.rho_grid.shape == (4,)
+    assert sol.transport_1d.shell_weight.shape == (4,)
+    assert sol.transport_1d.U_fs.shape == (4, 2)
+    assert sol.transport_1d.Q_fs is None
