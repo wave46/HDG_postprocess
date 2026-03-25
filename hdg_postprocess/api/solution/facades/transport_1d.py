@@ -38,3 +38,12 @@ class SolutionTransport1D:
     @property
     def Q_fs(self):
         return self.get("Q_fs")
+
+    @property
+    def Q_rad_fs(self):
+        return self.get("Q_rad_fs")
+
+    @property
+    def Q_rad_sum(self):
+        return self.get("Q_rad_sum")
+

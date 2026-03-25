@@ -60,8 +60,13 @@ def _extract_solution_partition(solution_file, parameters):
         solution_boundary_data["exterior_faces"] = boundary_group["extfaces"].T.astype(int) - 1
 
     transport_1d = {}
+    transport_group = None
     if "transport_1d" in solution_file:
-        for key, value in solution_file["transport_1d"].items():
+        transport_group = solution_file["transport_1d"]
+    elif isinstance(solution_group, dict) and "transport_1d" in solution_group:
+        transport_group = solution_group["transport_1d"]
+    if transport_group is not None:
+        for key, value in transport_group.items():
             transport_1d[key] = value
 
     return {
