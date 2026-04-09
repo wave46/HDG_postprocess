@@ -1,6 +1,40 @@
 import numpy as np
 
 
+class SolutionTransport1DGroup:
+    def __init__(self, data):
+        self._data = data or {}
+
+    def __bool__(self):
+        return bool(self._data)
+
+    def __contains__(self, name):
+        return name in self._data
+
+    def __getitem__(self, name):
+        return np.asarray(self._data[name])
+
+    def __getattr__(self, name):
+        if name in self._data:
+            return np.asarray(self._data[name])
+        raise AttributeError(name)
+
+    def get(self, name, default=None):
+        value = self._data.get(name, default)
+        if value is default:
+            return default
+        return np.asarray(value)
+
+    def keys(self):
+        return self._data.keys()
+
+    def items(self):
+        return ((key, np.asarray(value)) for key, value in self._data.items())
+
+    def as_dict(self):
+        return {key: np.asarray(value) for key, value in self._data.items()}
+
+
 class SolutionTransport1D:
     def __init__(self, solution):
         self._solution = solution
@@ -21,23 +55,23 @@ class SolutionTransport1D:
             return {}
         return dict(self._root())
 
-    def _group_dict(self, name):
+    def _group(self, name):
         if not self.available:
-            return {}
+            return SolutionTransport1DGroup({})
         group = self._root().get(name, {})
-        return dict(group)
+        return SolutionTransport1DGroup(group)
 
     @property
     def profiles(self):
-        return self._group_dict("profiles")
+        return self._group("profiles")
 
     @property
     def coefficients(self):
-        return self._group_dict("coefficients")
+        return self._group("coefficients")
 
     @property
     def params(self):
-        return self._group_dict("params")
+        return self._group("params")
 
     def get(self, name, default=None):
         if not self.available:

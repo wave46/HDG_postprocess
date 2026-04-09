@@ -172,3 +172,6 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
     assert sol.transport_1d.nu_mom_fs.shape == (4,)
     assert sol.transport_1d.vpinch_fs.shape == (4,)
     assert sol.transport_1d.params["rho_edge"].shape == (1,)
+    assert sol.transport_1d.profiles.rho_grid.shape == (4,)
+    assert sol.transport_1d.coefficients.d_fs.shape == (4,)
+    assert sol.transport_1d.params.get("rho_edge").shape == (1,)
