@@ -1,5 +1,7 @@
 import numpy as np
 
+from hdg_postprocess.core.solution import transport_1d_postprocess as transport_1d_ops
+
 
 class SolutionTransport1DGroup:
     def __init__(self, data):
@@ -134,3 +136,33 @@ class SolutionTransport1D:
     @property
     def vpinch_fs(self):
         return self.get("vpinch_fs")
+
+    @property
+    def coefficient_names(self):
+        return transport_1d_ops.coefficient_keys()
+
+    def raw_profiles(self, *, dimensional=False):
+        return transport_1d_ops.raw_transport_profiles(self._solution, dimensional=dimensional)
+
+    def effective_profiles(self, *, dimensional=True):
+        return transport_1d_ops.effective_transport_profiles(self._solution, dimensional=dimensional)
+
+    def profile(self, name, *, effective=True, dimensional=True):
+        return transport_1d_ops.transport_profile(
+            self._solution,
+            name,
+            effective=effective,
+            dimensional=dimensional,
+        )
+
+    def rho(self, *, target="node"):
+        return transport_1d_ops.transport_rho_field(self._solution, target=target)
+
+    def project(self, name, *, target="node", effective=True, dimensional=True):
+        return transport_1d_ops.project_transport_profile(
+            self._solution,
+            name,
+            target=target,
+            effective=effective,
+            dimensional=dimensional,
+        )

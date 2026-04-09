@@ -123,11 +123,18 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
         "physics": {
             "physical_variable_names": [b"rho"],
             "conservative_variable_names": [b"rho"],
+            "diff_n": np.array([10.0]),
+            "diff_u": np.array([20.0]),
+            "diff_e": np.array([30.0]),
+            "diff_ee": np.array([40.0]),
         },
         "adimensionalization": {
             "specific_energy_density_scale": 1.0,
             "time_scale": 1.0,
             "mass_scale": 1.0,
+            "length_scale": 2.0,
+            "diffusion_scale": 8.0,
+            "speed_scale": 4.0,
         },
     }
 
@@ -142,7 +149,7 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
         mesh=object(),
         raw_transport_1d=[{
             "profiles": {
-                "rho_grid": np.linspace(0.0, 1.0, 4),
+                "rho_grid": np.array([0.0, 0.25, 0.5, 0.75]),
                 "shell_weight": np.arange(4.0),
                 "U_fs": np.arange(8.0).reshape(4, 2),
                 "Q_rad_fs": np.arange(8.0).reshape(4, 2),
@@ -156,6 +163,15 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
             },
             "params": {
                 "rho_edge": np.array([0.99]),
+                "rho_diffusion_model_max": np.array([0.6]),
+                "rho_blend_width": np.array([0.2]),
+                "diff_n_min": np.array([2.5]),
+                "diff_u_min": np.array([4.5]),
+                "diff_e_min": np.array([1.5]),
+                "diff_ee_min": np.array([2.0]),
+                "rho_pinch_axis_width": np.array([0.2]),
+                "rho_pinch_model_max": np.array([0.7]),
+                "rho_pinch_edge_width": np.array([0.1]),
             },
         }],
     )
@@ -175,3 +191,20 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
     assert sol.transport_1d.profiles.rho_grid.shape == (4,)
     assert sol.transport_1d.coefficients.d_fs.shape == (4,)
     assert sol.transport_1d.params.get("rho_edge").shape == (1,)
+    assert sol.transport_1d.coefficient_names == ("chi_i_fs", "chi_e_fs", "d_fs", "nu_mom_fs", "vpinch_fs")
+
+    raw = sol.transport_1d.raw_profiles(dimensional=False)
+    assert np.allclose(raw["d_fs"], np.linspace(3.0, 4.0, 4))
+
+    raw_dim = sol.transport_1d.raw_profiles(dimensional=True)
+    assert np.allclose(raw_dim["d_fs"], np.linspace(24.0, 32.0, 4))
+    assert np.allclose(raw_dim["vpinch_fs"], np.linspace(-4.0, -8.0, 4))
+
+    effective = sol.transport_1d.effective_profiles(dimensional=False)
+    assert np.allclose(effective["d_fs"], np.array([2.5, 3.333333333333333, 6.833333333333333, 10.0]))
+    assert np.allclose(effective["vpinch_fs"], np.array([0.0, -1.3333333333333333, -1.6666666666666665, 0.0]))
+
+    effective_dim = sol.transport_1d.effective_profiles(dimensional=True)
+    assert np.allclose(effective_dim["d_fs"], np.array([20.0, 26.666666666666664, 54.666666666666664, 80.0]))
+    assert np.allclose(effective_dim["vpinch_fs"], np.array([0.0, -5.333333333333333, -6.666666666666666, 0.0]))
+    assert np.allclose(sol.transport_1d.profile("d_fs"), effective_dim["d_fs"])
