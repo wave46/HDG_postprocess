@@ -94,18 +94,26 @@ def test_load_solution_data_extracts_optional_transport_1d_group(tmp_path):
         mesh.create_dataset("boundaryFlag", data=np.array([[1]]))
         mesh.create_dataset("extfaces", data=np.array([[1]]))
 
-        tr = sol.create_group("transport_1d")
-        tr.create_dataset("rho_grid", data=np.linspace(0.0, 1.0, 5))
-        tr.create_dataset("shell_weight", data=np.arange(5.0))
-        tr.create_dataset("U_fs", data=np.arange(10.0).reshape(5, 2))
-        tr.create_dataset("Q_rad_fs", data=np.arange(10.0).reshape(5, 2))
+        tr = h5.create_group("transport_1d")
+        profiles = tr.create_group("profiles")
+        profiles.create_dataset("rho_grid", data=np.linspace(0.0, 1.0, 5))
+        profiles.create_dataset("shell_weight", data=np.arange(5.0))
+        profiles.create_dataset("U_fs", data=np.arange(10.0).reshape(5, 2))
+        profiles.create_dataset("Q_rad_fs", data=np.arange(10.0).reshape(5, 2))
+        coeffs = tr.create_group("coefficients")
+        coeffs.create_dataset("chi_i_fs", data=np.linspace(1.0, 2.0, 5))
+        coeffs.create_dataset("d_fs", data=np.linspace(3.0, 4.0, 5))
+        params = tr.create_group("params")
+        params.create_dataset("rho_edge", data=np.array([0.99]))
 
     solution_data = load_solution_data(str(tmp_path) + "/", "toy_solution", None, None, 1)
 
     assert solution_data.raw_transport_1d is not None
-    assert np.allclose(solution_data.raw_transport_1d[0]["rho_grid"], np.linspace(0.0, 1.0, 5))
-    assert solution_data.raw_transport_1d[0]["U_fs"].shape == (5, 2)
-    assert solution_data.raw_transport_1d[0]["Q_rad_fs"].shape == (5, 2)
+    assert np.allclose(solution_data.raw_transport_1d[0]["profiles"]["rho_grid"], np.linspace(0.0, 1.0, 5))
+    assert solution_data.raw_transport_1d[0]["profiles"]["U_fs"].shape == (5, 2)
+    assert solution_data.raw_transport_1d[0]["profiles"]["Q_rad_fs"].shape == (5, 2)
+    assert solution_data.raw_transport_1d[0]["coefficients"]["chi_i_fs"].shape == (5,)
+    assert solution_data.raw_transport_1d[0]["params"]["rho_edge"].shape == (1,)
 
 
 def test_solution_transport_1d_facade_exposes_optional_arrays():
@@ -133,10 +141,22 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
         n_partitions=1,
         mesh=object(),
         raw_transport_1d=[{
-            "rho_grid": np.linspace(0.0, 1.0, 4),
-            "shell_weight": np.arange(4.0),
-            "U_fs": np.arange(8.0).reshape(4, 2),
-            "Q_rad_fs": np.arange(8.0).reshape(4, 2),
+            "profiles": {
+                "rho_grid": np.linspace(0.0, 1.0, 4),
+                "shell_weight": np.arange(4.0),
+                "U_fs": np.arange(8.0).reshape(4, 2),
+                "Q_rad_fs": np.arange(8.0).reshape(4, 2),
+            },
+            "coefficients": {
+                "chi_i_fs": np.linspace(1.0, 2.0, 4),
+                "chi_e_fs": np.linspace(2.0, 3.0, 4),
+                "d_fs": np.linspace(3.0, 4.0, 4),
+                "nu_mom_fs": np.linspace(4.0, 5.0, 4),
+                "vpinch_fs": np.linspace(-1.0, -2.0, 4),
+            },
+            "params": {
+                "rho_edge": np.array([0.99]),
+            },
         }],
     )
 
@@ -146,3 +166,9 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
     assert sol.transport_1d.U_fs.shape == (4, 2)
     assert sol.transport_1d.Q_rad_fs.shape == (4, 2)
     assert sol.transport_1d.Q_fs is None
+    assert sol.transport_1d.chi_i_fs.shape == (4,)
+    assert sol.transport_1d.chi_e_fs.shape == (4,)
+    assert sol.transport_1d.d_fs.shape == (4,)
+    assert sol.transport_1d.nu_mom_fs.shape == (4,)
+    assert sol.transport_1d.vpinch_fs.shape == (4,)
+    assert sol.transport_1d.params["rho_edge"].shape == (1,)
