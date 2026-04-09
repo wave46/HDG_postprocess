@@ -155,14 +155,24 @@ class SolutionTransport1D:
             dimensional=dimensional,
         )
 
-    def rho(self, *, target="node"):
-        return transport_1d_ops.transport_rho_field(self._solution, target=target)
+    def rho(self, *, target="node", view=None):
+        return transport_1d_ops.transport_rho_field(self._solution, target=target, view=view)
 
-    def project(self, name, *, target="node", effective=True, dimensional=True):
+    def project(self, name, *, target="node", view=None, effective=True, dimensional=True):
         return transport_1d_ops.project_transport_profile(
             self._solution,
             name,
             target=target,
+            view=view,
+            effective=effective,
+            dimensional=dimensional,
+        )
+
+    def projected_profiles(self, *, target="node", view=None, effective=True, dimensional=True):
+        return transport_1d_ops.projected_transport_profiles(
+            self._solution,
+            target=target,
+            view=view,
             effective=effective,
             dimensional=dimensional,
         )

@@ -77,18 +77,57 @@ def transport_profile(solution, name, *, effective=True, dimensional=True):
     return np.asarray(profiles[name], dtype=float)
 
 
-def project_transport_profile(solution, name, *, target="node", effective=True, dimensional=True):
+def project_transport_profile(solution, name, *, target="node", view=None, effective=True, dimensional=True):
     profiles = effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
-    return surface_ops.project_profile_to_solution(
-        solution,
-        profiles["rho_grid"],
-        profiles[name],
-        target=target,
-    )
+    normalized_view = _normalize_projection_view(target=target, view=view)
+    if normalized_view == "simple":
+        return surface_ops.project_profile_to_solution(
+            solution,
+            profiles["rho_grid"],
+            profiles[name],
+            target="node",
+        )
+    if normalized_view == "gauss":
+        return surface_ops.project_profile_to_solution(
+            solution,
+            profiles["rho_grid"],
+            profiles[name],
+            target="gauss",
+        )
+    local_rho = transport_rho_field(solution, view=normalized_view)
+    return _project_profile_values(profiles["rho_grid"], profiles[name], local_rho)
 
 
-def transport_rho_field(solution, *, target="node"):
-    return surface_ops.rho_field(solution, target=target)
+def projected_transport_profiles(solution, *, target="node", view=None, effective=True, dimensional=True):
+    profiles = effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
+    normalized_view = _normalize_projection_view(target=target, view=view)
+    projected = {
+        "rho_grid": profiles["rho_grid"].copy(),
+        "rho": transport_rho_field(solution, view=normalized_view),
+    }
+    for key in _COEFFICIENT_KEYS:
+        if key in profiles:
+            projected[key] = project_transport_profile(
+                solution,
+                key,
+                view=normalized_view,
+                effective=effective,
+                dimensional=dimensional,
+            )
+    return projected
+
+
+def transport_rho_field(solution, *, target="node", view=None):
+    normalized_view = _normalize_projection_view(target=target, view=view)
+    if normalized_view == "simple":
+        return surface_ops.rho_field(solution, target="node")
+    if normalized_view == "gauss":
+        return surface_ops.rho_field(solution, target="gauss")
+    if normalized_view == "full":
+        if not solution.metadata.flags.combined_to_full:
+            solution.assembly.full()
+        return np.sqrt(np.clip(np.asarray(solution.views.glob.equilibrium.poloidal_flux, dtype=float), 0.0, None))
+    raise ValueError(f"Unsupported transport projection view: {normalized_view}")
 
 
 def _rho_grid(solution):
@@ -103,6 +142,35 @@ def _param_scalar(params, name, default):
     if value is default:
         return float(default)
     return float(np.asarray(value).reshape(-1)[0])
+
+
+def _normalize_projection_view(*, target, view):
+    if view is not None:
+        normalized = "full" if view == "glob" else view
+        if normalized in {"simple", "full", "gauss"}:
+            return normalized
+        raise ValueError(f"Unsupported transport projection view: {view}")
+    if target == "node":
+        return "simple"
+    if target == "gauss":
+        return "gauss"
+    if target in {"simple", "full"}:
+        return target
+    raise ValueError(f"Unsupported transport projection target: {target}")
+
+
+def _project_profile_values(rho_grid, values, local_rho):
+    rho_grid = np.asarray(rho_grid, dtype=float)
+    values = np.asarray(values, dtype=float)
+    finite_mask = np.isfinite(rho_grid) & np.isfinite(values)
+    if np.count_nonzero(finite_mask) < 2:
+        raise ValueError("rho and values must contain at least two finite points")
+    order = np.argsort(rho_grid[finite_mask])
+    rho_sorted = rho_grid[finite_mask][order]
+    values_sorted = values[finite_mask][order]
+    clipped_rho = np.clip(np.asarray(local_rho, dtype=float), rho_sorted[0], rho_sorted[-1])
+    projected = np.interp(clipped_rho.reshape(-1), rho_sorted, values_sorted)
+    return projected.reshape(clipped_rho.shape)
 
 
 def _dimensionalize(solution, name, values):
