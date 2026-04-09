@@ -208,3 +208,5 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
     assert np.allclose(effective_dim["d_fs"], np.array([20.0, 26.666666666666664, 54.666666666666664, 80.0]))
     assert np.allclose(effective_dim["vpinch_fs"], np.array([0.0, -5.333333333333333, -6.666666666666666, 0.0]))
     assert np.allclose(sol.transport_1d.profile("d_fs"), effective_dim["d_fs"])
+    assert np.allclose(sol.transport_1d.coefficient_profiles(effective=False, dimensional=False)["d_fs"], raw["d_fs"])
+    assert np.allclose(sol.transport_1d.coefficient_profiles(effective=True, dimensional=True)["d_fs"], effective_dim["d_fs"])

@@ -77,9 +77,20 @@ def transport_profile(solution, name, *, effective=True, dimensional=True):
     return np.asarray(profiles[name], dtype=float)
 
 
-def project_transport_profile(solution, name, *, target="node", view=None, effective=True, dimensional=True):
+def transport_coefficients(solution, *, view=None, effective=True, dimensional=True):
+    if view is None:
+        return effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
+    return projected_transport_profiles(
+        solution,
+        view=view,
+        effective=effective,
+        dimensional=dimensional,
+    )
+
+
+def project_transport_profile(solution, name, *, view="simple", effective=True, dimensional=True):
     profiles = effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
-    normalized_view = _normalize_projection_view(target=target, view=view)
+    normalized_view = _normalize_projection_view(view)
     if normalized_view == "simple":
         return surface_ops.project_profile_to_solution(
             solution,
@@ -98,9 +109,9 @@ def project_transport_profile(solution, name, *, target="node", view=None, effec
     return _project_profile_values(profiles["rho_grid"], profiles[name], local_rho)
 
 
-def projected_transport_profiles(solution, *, target="node", view=None, effective=True, dimensional=True):
+def projected_transport_profiles(solution, *, view="simple", effective=True, dimensional=True):
     profiles = effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
-    normalized_view = _normalize_projection_view(target=target, view=view)
+    normalized_view = _normalize_projection_view(view)
     projected = {
         "rho_grid": profiles["rho_grid"].copy(),
         "rho": transport_rho_field(solution, view=normalized_view),
@@ -117,8 +128,8 @@ def projected_transport_profiles(solution, *, target="node", view=None, effectiv
     return projected
 
 
-def transport_rho_field(solution, *, target="node", view=None):
-    normalized_view = _normalize_projection_view(target=target, view=view)
+def transport_rho_field(solution, *, view="simple"):
+    normalized_view = _normalize_projection_view(view)
     if normalized_view == "simple":
         return surface_ops.rho_field(solution, target="node")
     if normalized_view == "gauss":
@@ -144,19 +155,11 @@ def _param_scalar(params, name, default):
     return float(np.asarray(value).reshape(-1)[0])
 
 
-def _normalize_projection_view(*, target, view):
-    if view is not None:
-        normalized = "full" if view == "glob" else view
-        if normalized in {"simple", "full", "gauss"}:
-            return normalized
-        raise ValueError(f"Unsupported transport projection view: {view}")
-    if target == "node":
-        return "simple"
-    if target == "gauss":
-        return "gauss"
-    if target in {"simple", "full"}:
-        return target
-    raise ValueError(f"Unsupported transport projection target: {target}")
+def _normalize_projection_view(view):
+    normalized = "full" if view == "glob" else view
+    if normalized in {"simple", "full", "gauss"}:
+        return normalized
+    raise ValueError(f"Unsupported transport projection view: {view}")
 
 
 def _project_profile_values(rho_grid, values, local_rho):
