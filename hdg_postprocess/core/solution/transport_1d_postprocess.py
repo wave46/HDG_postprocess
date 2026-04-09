@@ -11,10 +11,15 @@ _DIFFUSION_BACKGROUNDS = {
     "d_fs": ("diff_n", "diff_n_min"),
     "nu_mom_fs": ("diff_u", "diff_u_min"),
 }
+_DERIVED_KEYS = ("ne_fs", "te_fs", "ti_fs", "pe_fs", "pi_fs", "dte_dr_fs", "dpe_dr_fs")
 
 
 def coefficient_keys():
     return _COEFFICIENT_KEYS
+
+
+def derived_keys():
+    return _DERIVED_KEYS
 
 
 def raw_transport_profiles(solution, *, dimensional=False):
@@ -75,6 +80,60 @@ def transport_profile(solution, name, *, effective=True, dimensional=True):
     if name == "rho_grid":
         return profiles["rho_grid"]
     return np.asarray(profiles[name], dtype=float)
+
+
+def derived_transport_profiles(solution, *, dimensional=True):
+    rho_grid = _rho_grid(solution)
+    u_fs = np.asarray(solution.transport_1d.U_fs, dtype=float)
+    q_rad_fs = np.asarray(solution.transport_1d.Q_rad_fs, dtype=float)
+    if u_fs.ndim != 2 or q_rad_fs.ndim != 2:
+        raise ValueError("transport_1d U_fs and Q_rad_fs must be two-dimensional arrays")
+    if u_fs.shape[0] != rho_grid.size:
+        raise ValueError(f"U_fs has shape {u_fs.shape}, expected first dimension {rho_grid.size}")
+    if q_rad_fs.shape[0] != rho_grid.size:
+        raise ValueError(f"Q_rad_fs has shape {q_rad_fs.shape}, expected first dimension {rho_grid.size}")
+
+    cons_idx = solution.metadata.indices.conservative
+    rho_idx = cons_idx[b"rho"]
+    gamma_idx = cons_idx[b"Gamma"]
+    nei_idx = cons_idx[b"nEi"]
+    nee_idx = cons_idx[b"nEe"]
+
+    rho_u = u_fs[:, rho_idx]
+    gamma_u = u_fs[:, gamma_idx]
+    nei_u = u_fs[:, nei_idx]
+    nee_u = u_fs[:, nee_idx]
+    q_rho = q_rad_fs[:, rho_idx]
+    q_nee = q_rad_fs[:, nee_idx]
+
+    mref = float(np.asarray(solution.parameters["physics"]["Mref"]).reshape(-1)[0])
+    pref = 2.0 / (3.0 * mref)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ne_fs = rho_u
+        te_fs = pref * nee_u / rho_u
+        ti_fs = pref * (nei_u / rho_u - 0.5 * gamma_u**2 / rho_u**2)
+        pe_fs = pref * nee_u
+        pi_fs = pref * (nei_u - 0.5 * gamma_u**2 / rho_u)
+        dpe_dr_fs = pref * q_nee
+        dte_dr_fs = pref * (q_nee / rho_u - nee_u * q_rho / rho_u**2)
+
+    derived = {
+        "rho_grid": rho_grid.copy(),
+        "ne_fs": ne_fs,
+        "te_fs": te_fs,
+        "ti_fs": ti_fs,
+        "pe_fs": pe_fs,
+        "pi_fs": pi_fs,
+        "dte_dr_fs": dte_dr_fs,
+        "dpe_dr_fs": dpe_dr_fs,
+    }
+    for key, values in list(derived.items()):
+        if key == "rho_grid":
+            continue
+        array = np.asarray(values, dtype=float)
+        array[~np.isfinite(array)] = np.nan
+        derived[key] = _dimensionalize_derived(solution, key, array) if dimensional else array
+    return derived
 
 
 def transport_coefficients(solution, *, view=None, effective=True, dimensional=True):
@@ -184,6 +243,24 @@ def _dimensionalize(solution, name, values):
         return values * speed_scale
     diffusion_scale = float(adim.get("diffusion_scale", adim["length_scale"] ** 2 / adim["time_scale"]))
     return values * diffusion_scale
+
+
+def _dimensionalize_derived(solution, name, values):
+    values = np.asarray(values, dtype=float)
+    adim = solution.parameters["adimensionalization"]
+    mref = float(np.asarray(solution.parameters["physics"]["Mref"]).reshape(-1)[0])
+    pressure_scale = (2.0 / (3.0 * mref)) * float(adim["density_scale"]) * float(adim["temperature_scale"]) * float(adim["charge_scale"])
+    if name == "ne_fs":
+        return values * float(adim["density_scale"])
+    if name in {"te_fs", "ti_fs"}:
+        return values * float(adim["temperature_scale"])
+    if name in {"pe_fs", "pi_fs"}:
+        return values * pressure_scale
+    if name in {"dte_dr_fs"}:
+        return values * float(adim["temperature_scale"]) / float(adim["length_scale"])
+    if name in {"dpe_dr_fs"}:
+        return values * pressure_scale / float(adim["length_scale"])
+    return values
 
 
 def _smoothstep01(s):

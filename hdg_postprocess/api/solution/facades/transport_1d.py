@@ -141,11 +141,18 @@ class SolutionTransport1D:
     def coefficient_names(self):
         return transport_1d_ops.coefficient_keys()
 
+    @property
+    def derived_names(self):
+        return transport_1d_ops.derived_keys()
+
     def raw_profiles(self, *, dimensional=False):
         return transport_1d_ops.raw_transport_profiles(self._solution, dimensional=dimensional)
 
     def effective_profiles(self, *, dimensional=True):
         return transport_1d_ops.effective_transport_profiles(self._solution, dimensional=dimensional)
+
+    def derived_profiles(self, *, dimensional=True):
+        return transport_1d_ops.derived_transport_profiles(self._solution, dimensional=dimensional)
 
     def profile(self, name, *, effective=True, dimensional=True):
         return transport_1d_ops.transport_profile(

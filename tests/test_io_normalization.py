@@ -122,11 +122,12 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
         "Ndim": np.array([1]),
         "physics": {
             "physical_variable_names": [b"rho"],
-            "conservative_variable_names": [b"rho"],
+            "conservative_variable_names": [b"rho", b"Gamma", b"nEi", b"nEe", b"rhon"],
             "diff_n": np.array([10.0]),
             "diff_u": np.array([20.0]),
             "diff_e": np.array([30.0]),
             "diff_ee": np.array([40.0]),
+            "Mref": np.array([2.0]),
         },
         "adimensionalization": {
             "specific_energy_density_scale": 1.0,
@@ -135,6 +136,9 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
             "length_scale": 2.0,
             "diffusion_scale": 8.0,
             "speed_scale": 4.0,
+            "density_scale": 5.0,
+            "temperature_scale": 7.0,
+            "charge_scale": 3.0,
         },
     }
 
@@ -151,8 +155,22 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
             "profiles": {
                 "rho_grid": np.array([0.0, 0.25, 0.5, 0.75]),
                 "shell_weight": np.arange(4.0),
-                "U_fs": np.arange(8.0).reshape(4, 2),
-                "Q_rad_fs": np.arange(8.0).reshape(4, 2),
+                "U_fs": np.array(
+                    [
+                        [2.0, 1.0, 10.0, 12.0, 8.0],
+                        [4.0, 2.0, 16.0, 18.0, 14.0],
+                        [5.0, 1.0, 20.0, 22.0, 17.0],
+                        [6.0, 3.0, 26.0, 24.0, 18.0],
+                    ]
+                ),
+                "Q_rad_fs": np.array(
+                    [
+                        [0.4, 0.1, 0.5, 0.6, 0.7],
+                        [0.5, 0.2, 0.6, 0.8, 0.9],
+                        [0.2, 0.1, 0.4, 0.7, 0.6],
+                        [0.3, 0.2, 0.5, 0.9, 0.8],
+                    ]
+                ),
             },
             "coefficients": {
                 "chi_i_fs": np.linspace(1.0, 2.0, 4),
@@ -179,8 +197,8 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
     assert sol.transport_1d.available is True
     assert sol.transport_1d.rho_grid.shape == (4,)
     assert sol.transport_1d.shell_weight.shape == (4,)
-    assert sol.transport_1d.U_fs.shape == (4, 2)
-    assert sol.transport_1d.Q_rad_fs.shape == (4, 2)
+    assert sol.transport_1d.U_fs.shape == (4, 5)
+    assert sol.transport_1d.Q_rad_fs.shape == (4, 5)
     assert sol.transport_1d.Q_fs is None
     assert sol.transport_1d.chi_i_fs.shape == (4,)
     assert sol.transport_1d.chi_e_fs.shape == (4,)
@@ -192,6 +210,7 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
     assert sol.transport_1d.coefficients.d_fs.shape == (4,)
     assert sol.transport_1d.params.get("rho_edge").shape == (1,)
     assert sol.transport_1d.coefficient_names == ("chi_i_fs", "chi_e_fs", "d_fs", "nu_mom_fs", "vpinch_fs")
+    assert sol.transport_1d.derived_names == ("ne_fs", "te_fs", "ti_fs", "pe_fs", "pi_fs", "dte_dr_fs", "dpe_dr_fs")
 
     raw = sol.transport_1d.raw_profiles(dimensional=False)
     assert np.allclose(raw["d_fs"], np.linspace(3.0, 4.0, 4))
@@ -210,3 +229,17 @@ def test_solution_transport_1d_facade_exposes_optional_arrays():
     assert np.allclose(sol.transport_1d.profile("d_fs"), effective_dim["d_fs"])
     assert np.allclose(sol.transport_1d.coefficient_profiles(effective=False, dimensional=False)["d_fs"], raw["d_fs"])
     assert np.allclose(sol.transport_1d.coefficient_profiles(effective=True, dimensional=True)["d_fs"], effective_dim["d_fs"])
+
+    derived = sol.transport_1d.derived_profiles(dimensional=False)
+    assert np.allclose(derived["ne_fs"], np.array([2.0, 4.0, 5.0, 6.0]))
+    assert np.allclose(derived["te_fs"], np.array([2.0, 1.5, 1.4666666666666666, 1.3333333333333333]))
+    assert np.allclose(derived["ti_fs"], np.array([1.625, 1.2916666666666667, 1.3266666666666667, 1.4027777777777777]))
+    assert np.allclose(derived["pe_fs"], np.array([4.0, 6.0, 7.333333333333333, 8.0]))
+    assert np.allclose(derived["pi_fs"], np.array([3.25, 5.166666666666667, 6.633333333333334, 8.416666666666666]))
+    assert np.allclose(derived["dpe_dr_fs"], np.array([0.2, 0.26666666666666666, 0.2333333333333333, 0.3]))
+    assert np.allclose(derived["dte_dr_fs"], np.array([-0.3, -0.12083333333333332, -0.011999999999999992, -0.016666666666666663]))
+
+    derived_dim = sol.transport_1d.derived_profiles(dimensional=True)
+    assert np.allclose(derived_dim["ne_fs"], derived["ne_fs"] * 5.0)
+    assert np.allclose(derived_dim["te_fs"], derived["te_fs"] * 7.0)
+    assert np.allclose(derived_dim["dte_dr_fs"], derived["dte_dr_fs"] * 3.5)
