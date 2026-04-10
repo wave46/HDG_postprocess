@@ -4,6 +4,8 @@ from hdg_postprocess.core.solution import transport_1d_postprocess as transport_
 
 
 class SolutionTransport1DGroup:
+    """Thin read-only wrapper around one saved transport_1d HDF5 subgroup."""
+
     def __init__(self, data):
         self._data = data or {}
 
@@ -38,6 +40,14 @@ class SolutionTransport1DGroup:
 
 
 class SolutionTransport1D:
+    """Facade for saved and derived 1D transport postprocessing data.
+
+    The facade exposes three levels of access:
+    - saved grouped HDF5 data via ``profiles``, ``coefficients``, and ``params``
+    - 1D profile reconstruction via raw/effective/derived helpers
+    - projection of saved or effective coefficients onto solution views
+    """
+
     def __init__(self, solution):
         self._solution = solution
 
@@ -146,15 +156,19 @@ class SolutionTransport1D:
         return transport_1d_ops.derived_keys()
 
     def raw_profiles(self, *, dimensional=False):
+        """Return saved 1D transport coefficient profiles on rho_grid."""
         return transport_1d_ops.raw_transport_profiles(self._solution, dimensional=dimensional)
 
     def effective_profiles(self, *, dimensional=True):
+        """Return the runtime-effective 1D coefficients actually used by the solver."""
         return transport_1d_ops.effective_transport_profiles(self._solution, dimensional=dimensional)
 
     def derived_profiles(self, *, dimensional=True):
+        """Return derived 1D plasma profiles reconstructed from U_fs and Q_rad_fs."""
         return transport_1d_ops.derived_transport_profiles(self._solution, dimensional=dimensional)
 
     def profile(self, name, *, effective=True, dimensional=True):
+        """Return a single 1D transport profile by name."""
         return transport_1d_ops.transport_profile(
             self._solution,
             name,
@@ -163,6 +177,12 @@ class SolutionTransport1D:
         )
 
     def coefficient_profiles(self, *, view=None, effective=True, dimensional=True):
+        """Return 1D transport coefficients or projected transport fields.
+
+        With ``view=None`` the result is a 1D bundle on ``rho_grid``.
+        With ``view='simple' | 'full' | 'gauss'`` the result is projected to the
+        requested solution view and includes the local ``rho`` field.
+        """
         return transport_1d_ops.transport_coefficients(
             self._solution,
             view=view,
@@ -171,9 +191,11 @@ class SolutionTransport1D:
         )
 
     def rho(self, *, view="simple"):
+        """Return the local rho_pol_norm field on the requested transport view."""
         return transport_1d_ops.transport_rho_field(self._solution, view=view)
 
     def project(self, name, *, view="simple", effective=True, dimensional=True):
+        """Project one transport coefficient profile onto a solution view."""
         return transport_1d_ops.project_transport_profile(
             self._solution,
             name,
@@ -183,6 +205,7 @@ class SolutionTransport1D:
         )
 
     def projected_profiles(self, *, view="simple", effective=True, dimensional=True):
+        """Project all available transport coefficients onto a solution view."""
         return transport_1d_ops.projected_transport_profiles(
             self._solution,
             view=view,

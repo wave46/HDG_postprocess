@@ -15,14 +15,21 @@ _DERIVED_KEYS = ("ne_fs", "te_fs", "ti_fs", "pe_fs", "pi_fs", "dte_dr_fs", "dpe_
 
 
 def coefficient_keys():
+    """Return the saved transport coefficient dataset names."""
     return _COEFFICIENT_KEYS
 
 
 def derived_keys():
+    """Return the derived 1D plasma profile names reconstructed from U_fs/Q_rad_fs."""
     return _DERIVED_KEYS
 
 
 def raw_transport_profiles(solution, *, dimensional=False):
+    """Return saved 1D transport coefficients on the stored rho_grid.
+
+    These are the profiles written by the Fortran transport_1d module before
+    runtime blending with background diffusion and before pinch windowing.
+    """
     rho_grid = _rho_grid(solution)
     profiles = {"rho_grid": rho_grid}
     for key in _COEFFICIENT_KEYS:
@@ -37,6 +44,11 @@ def raw_transport_profiles(solution, *, dimensional=False):
 
 
 def effective_transport_profiles(solution, *, dimensional=False):
+    """Return the runtime-effective 1D transport coefficients.
+
+    The returned profiles reconstruct the coefficients actually used by the
+    solver by applying the saved blending, floor, and pinch-window parameters.
+    """
     raw = raw_transport_profiles(solution, dimensional=False)
     rho_grid = raw["rho_grid"]
     params = solution.transport_1d.params
@@ -76,6 +88,7 @@ def effective_transport_profiles(solution, *, dimensional=False):
 
 
 def transport_profile(solution, name, *, effective=True, dimensional=True):
+    """Return a single 1D transport profile by name."""
     profiles = effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
     if name == "rho_grid":
         return profiles["rho_grid"]
@@ -83,6 +96,12 @@ def transport_profile(solution, name, *, effective=True, dimensional=True):
 
 
 def derived_transport_profiles(solution, *, dimensional=True):
+    """Reconstruct derived 1D plasma profiles from saved reduced transport data.
+
+    The returned quantities are derived from U_fs and Q_rad_fs rather than read
+    directly from HDF5. This keeps the saved transport output compact while
+    still exposing the most useful thermodynamic profiles in postprocessing.
+    """
     rho_grid = _rho_grid(solution)
     u_fs = np.asarray(solution.transport_1d.U_fs, dtype=float)
     q_rad_fs = np.asarray(solution.transport_1d.Q_rad_fs, dtype=float)
@@ -137,6 +156,12 @@ def derived_transport_profiles(solution, *, dimensional=True):
 
 
 def transport_coefficients(solution, *, view=None, effective=True, dimensional=True):
+    """Return transport coefficients either as 1D profiles or projected fields.
+
+    With ``view=None`` this returns 1D profiles on ``rho_grid``.
+    With ``view='simple' | 'full' | 'gauss'`` it returns transport fields
+    projected onto the corresponding solution view.
+    """
     if view is None:
         return effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
     return projected_transport_profiles(
@@ -148,6 +173,7 @@ def transport_coefficients(solution, *, view=None, effective=True, dimensional=T
 
 
 def project_transport_profile(solution, name, *, view="simple", effective=True, dimensional=True):
+    """Project one saved or effective 1D transport profile onto a solution view."""
     profiles = effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
     normalized_view = _normalize_projection_view(view)
     if normalized_view == "simple":
@@ -169,6 +195,7 @@ def project_transport_profile(solution, name, *, view="simple", effective=True, 
 
 
 def projected_transport_profiles(solution, *, view="simple", effective=True, dimensional=True):
+    """Project all saved transport coefficients onto a solution view."""
     profiles = effective_transport_profiles(solution, dimensional=dimensional) if effective else raw_transport_profiles(solution, dimensional=dimensional)
     normalized_view = _normalize_projection_view(view)
     projected = {
@@ -188,6 +215,7 @@ def projected_transport_profiles(solution, *, view="simple", effective=True, dim
 
 
 def transport_rho_field(solution, *, view="simple"):
+    """Return the local rho_pol_norm field on the requested solution view."""
     normalized_view = _normalize_projection_view(view)
     if normalized_view == "simple":
         return surface_ops.rho_field(solution, target="node")
