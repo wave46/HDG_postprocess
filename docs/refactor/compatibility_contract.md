@@ -25,7 +25,6 @@ Methods:
 - `sample.line()`
 - `analysis.power_balance()`
 - `analysis.boundary_summary()`
-- `analysis.wall_profile()`
 - `pointwise.plasma.n()`
 - `pointwise.plasma.ti()`
 - `pointwise.plasma.te()`

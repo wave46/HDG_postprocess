@@ -118,7 +118,7 @@ def calculate_neutral_perp_flux_wall_cons(solutions,gradients,dnn_parameters,ato
     grad_nn = calculate_grad_nn_cons(grad,n0,L0,cons_idx)
 
     br = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
-    bz = Br_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
+    bz = Bz_res/np.sqrt(Br_res**2+Bz_res**2+Bt_res**2)
     bn = br*n_res[:,0]+bz*n_res[:,1]
     diffusion_res = calculate_dnn_with_nn_collision_cons(sol,dnn_parameters,atomic_parameters,
                                                         charge,m_i,T0,n0,Mref,L0,t0)

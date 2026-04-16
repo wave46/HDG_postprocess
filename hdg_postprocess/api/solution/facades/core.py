@@ -197,12 +197,13 @@ class SolutionAnalysis:
     def power_losses_to_wall(self):
         return analysis_ops.calculate_power_losses_to_wall(self._solution)
 
-    def boundary_summary(self):
-        boundary_ops.calculate_boundary_summary(self._solution)
+    def boundary_summary(self, boundaries=None, variables=None):
+        boundary_ops.calculate_boundary_summary(
+            self._solution,
+            boundaries=boundaries,
+            variables=variables,
+        )
         return self._solution.summary.boundary.profile
-
-    def wall_profile(self):
-        return boundary_ops.summary_along_the_wall(self._solution)
 
 
 class SolutionSampling:

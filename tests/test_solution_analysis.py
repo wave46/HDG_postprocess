@@ -49,10 +49,42 @@ def test_solution_analysis_surface(manifest_path, baselines_dir):
     )
     sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
 
-    boundary_summary = sol.analysis.wall_profile()
+    boundary_summary = sol.analysis.boundary_summary()
     power_balance = sol.analysis.power_balance()
 
     assert np.allclose(boundary_summary["b_n"][:10], baseline["boundary_summary"]["bn_head"])
     assert np.isclose(np.sum(boundary_summary["ds"]), baseline["boundary_summary"]["ds_total"])
     assert np.isclose(power_balance["total_loss"], baseline["power_balance"]["total_loss"])
     assert np.isclose(power_balance["total_wall_loss"], baseline["power_balance"]["total_wall_loss"])
+
+
+def test_boundary_summary_subset(manifest_path):
+    scenarios = scenario_map(manifest_path)
+    cfg = scenarios["power_balance_with_cooling"]
+    require_scenario_data(cfg)
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        cfg["solution_path"],
+        cfg["solution_base"],
+        cfg.get("mesh_path"),
+        cfg.get("mesh_base"),
+        cfg["n_partitions"],
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(cfg["reference_element"])
+    sol.additional_parameters.set_atomic(generate_baselines._make_atomic_params(cfg["radiation_model"]))
+    sol.additional_parameters.set_neutral_diffusion(
+        generate_baselines._make_dnn_params(),
+        sol.parameters["adimensionalization"],
+    )
+    sol.parameters["physics"]["R_E"] = cfg["r_e_override"]
+
+    default_summary = sol.analysis.boundary_summary()
+
+    boundary_ids = np.unique(sol.raw.boundary_infos[0]["boundary_flags"])
+    subset_summary = sol.analysis.boundary_summary(
+        boundaries=[int(boundary_ids[0])],
+        variables=["b_n", "neutral_flux"],
+    )
+
+    assert set(subset_summary.keys()) == {"time", "r", "z", "psi", "dl", "ds", "b_n", "neutral_flux"}
+    assert subset_summary["b_n"].shape[0] < default_summary["b_n"].shape[0]

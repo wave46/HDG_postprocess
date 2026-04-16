@@ -6,7 +6,7 @@ from .assembly import (
     recombine_full_solution,
     recombine_simple_full_solution,
 )
-from .boundary import calculate_boundary_summary, summary_along_the_wall
+from .boundary import calculate_boundary_summary
 from .magnetic_equilibrium import define_magnetic_axis, define_minor_radii, define_qcyl
 from .neutrals import calculate_dnn, calculate_dnn_with_nn_collision, calculate_mfp
 from .physical import cons2phys, init_phys_variables
@@ -86,7 +86,6 @@ __all__ = [
     "plot_overview_physical_difference",
     "plot_variables_overview",
     "save_summary_line",
-    "summary_along_the_wall",
     "average_on_surfaces",
     "collisionality_on_surfaces",
     "pinch_factor_on_surfaces",
@@ -100,4 +99,3 @@ __all__ = [
     "rho_field",
     "project_profile_to_solution",
 ]
-
