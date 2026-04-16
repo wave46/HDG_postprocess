@@ -25,6 +25,7 @@ from hdg_postprocess.routines.plasma import (
     calculate_pe_cons,
     calculate_pi_cons,
     calculate_u_cons,
+    calculate_un_cons
 )
 from hdg_postprocess.core.solution import preparation as prep_ops
 
@@ -119,6 +120,9 @@ def cons2phys(solution, data):
                 solution_phys[:, i] = calculate_nn_cons(data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative)
             elif phys_variable == b"k":
                 solution_phys[:, i] = calculate_k_cons(data_loc, solution.parameters["adimensionalization"]["speed_scale"] ** 2, solution.metadata.indices.conservative)
+            elif phys_variable == b"un":
+                solution_phys[:, i] = calculate_un_cons(data_loc, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative)
+
             else:
                 raise KeyError("Unknown variable, go into the code and add this variable if you are sure")
 

@@ -54,6 +54,12 @@ def plot_overview(solution, n_levels=100):
         elif cons_variable == b"k":
             solutions_dimensional[:, i] *= solution.parameters["adimensionalization"]["speed_scale"] ** 2
             colorbar_labels.append(r"$k$, m$^{-2}$/s$^{-2}$")
+        elif cons_variable == b"Gamman":
+            solutions_dimensional[:, i] *= (
+                solution.parameters["adimensionalization"]["density_scale"]
+                * solution.parameters["adimensionalization"]["speed_scale"]
+            )
+            colorbar_labels.append(r"$\Gamma_n$, m$^{-2}$ s$^{-1}$")
         else:
             raise NameError("Unknown conservative varibale")
 
@@ -63,7 +69,7 @@ def plot_overview(solution, n_levels=100):
 
     for i in range(solution.neq):
         cons_variable = solution.parameters["physics"]["conservative_variable_names"][i]
-        if (cons_variable != b"Gamma") and (cons_variable != b"k"):
+        if (cons_variable != b"Gamma") and (cons_variable != b"k") and (cons_variable != b"Gamman"):
             axes[i // 2, i % 2] = solution.mesh.plot.full(
                 solutions_dimensional[:, i],
                 ax=axes[i // 2, i % 2],
@@ -159,6 +165,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
 
     colorbar_labels = [r"n [m$^{-3}$]", r"$n_n$ [m$^{-3}$]", r"$T_i [eV]$", r"$T_e [eV] $", r"M", r"$k$ [m$^2$/s$^2$]"]
     simple_phys = solution.views.simple.solution.physical
+    simple_cons = solution.views.simple.solution.conservative
     solutions_plot = np.zeros_like(solution.views.simple.solution.conservative)
     solutions_plot[:, 0] = simple_phys[:, 0]
     solutions_plot[:, 1] = simple_phys[:, -1]
@@ -168,7 +175,17 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
     if solution.neq > 4:
         solutions_plot[:, 1] = simple_phys[:, 10]
     if solution.neq > 5:
-        solutions_plot[:, 5] = simple_phys[:, 11]
+        sixth_cons_variable = solution.parameters["physics"]["conservative_variable_names"][5]
+        if sixth_cons_variable == b"k":
+            solutions_plot[:, 5] = simple_phys[:, 11]
+            colorbar_labels[5] = r"$k$ [m$^2$/s$^2$]"
+        elif sixth_cons_variable == b"Gamman":
+            solutions_plot[:, 5] = (
+                simple_cons[:, 5]
+                * solution.parameters["adimensionalization"]["density_scale"]
+                * solution.parameters["adimensionalization"]["speed_scale"]
+            )
+            colorbar_labels[5] = r"$\Gamma_n$ [m$^{-2}$ s$^{-1}$]"
     solutions_plot[:, 4] = simple_phys[:, 9]
 
     prep_ops.ensure_connectivity_big(solution)
@@ -228,6 +245,8 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     colorbar_labels = [r"n, m$^{-3}$", r"$n_n$, m$^{-3}$", r"$T_i$", r"$T_e$", r"M", r"k"]
     left_simple_phys = solution.views.simple.solution.physical
     right_simple_phys = second_solution.views.simple.solution.physical
+    left_simple_cons = solution.views.simple.solution.conservative
+    right_simple_cons = second_solution.views.simple.solution.conservative
     solutions_plot = np.zeros_like(solution.views.simple.solution.conservative)
     solutions_plot[:, 0] = left_simple_phys[:, 0] - right_simple_phys[:, 0]
     solutions_plot[:, 4] = left_simple_phys[:, 9] - right_simple_phys[:, 9]
@@ -237,7 +256,15 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     if solution.neq > 4:
         solutions_plot[:, 1] = left_simple_phys[:, 10] - right_simple_phys[:, 10]
     if solution.neq > 5:
-        solutions_plot[:, 5] = left_simple_phys[:, 11] - right_simple_phys[:, 11]
+        sixth_cons_variable = solution.parameters["physics"]["conservative_variable_names"][5]
+        if sixth_cons_variable == b"k":
+            solutions_plot[:, 5] = left_simple_phys[:, 11] - right_simple_phys[:, 11]
+            colorbar_labels[5] = r"k"
+        elif sixth_cons_variable == b"Gamman":
+            solutions_plot[:, 5] = (
+                left_simple_cons[:, 5] - right_simple_cons[:, 5]
+            ) * solution.parameters["adimensionalization"]["density_scale"] * solution.parameters["adimensionalization"]["speed_scale"]
+            colorbar_labels[5] = r"$\Gamma_n$, m$^{-2}$ s$^{-1}$"
 
     prep_ops.ensure_connectivity_big(solution)
     n_lines = int(np.floor(solution.neq / 2 + 0.5))

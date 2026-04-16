@@ -469,6 +469,14 @@ def calculate_dk_cons(solutions,dk_params,q_cyl,R,D0,cons_idx):
         res = res.reshape(dimensions[0],dimensions[1])
     return res*D0
 
+def calculate_un_cons(solutions,u0,cons_idx):
+    """
+    calculates normal velocity value based on conservatives values
+    """
+    sol, shape = _flatten_solution_nodes(solutions)
+    res = u0 * _sol(sol, b'Gamman', cons_idx) / _sol(sol, b'rhon', cons_idx)
+    return _reshape_scalar(res, shape)
+
 def calculate_q_cyl(R,Br,Bz,Bt,a):
     """
     calculates q_cyl for points with given major radii R, magnetic filed and minor radii a
