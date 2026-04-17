@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.io
+import pytest
 from pathlib import Path
 
 from hdg_postprocess.formats import load_from_file
@@ -111,8 +112,6 @@ def test_boundary_summary_neutral_wall_balance():
         shown = ", ".join(str(path.relative_to(root)) for path in missing[:3])
         if len(missing) > 3:
             shown += f", ... (+{len(missing) - 3} more)"
-        import pytest
-
         pytest.skip(f"Neutral wall diagnostic test requires local demo data not present in this checkout: {shown}")
 
     sol = load_from_file.load_HDG_solution_from_file(
@@ -125,6 +124,7 @@ def test_boundary_summary_neutral_wall_balance():
 
     summary = sol.analysis.boundary_summary(
         boundaries=[5, 6, 9],
+        cryopump_power=10.0,
         variables=[
             "boundary_flag",
             "boundary_condition_code",
@@ -173,3 +173,32 @@ def test_boundary_summary_neutral_wall_balance():
         "neutral_wall_balance",
     ):
         assert np.all(np.isfinite(summary[key]))
+
+
+def test_boundary_summary_requires_cryopump_override():
+    root = Path(__file__).resolve().parents[1]
+    solution_dir = root / "demos" / "data" / "solutions" / "limiter_case" / "diffred_test_neutralsgammapressure"
+    solution_base = "Sol2D_WEST_60527_P8_DPe0.100E+02_DPai0.314E+06_DPae0.105E+08"
+    reference_element = root / "demos" / "data" / "reference_elements" / "reference_triangle_P8.mat"
+
+    required = [
+        solution_dir / f"{solution_base}.h5",
+        reference_element,
+    ]
+    missing = [path for path in required if not path.exists()]
+    if missing:
+        shown = ", ".join(str(path.relative_to(root)) for path in missing)
+        pytest.skip(f"Cryopump override test requires local demo data not present in this checkout: {shown}")
+
+    sol = load_from_file.load_HDG_solution_from_file(
+        f"{solution_dir}/",
+        solution_base,
+        n_partitions=1,
+    )
+    sol.mesh.metadata.reference_element = _load_reference_element(reference_element)
+
+    with pytest.raises(ValueError, match="Cryopump power is not saved"):
+        sol.analysis.boundary_summary(
+            boundaries=[5, 6, 9],
+            variables=["gamma_pump_wall"],
+        )

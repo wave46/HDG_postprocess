@@ -197,11 +197,12 @@ class SolutionAnalysis:
     def power_losses_to_wall(self):
         return analysis_ops.calculate_power_losses_to_wall(self._solution)
 
-    def boundary_summary(self, boundaries=None, variables=None):
+    def boundary_summary(self, boundaries=None, variables=None, cryopump_power=None):
         boundary_ops.calculate_boundary_summary(
             self._solution,
             boundaries=boundaries,
             variables=variables,
+            cryopump_power=cryopump_power,
         )
         return self._solution.summary.boundary.profile
 

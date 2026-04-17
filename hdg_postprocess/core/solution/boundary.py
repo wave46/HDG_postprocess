@@ -80,9 +80,9 @@ _BOUNDARY_SUMMARY_DEPENDENCIES = {
     ),
 }
 
-def calculate_boundary_summary(solution, boundaries=None, variables=None):
+def calculate_boundary_summary(solution, boundaries=None, variables=None, cryopump_power=None):
     """Calculate ordered boundary-Gauss diagnostics for the requested boundaries."""
-    boundary_context = _build_boundary_context(solution, boundaries)
+    boundary_context = _build_boundary_context(solution, boundaries, cryopump_power=cryopump_power)
     requested_variables = _normalize_requested_boundary_variables(variables)
     result = _evaluate_boundary_summary(solution, boundary_context, requested_variables)
     _attach_boundary_geometry(solution, boundary_context, result)
@@ -90,7 +90,7 @@ def calculate_boundary_summary(solution, boundaries=None, variables=None):
     return result
 
 
-def _build_boundary_context(solution, boundaries=None):
+def _build_boundary_context(solution, boundaries=None, cryopump_power=None):
     requested_boundaries = _normalize_requested_boundaries(solution, boundaries)
     if (
         not solution.metadata.flags.combined_boundary_gauss
@@ -116,6 +116,8 @@ def _build_boundary_context(solution, boundaries=None):
         "b_n": np.sum(magnetic_field_unit * normal_vector, axis=-1),
         "boundary_flag": np.repeat(boundary_flag[:, None], n_gauss, axis=1),
         "boundary_condition_code": np.repeat(boundary_condition_code[:, None], n_gauss, axis=1),
+        "face_elements": np.asarray(solution.metadata.cache.boundary_gauss_face_elements, dtype=int).reshape(-1),
+        "cryopump_power": cryopump_power,
     }
 
 
@@ -393,6 +395,7 @@ def _limited_ti_adim(solution, boundary_solution):
 
 
 def _sigmavnn_cons(solution, boundary_solution):
+    ti_tol = 1.0e-10
     ti = calculate_Ti_cons(
         boundary_solution,
         solution.parameters["adimensionalization"]["temperature_scale"],
@@ -400,8 +403,10 @@ def _sigmavnn_cons(solution, boundary_solution):
         solution._cons_idx,
     )
     kb = 1.38064852e-23
+    e_const = solution.metadata.constants.elemental_charge
     s0 = 5.2958e-17
-    thermal = np.maximum(ti * solution.metadata.constants.elemental_charge / kb, 0.0)
+    ti_limited = np.maximum(ti, ti_tol)
+    thermal = ti_limited * e_const / kb
     return s0 * thermal ** 0.25
 
 
@@ -488,6 +493,60 @@ def _tau_neutral(solution):
         if tau.size > inn:
             return float(tau[inn])
     return 1.0
+
+
+def _stabilization_type(solution):
+    numerics = solution.parameters["numerics"]
+    if "Stabilization_type" in numerics:
+        return int(round(_parameter_scalar(numerics, "Stabilization_type", 0.0)))
+    if "stab" in numerics:
+        return int(round(_parameter_scalar(numerics, "stab", 0.0)))
+    return 0
+
+
+def _neutral_tau_nn_adim(solution, boundary_context):
+    uc = boundary_context["solution_skeleton"]
+    inn = solution._cons_idx[b"rhon"]
+    stab_type = _stabilization_type(solution)
+
+    if stab_type <= 1:
+        return np.full_like(uc[:, :, 0], _tau_neutral(solution), dtype=float)
+
+    if stab_type != 5:
+        return np.full_like(uc[:, :, 0], _tau_neutral(solution), dtype=float)
+
+    if solution.mesh.metadata.reference_element is None:
+        raise ValueError("Neutral wall tau postprocessing requires a reference element on the solution mesh.")
+    if "elemSize" not in solution.mesh.mesh_parameters:
+        raise ValueError("Neutral wall tau postprocessing requires mesh elemSize data.")
+
+    rho = uc[:, :, solution._cons_idx[b"rho"]]
+    gamma = uc[:, :, solution._cons_idx[b"Gamma"]]
+    nEi = uc[:, :, solution._cons_idx[b"nEi"]]
+    nEe = uc[:, :, solution._cons_idx[b"nEe"]]
+    u_adim = calculate_u_cons(uc, 1.0, solution._cons_idx)
+    b = boundary_context["equilibrium"].magnetic_field_unit[:, :, :2]
+    bn = np.sum(b * boundary_context["normal_vector"], axis=-1)
+
+    sqrt_arg = np.abs(10.0 * nEi * rho + 10.0 * nEe * rho - 5.0 * gamma ** 2)
+    acoustic = np.divide(
+        0.3 * bn * (3.0 * rho + np.sqrt(sqrt_arg)),
+        rho,
+        out=np.zeros_like(rho, dtype=float),
+        where=np.abs(rho) > 0,
+    )
+    hyperbolic = np.maximum(np.abs(5.0 / 3.0 * u_adim * bn), np.abs(acoustic))
+
+    degree = float(np.asarray(solution.mesh.metadata.reference_element["degree"]).reshape(-1)[0])
+    elem_size = np.asarray(solution.mesh.mesh_parameters["elemSize"], dtype=float).reshape(-1)
+    face_elem_size = elem_size[boundary_context["face_elements"]][:, None]
+    diffusive = np.divide(
+        _neutral_dnn_adim(solution, uc) * degree,
+        face_elem_size,
+        out=np.zeros_like(hyperbolic, dtype=float),
+        where=np.abs(face_elem_size) > 0,
+    )
+    return hyperbolic + diffusive
 
 
 def _puff_area(solution, boundary_context):
@@ -754,7 +813,7 @@ def _calculate_neutral_flux(solution, boundary_solution):
 
 def _calculate_gamma_parallel_wall(solution, boundary_context):
     gamma_skeleton = calculate_parallel_flux_cons(
-        boundary_context["solution_skeleton"],
+        boundary_context["solution"],
         _boundary_flux_scale(solution),
         solution._cons_idx,
     )
@@ -799,7 +858,7 @@ def _calculate_gamma_pinch_wall(solution, boundary_context):
         - bpol_unit[:, :, 0] * boundary_context["normal_vector"][:, :, 1]
     )
     neutral_density = calculate_n_cons(
-        boundary_context["solution_skeleton"],
+        boundary_context["solution"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution._cons_idx,
     )
@@ -819,7 +878,19 @@ def _calculate_gamma_puff_wall(solution, boundary_context):
 
 
 def _calculate_gamma_pump_wall(solution, boundary_context):
-    cryopump_power = _parameter_scalar(solution.parameters["physics"], "cryopump_power", 10.0)
+    cryopump_power = boundary_context.get("cryopump_power")
+    if cryopump_power is not None:
+        cryopump_power = float(np.asarray(cryopump_power, dtype=float).reshape(-1)[0])
+    if cryopump_power is None and "cryopump_power" in solution.parameters["physics"]:
+        cryopump_power = _parameter_scalar(solution.parameters["physics"], "cryopump_power", 0.0)
+    if cryopump_power is None:
+        mask = boundary_context["boundary_condition_code"] == 55
+        if np.any(mask):
+            raise ValueError(
+                "Cryopump power is not saved in this solution. "
+                "Provide cryopump_power=... when requesting pump-related wall diagnostics."
+            )
+        cryopump_power = 0.0
     if cryopump_power == 0.0:
         return np.zeros_like(boundary_context["solution"][:, :, 0])
 
@@ -828,7 +899,7 @@ def _calculate_gamma_pump_wall(solution, boundary_context):
         return np.zeros_like(boundary_context["solution"][:, :, 0])
 
     neutral_density = calculate_nn_cons(
-        boundary_context["solution"],
+        boundary_context["solution_skeleton"],
         solution.parameters["adimensionalization"]["density_scale"],
         solution._cons_idx,
     )
@@ -839,7 +910,7 @@ def _calculate_gamma_pump_wall(solution, boundary_context):
 
 
 def _calculate_neutral_diff_flux(solution, boundary_context):
-    dnn = _neutral_dnn_adim(solution, boundary_context["solution"])
+    dnn = _neutral_dnn_adim(solution, boundary_context["solution_skeleton"])
     return _boundary_flux_scale(solution) * dnn * (
         boundary_context["gradient"][:, :, solution._cons_idx[b"rhon"], 0] * boundary_context["normal_vector"][:, :, 0]
         + boundary_context["gradient"][:, :, solution._cons_idx[b"rhon"], 1] * boundary_context["normal_vector"][:, :, 1]
@@ -851,24 +922,19 @@ def _calculate_neutral_pgrad_flux(solution, boundary_context):
         boundary_context["gradient"] * boundary_context["normal_vector"][:, :, None, :],
         axis=-1,
     )
-    return _boundary_flux_scale(solution) * np.sum(qn * _neutral_w5p(solution, boundary_context["solution"]), axis=-1)
+    return _boundary_flux_scale(solution) * np.sum(qn * _neutral_w5p(solution, boundary_context["solution_skeleton"]), axis=-1)
 
 
 def _calculate_neutral_conv_flux(solution, boundary_context):
-    inn = solution._cons_idx[b"rhon"]
-    rho = boundary_context["solution"][:, :, solution._cons_idx[b"rho"]]
-    gamma = boundary_context["solution"][:, :, solution._cons_idx[b"Gamma"]]
-    rhon = boundary_context["solution"][:, :, inn]
-
-    convection = np.zeros_like(rho, dtype=float)
-    
-
+    # Mirror the currently used Bohm-wall scope: keep the NEUTRALGAMMA
+    # contribution and skip the separate NEUTRALCONVECTION macros for now.
+    convection = np.zeros_like(boundary_context["solution_skeleton"][:, :, 0], dtype=float)
     if b"Gamman" in solution._cons_idx:
-        convection = convection - boundary_context["solution"][:, :, solution._cons_idx[b"Gamman"]]
+        convection = convection - boundary_context["solution_skeleton"][:, :, solution._cons_idx[b"Gamman"]]
     return _boundary_flux_scale(solution) * convection * boundary_context["b_n"]
 
 
 def _calculate_neutral_numerical_flux(solution, boundary_context):
     inn = solution._cons_idx[b"rhon"]
-    jump = boundary_context["solution_skeleton"][:, :, inn] - boundary_context["solution"][:, :, inn]
-    return _tau_neutral(solution) * _boundary_flux_scale(solution) * jump
+    jump = boundary_context["solution"][:, :, inn] - boundary_context["solution_skeleton"][:, :, inn]
+    return _neutral_tau_nn_adim(solution, boundary_context) * _boundary_flux_scale(solution) * jump
