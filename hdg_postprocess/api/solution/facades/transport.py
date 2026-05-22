@@ -1,4 +1,5 @@
 from hdg_postprocess.core.solution import neutrals as neutrals_ops
+from hdg_postprocess.core.solution import neutral_flux_limiter as neutral_limiter_ops
 from hdg_postprocess.core.solution import transport_postprocess as transport_postprocess_ops
 from hdg_postprocess.core.solution import turbulent_model as turbulent_model_ops
 
@@ -23,6 +24,46 @@ class SolutionNeutrals:
         if view == "full":
             return self._solution.views.glob.derived.mfp
         return self._solution.views.simple.derived.mfp
+
+    def limiter_diagnostic(self, name, view="element"):
+        return neutral_limiter_ops.diagnostic_field(self._solution, name, view=view)
+
+    def limiter_diagnostic_summary(self, activation_tol=1.0e-12):
+        return neutral_limiter_ops.summarize_diagnostics(self._solution, activation_tol=activation_tol)
+
+    def verify_limiter_diagnostics(self, *args, **kwargs):
+        return neutral_limiter_ops.compare_neutral_flux_limiter_diagnostics(self._solution, *args, **kwargs)
+
+    def recompute_limiter_diagnostics(self, *args, **kwargs):
+        return neutral_limiter_ops.recompute_neutral_flux_limiter_diagnostics(self._solution, *args, **kwargs)
+
+    @property
+    def Dnn(self):
+        return self.limiter_diagnostic("Dnn")
+
+    @property
+    def neutral_phi(self):
+        return self.limiter_diagnostic("phi")
+
+    @property
+    def neutral_Deff(self):
+        return self.limiter_diagnostic("D_eff")
+
+    @property
+    def neutral_gamma_unlim(self):
+        return self.limiter_diagnostic("Gamma_unlim")
+
+    @property
+    def neutral_gamma_lim(self):
+        return self.limiter_diagnostic("Gamma_lim")
+
+    @property
+    def neutral_gamma_max(self):
+        return self.limiter_diagnostic("Gamma_max")
+
+    @property
+    def neutral_activation_ratio(self):
+        return self.limiter_diagnostic("activation_ratio")
 
 
 class SolutionTurbulence:

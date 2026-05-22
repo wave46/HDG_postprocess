@@ -9,6 +9,11 @@ from .assembly import (
 from .boundary import calculate_boundary_summary
 from .magnetic_equilibrium import define_magnetic_axis, define_minor_radii, define_qcyl
 from .neutrals import calculate_dnn, calculate_dnn_with_nn_collision, calculate_mfp
+from .neutral_flux_limiter import (
+    compare_diagnostics_only_runs,
+    compare_neutral_flux_limiter_diagnostics,
+    recompute_neutral_flux_limiter_diagnostics,
+)
 from .physical import cons2phys, init_phys_variables
 from .plasma_sources import (
     calculate_cooling_factor,
@@ -69,6 +74,8 @@ __all__ = [
     "calculate_ionization_rate",
     "calculate_ionization_source",
     "calculate_mfp",
+    "compare_diagnostics_only_runs",
+    "compare_neutral_flux_limiter_diagnostics",
     "calculate_variables_along_line",
     "define_interpolators",
     "define_magnetic_axis",
@@ -80,6 +87,7 @@ __all__ = [
     "recombine_boundary_solution",
     "recombine_full_solution",
     "recombine_simple_full_solution",
+    "recompute_neutral_flux_limiter_diagnostics",
     "plot_overview",
     "plot_overview_difference",
     "plot_overview_physical",
