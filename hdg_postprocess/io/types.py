@@ -12,6 +12,7 @@ class NormalizedSolutionData:
     raw_equilibriums: List[Dict[str, np.ndarray]]
     raw_solution_boundary_infos: List[Dict[str, np.ndarray]]
     raw_transport_1d: Optional[List[Dict[str, np.ndarray]]] = None
+    raw_neutral_flux_limiter_diagnostics: Optional[List[Dict[str, np.ndarray]]] = None
     parameters: Dict = None
     n_partitions: int = 1
     mesh_path: str = ""

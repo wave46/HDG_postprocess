@@ -28,12 +28,30 @@ class HDGsolution:
     ""
     def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters,
-                 n_partitions, mesh, raw_transport_1d=None):
-        self._store_input_metadata(parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh, raw_transport_1d)
+                 n_partitions, mesh, raw_transport_1d=None, raw_neutral_flux_limiter_diagnostics=None):
+        self._store_input_metadata(
+            parameters,
+            n_partitions,
+            raw_equilibriums,
+            raw_solution_boundary_infos,
+            mesh,
+            raw_transport_1d,
+            raw_neutral_flux_limiter_diagnostics,
+        )
         self._store_raw_partitions(raw_solutions, raw_solutions_skeleton, raw_gradients)
+        self._neutral_flux_limiter_diagnostics = self._combine_neutral_flux_limiter_diagnostics()
         self._initial_setup()
 
-    def _store_input_metadata(self, parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh, raw_transport_1d=None):
+    def _store_input_metadata(
+        self,
+        parameters,
+        n_partitions,
+        raw_equilibriums,
+        raw_solution_boundary_infos,
+        mesh,
+        raw_transport_1d=None,
+        raw_neutral_flux_limiter_diagnostics=None,
+    ):
         self._parameters = parameters
         self._neq = parameters["Neq"][0]
         self._nphys = len(parameters["physics"]["physical_variable_names"])
@@ -47,6 +65,11 @@ class HDGsolution:
             equilibriums=raw_equilibriums,
             boundary_infos=raw_solution_boundary_infos,
             transport_1d=raw_transport_1d if raw_transport_1d is not None else [],
+            neutral_flux_limiter_diagnostics=(
+                raw_neutral_flux_limiter_diagnostics
+                if raw_neutral_flux_limiter_diagnostics is not None
+                else []
+            ),
         )
 
     def _store_raw_partitions(self, raw_solutions, raw_solutions_skeleton, raw_gradients):
@@ -59,6 +82,63 @@ class HDGsolution:
             )
             raw_gradient = raw_gradient.reshape(raw_gradient.shape[0] // (self.neq * self.ndim), self.neq * self.ndim)
             self._raw.gradients.append(raw_gradient.reshape(raw_gradient.shape[0], self.neq, self.ndim))
+
+    def _combine_neutral_flux_limiter_diagnostics(self):
+        raw_diagnostics = self._raw.neutral_flux_limiter_diagnostics
+        if not raw_diagnostics or not any(raw_diagnostics):
+            return {}
+
+        nodes_per_element = self.mesh.mesh_parameters["nodes_per_element"]
+        keys = sorted({key for partition in raw_diagnostics for key in partition.keys()})
+        combined = {}
+
+        for key in keys:
+            if self.n_partitions == 1:
+                if key not in raw_diagnostics[0]:
+                    continue
+                combined[key] = self._reshape_neutral_flux_limiter_diagnostic(
+                    raw_diagnostics[0][key],
+                    self.mesh.raw.mesh_numbers[0]["Nelems"],
+                    nodes_per_element,
+                    key,
+                )
+                continue
+
+            if not self.mesh.metadata.flags.combined_to_full:
+                self.mesh.assembly.full()
+            result = np.zeros((self.mesh.global_state.n_elements, nodes_per_element))
+            filled = np.zeros(self.mesh.global_state.n_elements, dtype=bool)
+            for i, partition in enumerate(raw_diagnostics):
+                if key not in partition:
+                    continue
+                local_values = self._reshape_neutral_flux_limiter_diagnostic(
+                    partition[key],
+                    self.mesh.raw.mesh_numbers[i]["Nelems"],
+                    nodes_per_element,
+                    key,
+                )
+                mask = ~self.mesh.raw.ghost_elements[i].astype(bool).flatten()
+                global_elements = self.mesh.raw.rest_mesh_data[i]["loc2glob_el"][mask]
+                result[global_elements] = local_values[mask]
+                filled[global_elements] = True
+            if not np.all(filled):
+                missing = np.flatnonzero(~filled)[:5]
+                raise ValueError(
+                    f"Neutral flux limiter diagnostic '{key}' is missing values for "
+                    f"{np.count_nonzero(~filled)} global elements; first missing: {missing.tolist()}"
+                )
+            combined[key] = result
+        return combined
+
+    def _reshape_neutral_flux_limiter_diagnostic(self, values, n_elements, nodes_per_element, key):
+        array = np.asarray(values)
+        expected_size = n_elements * nodes_per_element
+        if array.size != expected_size:
+            raise ValueError(
+                f"Neutral flux limiter diagnostic '{key}' has flat size {array.size}, "
+                f"expected {expected_size} = {n_elements} * {nodes_per_element}."
+            )
+        return array.reshape(n_elements, nodes_per_element)
 
     def _initial_setup(self):
         self._init_state_containers()
@@ -182,6 +262,11 @@ class HDGsolution:
     def raw(self):
         """Public structured access to the raw partition payload."""
         return self._raw
+
+    @property
+    def neutral_flux_limiter_diagnostics(self):
+        """Element-node neutral flux limiter diagnostics loaded from the solution file."""
+        return self._neutral_flux_limiter_diagnostics
 
     @property
     def atomic_rates(self):

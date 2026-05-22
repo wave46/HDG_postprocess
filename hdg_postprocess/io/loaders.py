@@ -69,6 +69,12 @@ def _extract_solution_partition(solution_file, parameters):
         for key, value in transport_group.items():
             transport_1d[key] = value
 
+    neutral_flux_limiter_diagnostics = {}
+    if "neutral_flux_limiter_diagnostics" in solution_file:
+        diagnostics_group = solution_file["neutral_flux_limiter_diagnostics"]
+        for key, value in diagnostics_group.items():
+            neutral_flux_limiter_diagnostics[key] = value
+
     return {
         "raw_solution": solution_group["u"],
         "raw_solution_skeleton": solution_group["u_tilde"],
@@ -76,6 +82,7 @@ def _extract_solution_partition(solution_file, parameters):
         "equilibrium": equilibrium,
         "boundary_info": solution_boundary_data,
         "transport_1d": transport_1d,
+        "neutral_flux_limiter_diagnostics": neutral_flux_limiter_diagnostics,
     }
 
 
@@ -86,6 +93,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
     raw_equilibriums = []
     raw_solution_boundary_infos = []
     raw_transport_1d = []
+    raw_neutral_flux_limiter_diagnostics = []
 
     parameters = None
 
@@ -103,6 +111,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
         raw_equilibriums.append(partition_data["equilibrium"])
         raw_solution_boundary_infos.append(partition_data["boundary_info"])
         raw_transport_1d.append(partition_data["transport_1d"])
+        raw_neutral_flux_limiter_diagnostics.append(partition_data["neutral_flux_limiter_diagnostics"])
 
     if meshpath is None and meshname_base is None:
         meshpath = solpath
@@ -117,6 +126,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
         raw_equilibriums=raw_equilibriums,
         raw_solution_boundary_infos=raw_solution_boundary_infos,
         raw_transport_1d=raw_transport_1d,
+        raw_neutral_flux_limiter_diagnostics=raw_neutral_flux_limiter_diagnostics,
         parameters=parameters,
         n_partitions=n_partitions,
         mesh_path=meshpath,

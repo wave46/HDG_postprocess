@@ -26,6 +26,7 @@ def load_HDG_solution_from_file(solpath,solname_base,meshpath=None,meshname_base
         solution_data.n_partitions,
         mesh,
         raw_transport_1d=solution_data.raw_transport_1d,
+        raw_neutral_flux_limiter_diagnostics=solution_data.raw_neutral_flux_limiter_diagnostics,
     )
     
     return sol

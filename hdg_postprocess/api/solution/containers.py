@@ -178,6 +178,7 @@ class RawPartitionState:
     equilibriums: object = None
     boundary_infos: object = None
     transport_1d: object = None
+    neutral_flux_limiter_diagnostics: object = None
 
 
 @dataclass
