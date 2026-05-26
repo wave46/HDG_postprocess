@@ -28,6 +28,7 @@ ACCESSOR_NAMES = {
     "activation_ratio": "neutral_activation_ratio",
 }
 SOLUTION_DATASETS = ("u", "q", "u_tilde")
+SUPPORTED_RECOMPUTE_MODES = ("diagnostics_only", "lagged_flux_limiter")
 
 
 def diagnostic_field(solution, name, view="element"):
@@ -117,9 +118,9 @@ def recompute_neutral_flux_limiter_diagnostics(
     if flux_convention != "diffusion_only":
         raise ValueError(
             f"Unsupported neutral limiter flux convention '{flux_convention}'. "
-            "Only 'diffusion_only' is implemented for diagnostics_only verification."
+            "Only 'diffusion_only' is implemented for neutral limiter verification."
         )
-    _require_diagnostics_only_mode(solution)
+    _require_supported_limiter_mode(solution)
     _require_conservative_variables(solution, (b"rho", b"Gamma", b"nEi", b"rhon"))
 
     if not solution.metadata.flags.combined_to_full:
@@ -184,6 +185,7 @@ def compare_neutral_flux_limiter_diagnostics(
     rtol=1.0e-8,
     strict=False,
     fields=None,
+    flux_convention="diffusion_only",
 ):
     """Compare independently recomputed limiter diagnostics against saved targets."""
     saved = solution.neutral_flux_limiter_diagnostics
@@ -193,6 +195,7 @@ def compare_neutral_flux_limiter_diagnostics(
         solution,
         atomic_parameters=atomic_parameters,
         neutral_diffusion_parameters=neutral_diffusion_parameters,
+        flux_convention=flux_convention,
     )
     if fields is None:
         fields = ("Dnn", "Gamma_unlim", "Gamma_max", "activation_ratio", "phi", "D_eff", "Gamma_lim")
@@ -327,15 +330,15 @@ def _resolve_atomic_parameters(solution, atomic_parameters):
     )
 
 
-def _require_diagnostics_only_mode(solution):
+def _require_supported_limiter_mode(solution):
     mode = solution.parameters["physics"].get("neutral_flux_limiter_mode")
     if mode is None:
         raise ValueError("Missing physics parameter 'neutral_flux_limiter_mode'.")
     normalized = _decode_scalar(mode)
-    if normalized != "diagnostics_only":
+    if normalized not in SUPPORTED_RECOMPUTE_MODES:
         raise ValueError(
             f"Unsupported neutral_flux_limiter_mode={normalized!r}. "
-            "Only 'diagnostics_only' is supported by this verifier."
+            f"Supported modes are: {', '.join(SUPPORTED_RECOMPUTE_MODES)}."
         )
 
 
