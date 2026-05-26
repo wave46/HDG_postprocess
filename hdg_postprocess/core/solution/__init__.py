@@ -14,6 +14,11 @@ from .neutral_flux_limiter import (
     compare_neutral_flux_limiter_diagnostics,
     recompute_neutral_flux_limiter_diagnostics,
 )
+from .neutral_wall_sources import (
+    collect_neutral_wall_source_totals,
+    plot_neutral_wall_source,
+    read_neutral_wall_source_diagnostics,
+)
 from .physical import cons2phys, init_phys_variables
 from .plasma_sources import (
     calculate_cooling_factor,
@@ -76,6 +81,7 @@ __all__ = [
     "calculate_mfp",
     "compare_diagnostics_only_runs",
     "compare_neutral_flux_limiter_diagnostics",
+    "collect_neutral_wall_source_totals",
     "calculate_variables_along_line",
     "define_interpolators",
     "define_magnetic_axis",
@@ -88,6 +94,8 @@ __all__ = [
     "recombine_full_solution",
     "recombine_simple_full_solution",
     "recompute_neutral_flux_limiter_diagnostics",
+    "read_neutral_wall_source_diagnostics",
+    "plot_neutral_wall_source",
     "plot_overview",
     "plot_overview_difference",
     "plot_overview_physical",

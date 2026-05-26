@@ -179,6 +179,7 @@ class RawPartitionState:
     boundary_infos: object = None
     transport_1d: object = None
     neutral_flux_limiter_diagnostics: object = None
+    neutral_wall_source_diagnostics: object = None
 
 
 @dataclass

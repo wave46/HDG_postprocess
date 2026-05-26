@@ -75,6 +75,12 @@ def _extract_solution_partition(solution_file, parameters):
         for key, value in diagnostics_group.items():
             neutral_flux_limiter_diagnostics[key] = value
 
+    neutral_wall_source_diagnostics = {}
+    if "neutral_wall_sources_diagnostics" in solution_file:
+        diagnostics_group = solution_file["neutral_wall_sources_diagnostics"]
+        for key, value in diagnostics_group.items():
+            neutral_wall_source_diagnostics[key] = value
+
     return {
         "raw_solution": solution_group["u"],
         "raw_solution_skeleton": solution_group["u_tilde"],
@@ -83,6 +89,7 @@ def _extract_solution_partition(solution_file, parameters):
         "boundary_info": solution_boundary_data,
         "transport_1d": transport_1d,
         "neutral_flux_limiter_diagnostics": neutral_flux_limiter_diagnostics,
+        "neutral_wall_source_diagnostics": neutral_wall_source_diagnostics,
     }
 
 
@@ -94,6 +101,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
     raw_solution_boundary_infos = []
     raw_transport_1d = []
     raw_neutral_flux_limiter_diagnostics = []
+    raw_neutral_wall_source_diagnostics = []
 
     parameters = None
 
@@ -112,6 +120,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
         raw_solution_boundary_infos.append(partition_data["boundary_info"])
         raw_transport_1d.append(partition_data["transport_1d"])
         raw_neutral_flux_limiter_diagnostics.append(partition_data["neutral_flux_limiter_diagnostics"])
+        raw_neutral_wall_source_diagnostics.append(partition_data["neutral_wall_source_diagnostics"])
 
     if meshpath is None and meshname_base is None:
         meshpath = solpath
@@ -127,6 +136,7 @@ def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None,
         raw_solution_boundary_infos=raw_solution_boundary_infos,
         raw_transport_1d=raw_transport_1d,
         raw_neutral_flux_limiter_diagnostics=raw_neutral_flux_limiter_diagnostics,
+        raw_neutral_wall_source_diagnostics=raw_neutral_wall_source_diagnostics,
         parameters=parameters,
         n_partitions=n_partitions,
         mesh_path=meshpath,

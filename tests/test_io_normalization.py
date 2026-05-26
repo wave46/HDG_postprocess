@@ -144,3 +144,38 @@ def test_load_solution_data_extracts_optional_neutral_limiter_diagnostics(tmp_pa
     assert solution_data.raw_neutral_flux_limiter_diagnostics is not None
     assert np.allclose(solution_data.raw_neutral_flux_limiter_diagnostics[0]["Dnn"], np.arange(6.0))
     assert np.allclose(solution_data.raw_neutral_flux_limiter_diagnostics[0]["phi"], np.linspace(0.0, 1.0, 6))
+
+
+def test_load_solution_data_extracts_optional_neutral_wall_source_diagnostics(tmp_path):
+    path = tmp_path / "toy_solution.h5"
+    with h5py.File(path, "w") as h5:
+        sim = h5.create_group("simulation_parameters")
+        sim.create_group("switches").create_dataset("ohmicsrc", data=np.array([0]))
+        sim.create_group("adimensionalization")
+        sim.create_group("physics")
+
+        sol = h5.create_group("solution")
+        sol.create_dataset("u", data=np.zeros((6, 1)))
+        sol.create_dataset("u_tilde", data=np.zeros((4, 1)))
+        sol.create_dataset("q", data=np.zeros((12, 1)))
+
+        mag = h5.create_group("magnetic")
+        mag.create_dataset("magnetic_field", data=np.zeros((3, 1)))
+
+        mesh = h5.create_group("mesh")
+        mesh.create_dataset("boundaryFlag", data=np.array([[1]]))
+        mesh.create_dataset("extfaces", data=np.array([[1]]))
+
+        wall = h5.create_group("neutral_wall_sources_diagnostics")
+        wall.create_dataset("element_puff_total", data=np.array([3.0]))
+        wall.create_dataset("element_pump_total", data=np.array([1.0]))
+        wall.create_dataset("element_net_total", data=np.array([2.0]))
+        wall.create_dataset("net_flux_density", data=np.arange(6.0))
+
+    solution_data = load_solution_data(str(tmp_path) + "/", "toy_solution", None, None, 1)
+
+    diagnostics = solution_data.raw_neutral_wall_source_diagnostics[0]
+    assert diagnostics["element_puff_total"] == 3.0
+    assert diagnostics["element_pump_total"] == 1.0
+    assert diagnostics["element_net_total"] == 2.0
+    assert np.allclose(diagnostics["net_flux_density"], np.arange(6.0))

@@ -1,5 +1,6 @@
 from hdg_postprocess.core.solution import neutrals as neutrals_ops
 from hdg_postprocess.core.solution import neutral_flux_limiter as neutral_limiter_ops
+from hdg_postprocess.core.solution import neutral_wall_sources as neutral_wall_source_ops
 from hdg_postprocess.core.solution import transport_postprocess as transport_postprocess_ops
 from hdg_postprocess.core.solution import turbulent_model as turbulent_model_ops
 
@@ -36,6 +37,15 @@ class SolutionNeutrals:
 
     def recompute_limiter_diagnostics(self, *args, **kwargs):
         return neutral_limiter_ops.recompute_neutral_flux_limiter_diagnostics(self._solution, *args, **kwargs)
+
+    def wall_source_diagnostic(self, field="net_flux_density"):
+        return neutral_wall_source_ops.neutral_wall_source_field(self._solution, field=field)
+
+    def wall_source_totals(self):
+        return neutral_wall_source_ops.neutral_wall_source_totals(self._solution)
+
+    def check_wall_source_identities(self, *args, **kwargs):
+        return neutral_wall_source_ops.check_neutral_wall_source_identities(self._solution, *args, **kwargs)
 
     @property
     def Dnn(self):

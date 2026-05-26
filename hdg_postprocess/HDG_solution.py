@@ -28,7 +28,8 @@ class HDGsolution:
     ""
     def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
                  raw_equilibriums,raw_solution_boundary_infos, parameters,
-                 n_partitions, mesh, raw_transport_1d=None, raw_neutral_flux_limiter_diagnostics=None):
+                 n_partitions, mesh, raw_transport_1d=None, raw_neutral_flux_limiter_diagnostics=None,
+                 raw_neutral_wall_source_diagnostics=None):
         self._store_input_metadata(
             parameters,
             n_partitions,
@@ -37,9 +38,11 @@ class HDGsolution:
             mesh,
             raw_transport_1d,
             raw_neutral_flux_limiter_diagnostics,
+            raw_neutral_wall_source_diagnostics,
         )
         self._store_raw_partitions(raw_solutions, raw_solutions_skeleton, raw_gradients)
         self._neutral_flux_limiter_diagnostics = self._combine_neutral_flux_limiter_diagnostics()
+        self._neutral_wall_source_diagnostics = self._combine_neutral_wall_source_diagnostics()
         self._initial_setup()
 
     def _store_input_metadata(
@@ -51,6 +54,7 @@ class HDGsolution:
         mesh,
         raw_transport_1d=None,
         raw_neutral_flux_limiter_diagnostics=None,
+        raw_neutral_wall_source_diagnostics=None,
     ):
         self._parameters = parameters
         self._neq = parameters["Neq"][0]
@@ -68,6 +72,11 @@ class HDGsolution:
             neutral_flux_limiter_diagnostics=(
                 raw_neutral_flux_limiter_diagnostics
                 if raw_neutral_flux_limiter_diagnostics is not None
+                else []
+            ),
+            neutral_wall_source_diagnostics=(
+                raw_neutral_wall_source_diagnostics
+                if raw_neutral_wall_source_diagnostics is not None
                 else []
             ),
         )
@@ -136,6 +145,70 @@ class HDGsolution:
         if array.size != expected_size:
             raise ValueError(
                 f"Neutral flux limiter diagnostic '{key}' has flat size {array.size}, "
+                f"expected {expected_size} = {n_elements} * {nodes_per_element}."
+            )
+        return array.reshape(n_elements, nodes_per_element)
+
+    def _combine_neutral_wall_source_diagnostics(self):
+        raw_diagnostics = self._raw.neutral_wall_source_diagnostics
+        if not raw_diagnostics or not any(raw_diagnostics):
+            return {}
+
+        nodes_per_element = self.mesh.mesh_parameters["nodes_per_element"]
+        keys = sorted({key for partition in raw_diagnostics for key in partition.keys()})
+        combined = {}
+        for key in keys:
+            if key.startswith("element_") and key.endswith("_total"):
+                total = 0.0
+                for partition in raw_diagnostics:
+                    if key in partition:
+                        total += float(np.asarray(partition[key]).reshape(-1)[0])
+                combined[key] = total
+                continue
+
+            if self.n_partitions == 1:
+                if key not in raw_diagnostics[0]:
+                    continue
+                combined[key] = self._reshape_neutral_wall_source_diagnostic(
+                    raw_diagnostics[0][key],
+                    self.mesh.raw.mesh_numbers[0]["Nelems"],
+                    nodes_per_element,
+                    key,
+                )
+                continue
+
+            if not self.mesh.metadata.flags.combined_to_full:
+                self.mesh.assembly.full()
+            result = np.zeros((self.mesh.global_state.n_elements, nodes_per_element))
+            filled = np.zeros(self.mesh.global_state.n_elements, dtype=bool)
+            for i, partition in enumerate(raw_diagnostics):
+                if key not in partition:
+                    continue
+                local_values = self._reshape_neutral_wall_source_diagnostic(
+                    partition[key],
+                    self.mesh.raw.mesh_numbers[i]["Nelems"],
+                    nodes_per_element,
+                    key,
+                )
+                mask = ~self.mesh.raw.ghost_elements[i].astype(bool).flatten()
+                global_elements = self.mesh.raw.rest_mesh_data[i]["loc2glob_el"][mask]
+                result[global_elements] = local_values[mask]
+                filled[global_elements] = True
+            if not np.all(filled):
+                missing = np.flatnonzero(~filled)[:5]
+                raise ValueError(
+                    f"Neutral wall source diagnostic '{key}' is missing values for "
+                    f"{np.count_nonzero(~filled)} global elements; first missing: {missing.tolist()}"
+                )
+            combined[key] = result
+        return combined
+
+    def _reshape_neutral_wall_source_diagnostic(self, values, n_elements, nodes_per_element, key):
+        array = np.asarray(values)
+        expected_size = n_elements * nodes_per_element
+        if array.size != expected_size:
+            raise ValueError(
+                f"Neutral wall source diagnostic '{key}' has flat size {array.size}, "
                 f"expected {expected_size} = {n_elements} * {nodes_per_element}."
             )
         return array.reshape(n_elements, nodes_per_element)
@@ -267,6 +340,11 @@ class HDGsolution:
     def neutral_flux_limiter_diagnostics(self):
         """Element-node neutral flux limiter diagnostics loaded from the solution file."""
         return self._neutral_flux_limiter_diagnostics
+
+    @property
+    def neutral_wall_source_diagnostics(self):
+        """Neutral wall source diagnostics loaded from the solution file."""
+        return self._neutral_wall_source_diagnostics
 
     @property
     def atomic_rates(self):
