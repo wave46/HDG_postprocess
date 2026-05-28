@@ -38,6 +38,9 @@ class SolutionNeutrals:
     def recompute_limiter_diagnostics(self, *args, **kwargs):
         return neutral_limiter_ops.recompute_neutral_flux_limiter_diagnostics(self._solution, *args, **kwargs)
 
+    def limiter_diffusion_floor(self):
+        return neutral_limiter_ops.neutral_diffusion_floor(self._solution)
+
     def wall_source_diagnostic(self, field="net_flux_density"):
         return neutral_wall_source_ops.neutral_wall_source_field(self._solution, field=field)
 

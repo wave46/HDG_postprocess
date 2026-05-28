@@ -85,7 +85,26 @@ def summarize_diagnostics(solution, activation_tol=1.0e-12):
         summary["fraction_phi_active"] = float(np.mean(diagnostics["phi"] < 1.0 - activation_tol))
     if "activation_ratio" in diagnostics:
         summary["fraction_activation_ratio_gt_one"] = float(np.mean(diagnostics["activation_ratio"] > 1.0))
+    if "D_eff" in diagnostics:
+        diff_nn_min = neutral_diffusion_floor(solution)
+        summary["diff_nn_min"] = diff_nn_min
+        summary["fraction_D_eff_at_floor"] = float(
+            np.mean(np.isclose(diagnostics["D_eff"], diff_nn_min, rtol=1.0e-8, atol=1.0e-12))
+        )
     return summary
+
+
+def neutral_diffusion_floor(solution):
+    """Return the adimensional neutral diffusion floor used by current and legacy solution files."""
+    physics = solution.parameters["physics"]
+    if "diff_nn_min" in physics:
+        return _scalar(physics, "diff_nn_min")
+    if "diff_n" in physics:
+        return 10.0 * _scalar(physics, "diff_n")
+    raise KeyError(
+        "Missing physics parameter 'diff_nn_min'. Legacy files must provide 'diff_n' so the "
+        "neutral diffusion floor can fall back to 10 * diff_n."
+    )
 
 
 def compare_diagnostics_only_runs(off_path, diagnostics_path, atol=1.0e-12, rtol=1.0e-10, strict=False):
@@ -130,9 +149,11 @@ def recompute_neutral_flux_limiter_diagnostics(
     q = solution.views.glob.gradient.conservative
     physics = solution.parameters["physics"]
     adim = solution.parameters["adimensionalization"]
+    diff_nn_min = neutral_diffusion_floor(solution)
     neutral_diffusion_parameters = _prepare_neutral_diffusion_parameters(
         neutral_diffusion_parameters,
         adim,
+        diff_nn_min_adim=diff_nn_min,
     )
     atomic_parameters = _resolve_atomic_parameters(solution, atomic_parameters)
 
@@ -163,17 +184,30 @@ def recompute_neutral_flux_limiter_diagnostics(
         where=np.abs(gamma_max) > 0.0,
     )
     limiter_gamma = _scalar(physics, "neutral_flux_limiter_gamma")
-    phi = (1.0 + activation_ratio**limiter_gamma) ** (-1.0 / limiter_gamma)
+    phi_raw = (1.0 + activation_ratio**limiter_gamma) ** (-1.0 / limiter_gamma)
+    phi_floor = np.divide(
+        diff_nn_min,
+        dnn,
+        out=np.ones_like(dnn),
+        where=dnn > 0.0,
+    )
+    phi_floor = np.minimum(1.0, phi_floor)
+    phi = np.maximum(phi_raw, phi_floor)
     d_eff = phi * dnn
     gamma_lim = phi * gamma_unlim
+    d_eff_over_dnn = np.divide(d_eff, dnn, out=np.zeros_like(d_eff), where=dnn > 0.0)
     return {
         "Dnn": dnn,
         "Gamma_unlim": gamma_unlim,
         "Gamma_max": gamma_max,
         "activation_ratio": activation_ratio,
+        "phi_raw": phi_raw,
         "phi": phi,
         "D_eff": d_eff,
+        "D_eff_over_Dnn": d_eff_over_dnn,
         "Gamma_lim": gamma_lim,
+        "diff_nn_min": np.full_like(dnn, diff_nn_min),
+        "neutral_diffusion_floor_active": d_eff <= diff_nn_min * (1.0 + 1.0e-10),
     }
 
 
@@ -235,6 +269,18 @@ def check_saved_diagnostic_identities(solution, atol=1.0e-12, rtol=1.0e-10, stri
             rtol,
         ),
     }
+    diff_nn_min = neutral_diffusion_floor(solution)
+    floor_expected = np.maximum(diagnostics["D_eff"], diff_nn_min)
+    report["D_eff_floor"] = _compare_arrays(diagnostics["D_eff"], floor_expected, atol, rtol)
+    phi_floor = np.divide(
+        diff_nn_min,
+        diagnostics["Dnn"],
+        out=np.ones_like(diagnostics["Dnn"]),
+        where=diagnostics["Dnn"] > 0.0,
+    )
+    phi_floor = np.minimum(1.0, phi_floor)
+    phi_expected = np.maximum(diagnostics["phi"], phi_floor)
+    report["phi_floor"] = _compare_arrays(diagnostics["phi"], phi_expected, atol, rtol)
     if strict:
         failed = [name for name, item in report.items() if not item["passed"]]
         if failed:
@@ -305,13 +351,15 @@ def _limit_ti_adim(ti_adim, neutral_diffusion_parameters, solution):
     return np.maximum(ti_adim, ti_min_adim)
 
 
-def _prepare_neutral_diffusion_parameters(parameters, adimensionalization):
+def _prepare_neutral_diffusion_parameters(parameters, adimensionalization, diff_nn_min_adim=None):
     params = deepcopy(parameters) if parameters is not None else make_neutral_diffusion_parameters()
     diffusion_scale = _scalar(adimensionalization, "length_scale") ** 2 / _scalar(adimensionalization, "time_scale")
     if "dnn_max_adim" not in params and "dnn_max" in params:
         params["dnn_max_adim"] = params["dnn_max"] / diffusion_scale
     if "dnn_min_adim" not in params and "dnn_min" in params:
         params["dnn_min_adim"] = params["dnn_min"] / diffusion_scale
+    if diff_nn_min_adim is not None:
+        params["dnn_min_adim"] = diff_nn_min_adim
     return params
 
 

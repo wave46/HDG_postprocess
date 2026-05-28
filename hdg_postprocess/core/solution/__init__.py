@@ -12,6 +12,7 @@ from .neutrals import calculate_dnn, calculate_dnn_with_nn_collision, calculate_
 from .neutral_flux_limiter import (
     compare_diagnostics_only_runs,
     compare_neutral_flux_limiter_diagnostics,
+    neutral_diffusion_floor,
     recompute_neutral_flux_limiter_diagnostics,
 )
 from .neutral_wall_sources import (
@@ -81,6 +82,7 @@ __all__ = [
     "calculate_mfp",
     "compare_diagnostics_only_runs",
     "compare_neutral_flux_limiter_diagnostics",
+    "neutral_diffusion_floor",
     "collect_neutral_wall_source_totals",
     "calculate_variables_along_line",
     "define_interpolators",
