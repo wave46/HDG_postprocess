@@ -6,23 +6,32 @@ import numpy as np
 from hdg_postprocess.core.solution.neutral_flux_limiter import split_solution_file_path
 
 
-DIAGNOSTIC_GROUP = "neutral_wall_sources_diagnostics"
+DIAGNOSTIC_GROUP = "diagnostics/balance/neutrals/particles/nodal_wall_sources"
+LEGACY_DIAGNOSTIC_GROUP = "neutral_wall_sources_diagnostics"
 FLUX_DENSITY_FIELDS = ("puff_flux_density", "pump_flux_density", "net_flux_density")
 TOTAL_FIELDS = ("element_puff_total", "element_pump_total", "element_net_total")
+SUPPORTED_FIELDS = (*FLUX_DENSITY_FIELDS, *TOTAL_FIELDS)
 
 
 def read_neutral_wall_source_diagnostics(path):
     """Read neutral wall-source diagnostics from one HDF5 solution file."""
     with h5py.File(path, "r") as h5:
-        if DIAGNOSTIC_GROUP not in h5:
-            raise ValueError(f"File does not contain /{DIAGNOSTIC_GROUP}: {path}")
+        if DIAGNOSTIC_GROUP in h5:
+            group = h5[DIAGNOSTIC_GROUP]
+        elif LEGACY_DIAGNOSTIC_GROUP in h5:
+            group = h5[LEGACY_DIAGNOSTIC_GROUP]
+        else:
+            raise ValueError(
+                f"File does not contain /{DIAGNOSTIC_GROUP} or /{LEGACY_DIAGNOSTIC_GROUP}: {path}"
+            )
         if "mesh/Nelems" not in h5 or "mesh/Nnodesperelem" not in h5:
             raise KeyError("Neutral wall-source diagnostics require /mesh/Nelems and /mesh/Nnodesperelem.")
         n_elements = int(np.asarray(h5["mesh/Nelems"]).reshape(-1)[0])
         nodes_per_element = int(np.asarray(h5["mesh/Nnodesperelem"]).reshape(-1)[0])
-        group = h5[DIAGNOSTIC_GROUP]
         diagnostics = {}
         for key, dataset in group.items():
+            if key not in SUPPORTED_FIELDS:
+                continue
             values = dataset[()]
             if key in TOTAL_FIELDS:
                 diagnostics[key] = float(np.asarray(values).reshape(-1)[0])
@@ -46,7 +55,7 @@ def neutral_wall_source_field(solution, field="net_flux_density"):
         raise ValueError(f"Unsupported neutral wall-source field '{field}'. Supported fields: {FLUX_DENSITY_FIELDS}")
     diagnostics = solution.neutral_wall_source_diagnostics
     if not diagnostics:
-        raise ValueError(f"This solution does not contain /{DIAGNOSTIC_GROUP}.")
+        raise ValueError(f"This solution does not contain /{DIAGNOSTIC_GROUP} or /{LEGACY_DIAGNOSTIC_GROUP}.")
     if field not in diagnostics:
         raise KeyError(f"Neutral wall-source diagnostic '{field}' is not available.")
     return diagnostics[field]
@@ -56,7 +65,7 @@ def neutral_wall_source_totals(solution):
     """Return integrated neutral wall-source totals from an HDGsolution."""
     diagnostics = solution.neutral_wall_source_diagnostics
     if not diagnostics:
-        raise ValueError(f"This solution does not contain /{DIAGNOSTIC_GROUP}.")
+        raise ValueError(f"This solution does not contain /{DIAGNOSTIC_GROUP} or /{LEGACY_DIAGNOSTIC_GROUP}.")
     return {key: diagnostics.get(key, np.nan) for key in TOTAL_FIELDS}
 
 

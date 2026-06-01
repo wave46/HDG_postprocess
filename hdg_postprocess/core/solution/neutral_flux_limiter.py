@@ -183,7 +183,7 @@ def recompute_neutral_flux_limiter_diagnostics(
         out=np.full_like(gamma_norm, np.inf),
         where=np.abs(gamma_max) > 0.0,
     )
-    limiter_gamma = _scalar(physics, "neutral_flux_limiter_gamma")
+    limiter_gamma = _scalar(physics, "neutral_flux_limiter_gamma", 1.0)
     phi_raw = (1.0 + activation_ratio**limiter_gamma) ** (-1.0 / limiter_gamma)
     phi_floor = np.divide(
         diff_nn_min,

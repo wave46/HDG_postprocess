@@ -4,6 +4,15 @@ from silx.io.dictdump import h5todict
 
 from .types import NormalizedMeshData, NormalizedSolutionData
 
+NEUTRAL_WALL_SOURCE_KEYS = {
+    "element_puff_total",
+    "element_pump_total",
+    "element_net_total",
+    "puff_flux_density",
+    "pump_flux_density",
+    "net_flux_density",
+}
+
 
 def _build_partition_filename(path, name_base, n_partition, n_partitions):
     if n_partitions == 1:
@@ -76,10 +85,16 @@ def _extract_solution_partition(solution_file, parameters):
             neutral_flux_limiter_diagnostics[key] = value
 
     neutral_wall_source_diagnostics = {}
-    if "neutral_wall_sources_diagnostics" in solution_file:
+    if _has_nested(solution_file, ("diagnostics", "balance", "neutrals", "particles", "nodal_wall_sources")):
+        diagnostics_group = _nested(solution_file, ("diagnostics", "balance", "neutrals", "particles", "nodal_wall_sources"))
+        for key, value in diagnostics_group.items():
+            if key in NEUTRAL_WALL_SOURCE_KEYS:
+                neutral_wall_source_diagnostics[key] = value
+    elif "neutral_wall_sources_diagnostics" in solution_file:
         diagnostics_group = solution_file["neutral_wall_sources_diagnostics"]
         for key, value in diagnostics_group.items():
-            neutral_wall_source_diagnostics[key] = value
+            if key in NEUTRAL_WALL_SOURCE_KEYS:
+                neutral_wall_source_diagnostics[key] = value
 
     return {
         "raw_solution": solution_group["u"],
@@ -91,6 +106,21 @@ def _extract_solution_partition(solution_file, parameters):
         "neutral_flux_limiter_diagnostics": neutral_flux_limiter_diagnostics,
         "neutral_wall_source_diagnostics": neutral_wall_source_diagnostics,
     }
+
+
+def _has_nested(container, path):
+    try:
+        _nested(container, path)
+    except KeyError:
+        return False
+    return True
+
+
+def _nested(container, path):
+    current = container
+    for key in path:
+        current = current[key]
+    return current
 
 
 def load_solution_data(solpath, solname_base, meshpath=None, meshname_base=None, n_partitions=1):

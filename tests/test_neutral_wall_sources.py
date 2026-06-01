@@ -125,6 +125,22 @@ def test_read_neutral_wall_source_diagnostics_from_hdf5(tmp_path):
     assert diagnostics["element_net_total"] == 8.0
 
 
+def test_read_neutral_wall_source_diagnostics_from_new_diagnostics_tree(tmp_path):
+    path = tmp_path / "wall_sources.h5"
+    with h5py.File(path, "w") as h5:
+        mesh = h5.create_group("mesh")
+        mesh.create_dataset("Nelems", data=np.array([2]))
+        mesh.create_dataset("Nnodesperelem", data=np.array([3]))
+        group = h5.create_group("diagnostics/balance/neutrals/particles/nodal_wall_sources")
+        for key, value in _diagnostics().items():
+            group.create_dataset(key, data=value)
+
+    diagnostics = read_neutral_wall_source_diagnostics(path)
+
+    assert diagnostics["puff_flux_density"].shape == (2, 3)
+    assert diagnostics["element_net_total"] == 8.0
+
+
 def test_collect_neutral_wall_source_totals(tmp_path):
     paths = []
     for idx in range(2):

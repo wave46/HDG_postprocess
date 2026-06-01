@@ -11,7 +11,12 @@ from hdg_postprocess.core.solution.neutral_flux_limiter import (
 )
 
 
-def _parameters(neutral_flux_limiter_mode=b"diagnostics_only", diff_n=0.0, diff_nn_min=0.0):
+def _parameters(
+    neutral_flux_limiter_mode=b"diagnostics_only",
+    diff_n=0.0,
+    diff_nn_min=0.0,
+    neutral_flux_limiter_gamma=1.0,
+):
     physics = {
         "Mref": 1.0,
         "conservative_variable_names": [b"rho", b"Gamma", b"nEi", b"nEe", b"rhon"],
@@ -21,10 +26,11 @@ def _parameters(neutral_flux_limiter_mode=b"diagnostics_only", diff_n=0.0, diff_
         "neutral_flux_limiter_eps": 0.0,
         "neutral_flux_limiter_fs_flux_min": 0.0,
         "neutral_flux_limiter_fs_fraction": 1.0,
-        "neutral_flux_limiter_gamma": 1.0,
     }
     if diff_nn_min is not None:
         physics["diff_nn_min"] = diff_nn_min
+    if neutral_flux_limiter_gamma is not None:
+        physics["neutral_flux_limiter_gamma"] = neutral_flux_limiter_gamma
     return {
         "Neq": np.array([5]),
         "Ndim": np.array([2]),
@@ -68,6 +74,7 @@ def _solution(
     neutral_flux_limiter_mode=b"diagnostics_only",
     diff_n=0.0,
     diff_nn_min=0.0,
+    neutral_flux_limiter_gamma=1.0,
 ):
     u = np.zeros((2, 3, 5))
     u[:, :, 0] = 1.0
@@ -111,6 +118,7 @@ def _solution(
             neutral_flux_limiter_mode=neutral_flux_limiter_mode,
             diff_n=diff_n,
             diff_nn_min=diff_nn_min,
+            neutral_flux_limiter_gamma=neutral_flux_limiter_gamma,
         ),
         1,
         _mesh(),
@@ -193,6 +201,26 @@ def test_neutral_flux_limiter_recomputed_phi_matches_saved_for_constant_dnn():
 
 def test_neutral_flux_limiter_recompute_allows_lagged_flux_limiter_mode():
     sol, diagnostics = _solution(neutral_flux_limiter_mode=b"lagged_flux_limiter")
+    diffusion_scale = (
+        sol.parameters["adimensionalization"]["length_scale"] ** 2
+        / sol.parameters["adimensionalization"]["time_scale"]
+    )
+    neutral_diffusion = {
+        "const": True,
+        "dnn_soft": False,
+        "dnn_max": 2.0 * diffusion_scale,
+        "dnn_min": 0.0,
+        "ti_soft": False,
+        "ti_min": 1.0e-6,
+    }
+
+    recomputed = sol.neutrals.recompute_limiter_diagnostics({}, neutral_diffusion)
+
+    assert np.allclose(recomputed["phi"], diagnostics["phi"])
+
+
+def test_neutral_flux_limiter_recompute_defaults_missing_gamma_to_one():
+    sol, diagnostics = _solution(neutral_flux_limiter_gamma=None)
     diffusion_scale = (
         sol.parameters["adimensionalization"]["length_scale"] ** 2
         / sol.parameters["adimensionalization"]["time_scale"]
