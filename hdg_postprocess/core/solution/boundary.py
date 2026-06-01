@@ -353,6 +353,28 @@ def _parameter_scalar(container, key, default=0.0):
     return float(array.reshape(-1)[0])
 
 
+def _parameter_text(container, key, default=""):
+    value = container.get(key, default)
+    array = np.asarray(value).reshape(-1)
+    if array.size == 0:
+        return str(default)
+    item = array[0]
+    if isinstance(item, bytes):
+        return item.decode().strip()
+    return str(item).strip()
+
+
+def _switch_enabled(solution, key):
+    value = solution.parameters["switches"].get(key, False)
+    array = np.asarray(value).reshape(-1)
+    if array.size == 0:
+        return False
+    item = array[0]
+    if isinstance(item, bytes):
+        return item.decode().strip().lower() in {"1", "true", "t", ".true."}
+    return bool(item)
+
+
 def _boundary_diffusion_adim(solution, key):
     return _boundary_diffusion(solution, key) / (
         solution.parameters["adimensionalization"]["length_scale"] ** 2
@@ -447,7 +469,49 @@ def _neutral_dnn_adim(solution, boundary_solution):
         diff_nn = float(solution.additional_parameters.neutral_diffusion["dnn_max_adim"])
     if diff_nn <= 0.0:
         diff_nn = 10.0 * diff_n
-    return double_softplus(raw_dnn, 10.0 * diff_n, diff_nn, 0.01, 10)
+    return double_softplus(raw_dnn, _neutral_diffusion_floor_adim(solution), diff_nn, 0.01, 10)
+
+
+def _neutral_diffusion_floor_adim(solution):
+    physics = solution.parameters["physics"]
+    if "diff_nn_min" in physics:
+        return _parameter_scalar(physics, "diff_nn_min", 0.0)
+    return 10.0 * _boundary_diffusion_adim(solution, "diff_n")
+
+
+def _neutral_limiter_active(solution):
+    return _parameter_text(solution.parameters["physics"], "neutral_flux_limiter_mode", "off") == "lagged_flux_limiter"
+
+
+def _neutral_limiter_phi(solution, boundary_context):
+    if not _neutral_limiter_active(solution):
+        return np.ones_like(boundary_context["solution_skeleton"][:, :, 0], dtype=float)
+
+    boundary_solution = boundary_context["solution_skeleton"]
+    gradient = boundary_context["gradient"]
+    inn = solution._cons_idx[b"rhon"]
+    dnn = _neutral_dnn_adim(solution, boundary_solution)
+    gamma_unlim = -dnn[:, :, None] * gradient[:, :, inn, :]
+    gamma_unlim = gamma_unlim - np.einsum("fged,fge->fgd", gradient, _neutral_w5p(solution, boundary_solution))
+    gamma_norm = np.sqrt(
+        np.sum(gamma_unlim**2, axis=-1)
+        + _parameter_scalar(solution.parameters["physics"], "neutral_flux_limiter_eps", 0.0) ** 2
+    )
+
+    ti_limited = _limited_ti_adim(solution, boundary_solution)
+    mref = solution.parameters["physics"]["Mref"]
+    gamma_max = _parameter_scalar(solution.parameters["physics"], "neutral_flux_limiter_fs_fraction", 1.0)
+    gamma_max = gamma_max * np.maximum(boundary_solution[:, :, inn], 0.0) * np.sqrt(np.maximum(mref * ti_limited, 0.0))
+    gamma_max = np.maximum(gamma_max, _parameter_scalar(solution.parameters["physics"], "neutral_flux_limiter_fs_flux_min", 0.0))
+    ratio = np.divide(gamma_norm, gamma_max, out=np.full_like(gamma_norm, np.inf), where=gamma_max > 0.0)
+    phi = np.divide(1.0, 1.0 + ratio, out=np.zeros_like(ratio), where=np.isfinite(ratio))
+    phi_floor = np.divide(
+        _neutral_diffusion_floor_adim(solution),
+        dnn,
+        out=np.ones_like(dnn),
+        where=dnn > 0.0,
+    )
+    return np.maximum(phi, np.minimum(1.0, phi_floor))
 
 
 def _neutral_w5p(solution, boundary_solution):
@@ -866,6 +930,9 @@ def _calculate_gamma_pinch_wall(solution, boundary_context):
 
 
 def _calculate_gamma_puff_wall(solution, boundary_context):
+    if _switch_enabled(solution, "neutral_wall_sources_in_elements"):
+        return np.zeros_like(boundary_context["solution"][:, :, 0])
+
     puff_rate = _parameter_scalar(solution.parameters["physics"], "puff", 0.0)
     if puff_rate == 0.0:
         return np.zeros_like(boundary_context["solution"][:, :, 0])
@@ -878,6 +945,9 @@ def _calculate_gamma_puff_wall(solution, boundary_context):
 
 
 def _calculate_gamma_pump_wall(solution, boundary_context):
+    if _switch_enabled(solution, "neutral_wall_sources_in_elements"):
+        return np.zeros_like(boundary_context["solution"][:, :, 0])
+
     cryopump_power = boundary_context.get("cryopump_power")
     if cryopump_power is not None:
         cryopump_power = float(np.asarray(cryopump_power, dtype=float).reshape(-1)[0])
@@ -910,7 +980,7 @@ def _calculate_gamma_pump_wall(solution, boundary_context):
 
 
 def _calculate_neutral_diff_flux(solution, boundary_context):
-    dnn = _neutral_dnn_adim(solution, boundary_context["solution_skeleton"])
+    dnn = _neutral_limiter_phi(solution, boundary_context) * _neutral_dnn_adim(solution, boundary_context["solution_skeleton"])
     return _boundary_flux_scale(solution) * dnn * (
         boundary_context["gradient"][:, :, solution._cons_idx[b"rhon"], 0] * boundary_context["normal_vector"][:, :, 0]
         + boundary_context["gradient"][:, :, solution._cons_idx[b"rhon"], 1] * boundary_context["normal_vector"][:, :, 1]
@@ -922,7 +992,11 @@ def _calculate_neutral_pgrad_flux(solution, boundary_context):
         boundary_context["gradient"] * boundary_context["normal_vector"][:, :, None, :],
         axis=-1,
     )
-    return _boundary_flux_scale(solution) * np.sum(qn * _neutral_w5p(solution, boundary_context["solution_skeleton"]), axis=-1)
+    return (
+        _boundary_flux_scale(solution)
+        * _neutral_limiter_phi(solution, boundary_context)
+        * np.sum(qn * _neutral_w5p(solution, boundary_context["solution_skeleton"]), axis=-1)
+    )
 
 
 def _calculate_neutral_conv_flux(solution, boundary_context):

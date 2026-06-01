@@ -2,7 +2,9 @@ import numpy as np
 import scipy.io
 import pytest
 from pathlib import Path
+from types import SimpleNamespace
 
+from hdg_postprocess.core.solution import boundary as boundary_ops
 from hdg_postprocess.formats import load_from_file
 
 from helpers import generate_baselines, load_baseline, require_scenario_data, scenario_map
@@ -28,6 +30,24 @@ def _load_reference_element(path):
     ref_dic["NodesCoord1d"] = ref_elem[key][0, 0][13]
     ref_dic["degree"] = ref_elem[key][0, 0][14]
     return ref_dic
+
+
+def test_boundary_wall_sources_are_zero_when_moved_to_elements():
+    solution = SimpleNamespace(
+        parameters={
+            "switches": {"neutral_wall_sources_in_elements": np.array([1])},
+            "physics": {"puff": 1.0, "cryopump_power": 10.0},
+        }
+    )
+    boundary_context = {
+        "solution": np.ones((2, 3, 5)),
+        "solution_skeleton": np.ones((2, 3, 5)),
+        "boundary_condition_code": np.array([[56, 55, 50], [55, 56, 50]]),
+        "cryopump_power": 10.0,
+    }
+
+    assert np.allclose(boundary_ops._calculate_gamma_puff_wall(solution, boundary_context), 0.0)
+    assert np.allclose(boundary_ops._calculate_gamma_pump_wall(solution, boundary_context), 0.0)
 
 
 def test_solution_analysis_surface(manifest_path, baselines_dir):
