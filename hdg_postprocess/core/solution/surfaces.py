@@ -29,6 +29,17 @@ def average_on_surfaces(solution, field, rho, *, method="gauss_shell", width=1e-
     return results
 
 
+def boundary_average_on_surfaces(solution, field, rho, *, width=1e-3):
+    rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
+    values, local_rho, weights = _boundary_scalar_rho_weights(solution, field)
+    results = np.array(
+        [_weighted_band_average(values, local_rho, weights, one_rho, width) for one_rho in rho_values]
+    )
+    if np.asarray(rho).ndim == 0:
+        return float(results[0])
+    return results
+
+
 def te_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
     return average_on_surfaces(solution, "te", rho, method=method, width=width)
 
@@ -279,6 +290,33 @@ def _gauss_scalar_and_rho(solution, field):
     scalar = _gauss_field(solution, field)
     psi = _gauss_psi(solution)
     return np.asarray(scalar, dtype=float), np.sqrt(np.clip(np.asarray(psi, dtype=float), 0.0, None))
+
+
+def _boundary_scalar_rho_weights(solution, field):
+    summary = solution.analysis.boundary_summary()
+    values = _boundary_field(summary, field)
+    rho = np.sqrt(np.clip(np.asarray(summary["psi"], dtype=float), 0.0, None))
+    weights = np.asarray(summary["ds"], dtype=float)
+    return np.asarray(values, dtype=float), rho, weights
+
+
+def _boundary_field(summary, field):
+    field = field.lower()
+    if field in {"q_dep", "q_tot_dep"}:
+        return summary["q_i_tot_dep_bc_skeleton"] + summary["q_e_tot_dep_bc_skeleton"]
+    if field in {"abs_q_dep", "abs_q_tot_dep"}:
+        return np.abs(summary["q_i_tot_dep_bc_skeleton"] + summary["q_e_tot_dep_bc_skeleton"])
+    if field == "q_i_dep":
+        return summary["q_i_tot_dep_bc_skeleton"]
+    if field == "q_e_dep":
+        return summary["q_e_tot_dep_bc_skeleton"]
+    if field == "abs_q_i_dep":
+        return np.abs(summary["q_i_tot_dep_bc_skeleton"])
+    if field == "abs_q_e_dep":
+        return np.abs(summary["q_e_tot_dep_bc_skeleton"])
+    if field in summary:
+        return summary[field]
+    raise KeyError(f"Unsupported boundary flux-surface field: {field}")
 
 
 def _node_field(solution, field):

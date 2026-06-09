@@ -43,6 +43,10 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     sion = sol.flux_surface.average("sion", 0.8, method="gauss_shell", width=2e-3)
     q_par = sol.flux_surface.average("q_par", 0.8, method="gauss_shell", width=2e-3)
     abs_q_par = sol.flux_surface.average("abs_q_par", 0.8, method="gauss_shell", width=2e-3)
+    boundary = sol.analysis.boundary_summary()
+    rho_boundary = np.sqrt(np.clip(boundary["psi"], 0.0, None))
+    rho_wall = float(np.nanmedian(rho_boundary))
+    abs_q_dep = sol.flux_surface.boundary_average("abs_q_dep", rho_wall, width=1e-2)
     collisionality = sol.flux_surface.collisionality(0.8, method="gauss_shell", width=2e-3)
     pinch_factor = sol.flux_surface.pinch_factor(0.8, method="gauss_shell", width=2e-3)
     pinch_velocity = sol.flux_surface.pinch_velocity(0.8, 1.0, rho_edge=0.99, method="gauss_shell", width=2e-3)
@@ -65,6 +69,8 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     assert np.isfinite(q_par)
     assert np.isfinite(abs_q_par)
     assert abs_q_par >= 0.0
+    assert np.isfinite(abs_q_dep)
+    assert abs_q_dep >= 0.0
     assert np.isfinite(collisionality)
     assert np.isfinite(pinch_factor)
     assert np.isfinite(pinch_velocity)
