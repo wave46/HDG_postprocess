@@ -11,8 +11,6 @@ _PHYSICAL_FIELDS = {
     "k": b"k",
 }
 
-
-
 _GEOMETRY_FIELDS = {"minor_radius", "major_radius", "epsilon", "q", "psi", "btor"}
 
 
@@ -50,6 +48,17 @@ def epsilon_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
 
 def q_on_surfaces(solution, rho, *, method="gauss_shell", width=1e-3):
     return average_on_surfaces(solution, "q", rho, method=method, width=width)
+
+
+def omp_distance_on_surfaces(solution, rho, *, n_points=4000, z_midplane=None):
+    rho_input = np.asarray(rho)
+    rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
+    rho_omp, r_omp = _outer_midplane_rho_map(solution, n_points=n_points, z_midplane=z_midplane)
+    r_sep = np.interp(1.0, rho_omp, r_omp)
+    result = np.interp(rho_values, rho_omp, r_omp) - r_sep
+    if rho_input.ndim == 0:
+        return float(result[0])
+    return result
 
 
 def collisionality_on_surfaces(
@@ -307,7 +316,6 @@ def _gauss_field(solution, field):
         return _gauss_q(solution)
     if field == "btor":
         return _gauss_btor(solution)
-
     physical_name = _PHYSICAL_FIELDS.get(field)
     if physical_name is None:
         raise KeyError(f"Unsupported flux-surface field: {field}")
@@ -366,6 +374,37 @@ def _gauss_btor(solution):
 def _gauss_q(solution):
     full_values = solution.equilibrium.define_qcyl(view="glob")
     return _interpolate_full_to_gauss(solution, full_values)
+
+
+def _outer_midplane_rho_map(solution, *, n_points, z_midplane):
+    length_scale = float(solution.parameters["adimensionalization"]["length_scale"])
+    physics = solution.parameters["physics"]
+    vertices = np.asarray(solution.mesh.global_state.vertices, dtype=float)
+    if "r_axis" in physics:
+        r_axis = float(physics["r_axis"]) * length_scale
+    else:
+        r_axis = float(np.nanmin(vertices[:, 0]))
+    if z_midplane is None:
+        z_midplane = float(physics.get("z_axis", 0.0)) * length_scale
+
+    r_max = float(np.nanmax(vertices[:, 0]))
+    r_line = np.linspace(r_axis, r_max, int(n_points))
+    z_line = np.full_like(r_line, float(z_midplane))
+    psi_line = solution.sample.line(r_line, z_line, ["psi"])["psi"]
+    rho_line = np.sqrt(np.clip(np.asarray(psi_line, dtype=float), 0.0, None))
+
+    finite = np.isfinite(rho_line) & np.isfinite(r_line)
+    if np.count_nonzero(finite) < 2:
+        raise ValueError("Could not build an outer-midplane rho map from sampled psi.")
+
+    order = np.argsort(rho_line[finite])
+    rho_sorted = rho_line[finite][order]
+    r_sorted = r_line[finite][order]
+    rho_unique, unique_idx = np.unique(rho_sorted, return_index=True)
+    r_unique = r_sorted[unique_idx]
+    if rho_unique.size < 2:
+        raise ValueError("Outer-midplane rho map has fewer than two unique rho values.")
+    return rho_unique, r_unique
 
 
 def _interpolate_full_to_gauss(solution, full_values):

@@ -32,6 +32,14 @@ class SolutionFluxSurface:
     def q(self, rho, *, method="gauss_shell", width=1e-3):
         return surface_ops.q_on_surfaces(self._solution, rho, method=method, width=width)
 
+    def omp_distance(self, rho, *, n_points=4000, z_midplane=None):
+        return surface_ops.omp_distance_on_surfaces(
+            self._solution,
+            rho,
+            n_points=n_points,
+            z_midplane=z_midplane,
+        )
+
     def collisionality(
         self,
         rho,
