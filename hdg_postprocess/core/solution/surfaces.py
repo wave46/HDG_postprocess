@@ -35,12 +35,32 @@ def average_on_surfaces(solution, field, rho, *, method="gauss_shell", width=1e-
     return results
 
 
+def integral_on_surfaces(solution, field, rho, *, method="gauss_shell", width=1e-3):
+    rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
+    values, local_rho, weights = _surface_scalar_rho_weights(solution, field, method)
+    if weights is None:
+        raise ValueError("Flux-surface integrals require weighted data; use method='gauss_shell'.")
+    results = np.array([_weighted_band_integral(values, local_rho, weights, one_rho, width) for one_rho in rho_values])
+    if np.asarray(rho).ndim == 0:
+        return float(results[0])
+    return results
+
+
 def boundary_average_on_surfaces(solution, field, rho, *, width=1e-3):
     rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
     values, local_rho, weights = _boundary_scalar_rho_weights(solution, field)
     results = np.array(
         [_weighted_band_average(values, local_rho, weights, one_rho, width) for one_rho in rho_values]
     )
+    if np.asarray(rho).ndim == 0:
+        return float(results[0])
+    return results
+
+
+def boundary_integral_on_surfaces(solution, field, rho, *, width=1e-3):
+    rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
+    values, local_rho, weights = _boundary_scalar_rho_weights(solution, field)
+    results = np.array([_weighted_band_integral(values, local_rho, weights, one_rho, width) for one_rho in rho_values])
     if np.asarray(rho).ndim == 0:
         return float(results[0])
     return results
@@ -313,6 +333,8 @@ def _boundary_scalar_rho_weights(solution, field):
 
 
 def _boundary_field(summary, field):
+    if not isinstance(field, str):
+        return field
     field = field.lower()
     if field in {"q_dep", "q_tot_dep"}:
         return summary["q_i_tot_dep_bc_skeleton"] + summary["q_e_tot_dep_bc_skeleton"]
@@ -565,3 +587,10 @@ def _weighted_band_average(values, rho_values, weights, rho0, width):
     if weight_sum <= 0.0:
         return np.nan
     return float(np.sum(values[mask] * selected_weights) / weight_sum)
+
+
+def _weighted_band_integral(values, rho_values, weights, rho0, width):
+    mask = np.abs(rho_values - rho0) <= width
+    if not np.any(mask):
+        return np.nan
+    return float(np.sum(values[mask] * weights[mask]))

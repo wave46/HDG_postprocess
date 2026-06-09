@@ -8,8 +8,14 @@ class SolutionFluxSurface:
     def average(self, field, rho, *, method="gauss_shell", width=1e-3):
         return surface_ops.average_on_surfaces(self._solution, field, rho, method=method, width=width)
 
+    def integral(self, field, rho, *, method="gauss_shell", width=1e-3):
+        return surface_ops.integral_on_surfaces(self._solution, field, rho, method=method, width=width)
+
     def boundary_average(self, field, rho, *, width=1e-3):
         return surface_ops.boundary_average_on_surfaces(self._solution, field, rho, width=width)
+
+    def boundary_integral(self, field, rho, *, width=1e-3):
+        return surface_ops.boundary_integral_on_surfaces(self._solution, field, rho, width=width)
 
     def te(self, rho, *, method="gauss_shell", width=1e-3):
         return surface_ops.te_on_surfaces(self._solution, rho, method=method, width=width)

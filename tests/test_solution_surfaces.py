@@ -41,12 +41,19 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     x_omp = sol.flux_surface.omp_distance(np.array([0.8, 0.9, 1.0]), n_points=200)
     x_sep = sol.flux_surface.omp_distance(1.0, n_points=200)
     sion = sol.flux_surface.average("sion", 0.8, method="gauss_shell", width=2e-3)
+    n_integral = sol.flux_surface.integral("n", 0.8, method="gauss_shell", width=2e-3)
     q_par = sol.flux_surface.average("q_par", 0.8, method="gauss_shell", width=2e-3)
     abs_q_par = sol.flux_surface.average("abs_q_par", 0.8, method="gauss_shell", width=2e-3)
     boundary = sol.analysis.boundary_summary()
     rho_boundary = np.sqrt(np.clip(boundary["psi"], 0.0, None))
     rho_wall = float(np.nanmedian(rho_boundary))
     abs_q_dep = sol.flux_surface.boundary_average("abs_q_dep", rho_wall, width=1e-2)
+    q_dep_integral = sol.flux_surface.boundary_integral("q_dep", rho_wall, width=1e-2)
+    q_dep_abs_integral = sol.flux_surface.boundary_integral(
+        np.abs(boundary["q_i_tot_dep_bc_skeleton"] + boundary["q_e_tot_dep_bc_skeleton"]),
+        rho_wall,
+        width=1e-2,
+    )
     collisionality = sol.flux_surface.collisionality(0.8, method="gauss_shell", width=2e-3)
     pinch_factor = sol.flux_surface.pinch_factor(0.8, method="gauss_shell", width=2e-3)
     pinch_velocity = sol.flux_surface.pinch_velocity(0.8, 1.0, rho_edge=0.99, method="gauss_shell", width=2e-3)
@@ -66,11 +73,15 @@ def test_surface_te_methods_return_finite_values(manifest_path):
     assert np.isfinite(x_omp).all()
     assert np.isclose(x_sep, 0.0)
     assert np.isfinite(sion)
+    assert np.isfinite(n_integral)
     assert np.isfinite(q_par)
     assert np.isfinite(abs_q_par)
     assert abs_q_par >= 0.0
     assert np.isfinite(abs_q_dep)
     assert abs_q_dep >= 0.0
+    assert np.isfinite(q_dep_integral)
+    assert np.isfinite(q_dep_abs_integral)
+    assert q_dep_abs_integral >= 0.0
     assert np.isfinite(collisionality)
     assert np.isfinite(pinch_factor)
     assert np.isfinite(pinch_velocity)

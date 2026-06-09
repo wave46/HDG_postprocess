@@ -50,7 +50,24 @@ from .sampling import (
     save_summary_line,
 )
 from .transport_postprocess import bohm_profile, gyrobohm_profile, mixed_bohm_gyrobohm
-from .surfaces import project_profile_to_solution, rho_field
+from .surfaces import (
+    average_on_surfaces,
+    boundary_average_on_surfaces,
+    boundary_integral_on_surfaces,
+    collisionality_on_surfaces,
+    delta_te_on_surfaces,
+    epsilon_on_surfaces,
+    integral_on_surfaces,
+    major_radius_on_surfaces,
+    minor_radius_on_surfaces,
+    omp_distance_on_surfaces,
+    pinch_factor_on_surfaces,
+    pinch_velocity_on_surfaces,
+    project_profile_to_solution,
+    q_on_surfaces,
+    rho_field,
+    te_on_surfaces,
+)
 from .turbulent_model import calculate_dk
 
 __all__ = [
@@ -105,6 +122,8 @@ __all__ = [
     "plot_variables_overview",
     "save_summary_line",
     "average_on_surfaces",
+    "boundary_average_on_surfaces",
+    "boundary_integral_on_surfaces",
     "collisionality_on_surfaces",
     "pinch_factor_on_surfaces",
     "pinch_velocity_on_surfaces",
@@ -112,6 +131,8 @@ __all__ = [
     "minor_radius_on_surfaces",
     "major_radius_on_surfaces",
     "epsilon_on_surfaces",
+    "integral_on_surfaces",
+    "omp_distance_on_surfaces",
     "q_on_surfaces",
     "te_on_surfaces",
     "rho_field",
