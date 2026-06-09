@@ -23,7 +23,13 @@ _GEOMETRY_FIELDS = {"minor_radius", "major_radius", "epsilon", "q", "psi", "btor
 
 def average_on_surfaces(solution, field, rho, *, method="gauss_shell", width=1e-3):
     rho_values = np.atleast_1d(np.asarray(rho, dtype=float))
-    results = np.array([_surface_average_scalar(solution, field, one_rho, method=method, width=width) for one_rho in rho_values])
+    values, local_rho, weights = _surface_scalar_rho_weights(solution, field, method)
+    if weights is None:
+        results = np.array([_arithmetic_band_average(values, local_rho, one_rho, width) for one_rho in rho_values])
+    else:
+        results = np.array(
+            [_weighted_band_average(values, local_rho, weights, one_rho, width) for one_rho in rho_values]
+        )
     if np.asarray(rho).ndim == 0:
         return float(results[0])
     return results
@@ -267,16 +273,22 @@ def project_profile_to_solution(solution, rho, values, *, target="node"):
 
 
 def _surface_average_scalar(solution, field, rho0, *, method, width):
+    values, rho_values, weights = _surface_scalar_rho_weights(solution, field, method)
+    if weights is None:
+        return _arithmetic_band_average(values, rho_values, rho0, width)
+    return _weighted_band_average(values, rho_values, weights, rho0, width)
+
+
+def _surface_scalar_rho_weights(solution, field, method):
     if method == "node_band":
         values, rho_values = _node_scalar_and_rho(solution, field)
-        return _arithmetic_band_average(values, rho_values, rho0, width)
+        return values, rho_values, None
     if method == "gauss_band":
         values, rho_values = _gauss_scalar_and_rho(solution, field)
-        return _arithmetic_band_average(values, rho_values, rho0, width)
+        return values, rho_values, None
     if method == "gauss_shell":
         values, rho_values = _gauss_scalar_and_rho(solution, field)
-        weights = _gauss_weights(solution)
-        return _weighted_band_average(values, rho_values, weights, rho0, width)
+        return values, rho_values, _gauss_weights(solution)
     raise ValueError(f"Unsupported surface averaging method: {method}")
 
 
