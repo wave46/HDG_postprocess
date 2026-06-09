@@ -1,5 +1,10 @@
 import numpy as np
 
+from hdg_postprocess.routines.plasma import (
+    calculate_parallel_electron_heat_flux_par_cons,
+    calculate_parallel_ion_heat_flux_par_cons,
+)
+
 
 _PHYSICAL_FIELDS = {
     "n": b"rho",
@@ -10,6 +15,8 @@ _PHYSICAL_FIELDS = {
     "nn": b"rhon",
     "k": b"k",
 }
+
+_GAUSS_DERIVED_FIELDS = {"sion", "ionization", "q_i_par", "q_e_par", "q_par", "abs_q_par"}
 
 _GEOMETRY_FIELDS = {"minor_radius", "major_radius", "epsilon", "q", "psi", "btor"}
 
@@ -301,6 +308,7 @@ def _node_field(solution, field):
 
 
 def _gauss_field(solution, field):
+    field = field.lower()
     if field == "psi":
         return _gauss_psi(solution)
     if field == "major_radius":
@@ -316,6 +324,8 @@ def _gauss_field(solution, field):
         return _gauss_q(solution)
     if field == "btor":
         return _gauss_btor(solution)
+    if field in _GAUSS_DERIVED_FIELDS:
+        return _gauss_derived_field(solution, field)
     physical_name = _PHYSICAL_FIELDS.get(field)
     if physical_name is None:
         raise KeyError(f"Unsupported flux-surface field: {field}")
@@ -374,6 +384,78 @@ def _gauss_btor(solution):
 def _gauss_q(solution):
     full_values = solution.equilibrium.define_qcyl(view="glob")
     return _interpolate_full_to_gauss(solution, full_values)
+
+
+def _gauss_derived_field(solution, field):
+    if field in {"sion", "ionization"}:
+        return solution.sources.ionization("gauss")
+    if field in {"q_i_par", "q_e_par", "q_par", "abs_q_par"}:
+        q_i_par, q_e_par = _gauss_parallel_heat_fluxes(solution)
+        if field == "q_i_par":
+            return q_i_par
+        if field == "q_e_par":
+            return q_e_par
+        q_par = q_i_par + q_e_par
+        if field == "abs_q_par":
+            return np.abs(q_par)
+        return q_par
+    raise KeyError(f"Unsupported derived flux-surface field: {field}")
+
+
+def _gauss_parallel_heat_fluxes(solution):
+    if not solution.metadata.flags.combined_gauss:
+        solution.assembly.gauss()
+
+    adim = solution.parameters["adimensionalization"]
+    physics = solution.parameters["physics"]
+    solution_gauss = solution.views.gauss.solution.conservative
+    gradient_gauss = solution.views.gauss.gradient.conservative
+    magnetic_field = solution.views.gauss.equilibrium.magnetic_field
+
+    q_i_par = calculate_parallel_ion_heat_flux_par_cons(
+        solution_gauss,
+        gradient_gauss,
+        magnetic_field[:, :, 0],
+        magnetic_field[:, :, 1],
+        magnetic_field[:, :, 2],
+        adim["density_scale"],
+        _parallel_conductivity(solution, "diff_pari"),
+        adim["temperature_scale"],
+        physics["Mref"],
+        adim["charge_scale"],
+        adim["mass_scale"],
+        adim["speed_scale"],
+        adim["length_scale"],
+        50,
+        solution._cons_idx,
+    )
+    q_e_par = calculate_parallel_electron_heat_flux_par_cons(
+        solution_gauss,
+        gradient_gauss,
+        magnetic_field[:, :, 0],
+        magnetic_field[:, :, 1],
+        magnetic_field[:, :, 2],
+        adim["density_scale"],
+        _parallel_conductivity(solution, "diff_pare"),
+        adim["temperature_scale"],
+        physics["Mref"],
+        adim["charge_scale"],
+        adim["speed_scale"],
+        adim["length_scale"],
+        50,
+        solution._cons_idx,
+    )
+    return q_i_par, q_e_par
+
+
+def _parallel_conductivity(solution, key):
+    adim = solution.parameters["adimensionalization"]
+    return solution.parameters["physics"][key] / (
+        adim["time_scale"] ** 3
+        * adim["temperature_scale"] ** (7 / 2)
+        / (adim["density_scale"] * adim["length_scale"] ** 4)
+        / adim["mass_scale"]
+    )
 
 
 def _outer_midplane_rho_map(solution, *, n_points, z_midplane):
