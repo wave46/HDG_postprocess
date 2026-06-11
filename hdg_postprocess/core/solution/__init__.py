@@ -21,6 +21,12 @@ from .neutral_wall_sources import (
     read_neutral_wall_source_diagnostics,
 )
 from .physical import cons2phys, init_phys_variables
+from .impurity_radiation import (
+    ImpurityRadiationMetadata,
+    get_impurity_radiation_metadata,
+    has_impurity_radiation,
+    normalize_impurity_radiation_metadata,
+)
 from .plasma_sources import (
     calculate_cooling_factor,
     calculate_cx_rate,
@@ -107,6 +113,10 @@ __all__ = [
     "define_minor_radii",
     "define_qcyl",
     "init_phys_variables",
+    "ImpurityRadiationMetadata",
+    "get_impurity_radiation_metadata",
+    "has_impurity_radiation",
+    "normalize_impurity_radiation_metadata",
     "calculate_ohmic_source",
     "calculate_recombination_rate",
     "recombine_boundary_solution",
