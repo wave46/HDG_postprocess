@@ -15,6 +15,12 @@ def _reshape_node_values(values, shape):
     return values.reshape(shape)
 
 
+def _reshape_node_matrix(values, shape):
+    if shape is None:
+        return values
+    return values.reshape(shape[0], shape[1], values.shape[1])
+
+
 def _te_from_internal_energy(solutions, T0, Mref, energy_idx):
     return T0 * 2 / 3 / Mref * solutions[:, energy_idx] / solutions[:, 0]
 
@@ -352,6 +358,35 @@ def calculate_cooling_factor_cons(solutions,cooling_parameters,T0,Mref,kb,tol=1e
     
     return _reshape_node_values(res, shape)#/kb
 
+def calculate_impurity_cooling_factors_cons(solutions, coefficients_adim, Mref, tol=1e-20):
+    """
+    Calculate per-impurity adimensional cooling factors from saved coefficient columns.
+    """
+    coefficients_adim = np.asarray(coefficients_adim, dtype=float)
+    if coefficients_adim.ndim != 2:
+        raise ValueError("coefficients_adim must be a two-dimensional array")
+
+    solutions, shape = _flatten_solution_nodes(solutions)
+    te_adim = np.full_like(solutions[:, 0], 1e-10)
+    good_idx = (solutions[:, 0] > tol) & (solutions[:, 3] > tol)
+    te_adim[good_idx] = 2 / 3 / Mref * solutions[good_idx, 3] / solutions[good_idx, 0]
+    te_adim = np.maximum(te_adim, tol)
+
+    cooling_factors = np.zeros((solutions.shape[0], coefficients_adim.shape[1]))
+    for impurity_index in range(coefficients_adim.shape[1]):
+        cooling_factors[:, impurity_index] = np.exp(
+            eirene_fit_1D_log(te_adim, coefficients_adim[:, impurity_index])
+        ) / 1e6
+    return _reshape_node_matrix(cooling_factors, shape)
+
+
+def calculate_total_impurity_cooling_factor_cons(solutions, coefficients_adim, concentrations, Mref, tol=1e-20):
+    """
+    Calculate concentration-weighted total impurity cooling from saved coefficient columns.
+    """
+    cooling_factors = calculate_impurity_cooling_factors_cons(solutions, coefficients_adim, Mref, tol=tol)
+    return np.sum(cooling_factors * np.asarray(concentrations, dtype=float), axis=-1)
+
 def calculate_Erec_rate_cons(solutions,Erec_parameters,T0,n0,Mref,tol=1e-20):
     """
     calculates Erec rate for given te,ne
@@ -434,6 +469,24 @@ def calculate_electron_sink_due_to_cooling_factor_cons(solutions,cooling_paramet
     """
     cooling_factor = calculate_cooling_factor_cons(solutions,cooling_parameters,T0,Mref,kb)
     return kb * n0**2 * solutions[..., 0] ** 2 * cooling_factor * impurity_concentration
+
+def calculate_impurity_radiation_cons(solutions, cooling_factors, concentrations, source_scale):
+    """
+    Calculate per-impurity electron radiation sinks from per-impurity cooling factors.
+    """
+    return (
+        source_scale
+        * solutions[..., 0][..., None] ** 2
+        * cooling_factors
+        * np.asarray(concentrations, dtype=float)
+    )
+
+
+def calculate_total_impurity_radiation_cons(solutions, cooling_factors, concentrations, source_scale):
+    """
+    Calculate total electron radiation sink from per-impurity cooling factors.
+    """
+    return np.sum(calculate_impurity_radiation_cons(solutions, cooling_factors, concentrations, source_scale), axis=-1)
 
 def calculate_electron_sink_due_to_rec_cons(solutions,Erec_parameters,T0,n0,Mref,kb,cons_idx):
     """

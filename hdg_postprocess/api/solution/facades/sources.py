@@ -74,5 +74,19 @@ class SolutionSources:
     def cooling_factor(self, view="simple"):
         return self._run_view_field(plasma_source_ops.calculate_cooling_factor, "cooling_factor", view)
 
+    def impurity_cooling_factors(self, view="simple"):
+        return self._run_view_field(
+            plasma_source_ops.calculate_impurity_cooling_factors,
+            "impurity_cooling_factors",
+            view,
+        )
+
+    def impurity_radiation(self, view="simple"):
+        return self._run_view_field(
+            plasma_source_ops.calculate_impurity_radiation,
+            "impurity_radiation",
+            view,
+        )
+
     def cx(self, view="simple"):
         return self._run_view_field(plasma_source_ops.calculate_cx_source, "cx_source", view)

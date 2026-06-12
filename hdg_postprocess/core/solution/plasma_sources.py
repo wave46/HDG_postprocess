@@ -1,5 +1,8 @@
+import numpy as np
+
 from hdg_postprocess.routines.atomic import *
 from hdg_postprocess.routines.plasma import *
+from hdg_postprocess.core.solution.impurity_radiation import get_impurity_radiation_metadata
 from hdg_postprocess.core.solution import preparation as prep_ops
 
 
@@ -320,63 +323,98 @@ def calculate_electron_gain_due_to_rec(solution, which="simple"):
 
 
 def calculate_electron_sink_due_to_cooling_factor(solution, which="simple"):
-    _require_atomic_key(
-        solution,
-        "cooling_factor",
-        "Please, provide atomic settings for electron losses due to cooling factor for the simulation",
-    )
     if which == "simple":
         prep_ops.ensure_simple_physical(solution)
         calculate_electron_sink_due_to_cooling_factor(solution, which="full")
         _assign_simple_view(solution, "electron_sink_cooling_factor", solution.views.glob.sources.electron_sink_cooling_factor)
     elif which == "full":
         prep_ops.ensure_full_solution(solution)
-        solution.views.glob.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
-            solution.views.glob.solution.conservative,
-            solution.additional_parameters.atomic["cooling_factor"],
-            solution.parameters["physics"]["impurity_concentration"],
-            solution.parameters["adimensionalization"]["temperature_scale"],
-            solution.parameters["adimensionalization"]["density_scale"],
-            solution.parameters["physics"]["Mref"],
-            solution.parameters["adimensionalization"]["charge_scale"],
+        calculate_impurity_radiation(solution, which="full")
+        solution.views.glob.sources.electron_sink_cooling_factor = np.sum(
+            solution.views.glob.sources.impurity_radiation,
+            axis=-1,
         )
     elif which == "gauss":
         prep_ops.ensure_gauss_solution(solution)
-        solution.views.gauss.sources.electron_sink_cooling_factor = calculate_electron_sink_due_to_cooling_factor_cons(
-            solution.views.gauss.solution.conservative,
-            solution.additional_parameters.atomic["cooling_factor"],
-            solution.parameters["physics"]["impurity_concentration"],
-            solution.parameters["adimensionalization"]["temperature_scale"],
-            solution.parameters["adimensionalization"]["density_scale"],
-            solution.parameters["physics"]["Mref"],
-            solution.parameters["adimensionalization"]["charge_scale"],
+        calculate_impurity_radiation(solution, which="gauss")
+        solution.views.gauss.sources.electron_sink_cooling_factor = np.sum(
+            solution.views.gauss.sources.impurity_radiation,
+            axis=-1,
         )
 
 
 def calculate_cooling_factor(solution, which="simple"):
-    _require_atomic_key(solution, "cooling_factor", "Please, provide atomic settings for the cooling factor for the simulation")
     if which == "simple":
         prep_ops.ensure_simple_physical(solution)
         calculate_cooling_factor(solution, which="full")
         _assign_simple_view(solution, "cooling_factor", solution.views.glob.sources.cooling_factor)
     elif which == "full":
         prep_ops.ensure_full_solution(solution)
-        solution.views.glob.sources.cooling_factor = calculate_cooling_factor_cons(
-            solution.views.glob.solution.conservative,
-            solution.additional_parameters.atomic["cooling_factor"],
-            solution.parameters["adimensionalization"]["temperature_scale"],
-            solution.parameters["physics"]["Mref"],
-            solution.parameters["adimensionalization"]["charge_scale"],
+        calculate_impurity_cooling_factors(solution, which="full")
+        metadata = get_impurity_radiation_metadata(solution, require_coefficients=True)
+        solution.views.glob.sources.cooling_factor = np.sum(
+            solution.views.glob.sources.impurity_cooling_factors * metadata.impurity_concentrations,
+            axis=-1,
         )
     elif which == "gauss":
         prep_ops.ensure_gauss_solution(solution)
-        solution.views.gauss.sources.cooling_factor = calculate_cooling_factor_cons(
+        calculate_impurity_cooling_factors(solution, which="gauss")
+        metadata = get_impurity_radiation_metadata(solution, require_coefficients=True)
+        solution.views.gauss.sources.cooling_factor = np.sum(
+            solution.views.gauss.sources.impurity_cooling_factors * metadata.impurity_concentrations,
+            axis=-1,
+        )
+
+
+def calculate_impurity_cooling_factors(solution, which="simple"):
+    if which == "simple":
+        prep_ops.ensure_simple_physical(solution)
+        calculate_impurity_cooling_factors(solution, which="full")
+        _assign_simple_view(
+            solution,
+            "impurity_cooling_factors",
+            solution.views.glob.sources.impurity_cooling_factors,
+        )
+    elif which == "full":
+        prep_ops.ensure_full_solution(solution)
+        solution.views.glob.sources.impurity_cooling_factors = _impurity_cooling_factors_for_solution(
+            solution,
+            solution.views.glob.solution.conservative,
+        )
+    elif which == "gauss":
+        prep_ops.ensure_gauss_solution(solution)
+        solution.views.gauss.sources.impurity_cooling_factors = _impurity_cooling_factors_for_solution(
+            solution,
             solution.views.gauss.solution.conservative,
-            solution.additional_parameters.atomic["cooling_factor"],
-            solution.parameters["physics"]["impurity_concentration"],
-            solution.parameters["adimensionalization"]["temperature_scale"],
-            solution.parameters["adimensionalization"]["density_scale"],
-            solution.parameters["physics"]["Mref"],
+        )
+
+
+def calculate_impurity_radiation(solution, which="simple"):
+    if which == "simple":
+        prep_ops.ensure_simple_physical(solution)
+        calculate_impurity_radiation(solution, which="full")
+        _assign_simple_view(solution, "impurity_radiation", solution.views.glob.sources.impurity_radiation)
+    elif which == "full":
+        prep_ops.ensure_full_solution(solution)
+        if solution.views.glob.sources.impurity_cooling_factors is None:
+            calculate_impurity_cooling_factors(solution, which="full")
+        metadata = get_impurity_radiation_metadata(solution, require_coefficients=True)
+        solution.views.glob.sources.impurity_radiation = calculate_impurity_radiation_cons(
+            solution.views.glob.solution.conservative,
+            solution.views.glob.sources.impurity_cooling_factors,
+            metadata.impurity_concentrations,
+            _impurity_radiation_source_scale(solution),
+        )
+    elif which == "gauss":
+        prep_ops.ensure_gauss_solution(solution)
+        if solution.views.gauss.sources.impurity_cooling_factors is None:
+            calculate_impurity_cooling_factors(solution, which="gauss")
+        metadata = get_impurity_radiation_metadata(solution, require_coefficients=True)
+        solution.views.gauss.sources.impurity_radiation = calculate_impurity_radiation_cons(
+            solution.views.gauss.solution.conservative,
+            solution.views.gauss.sources.impurity_cooling_factors,
+            metadata.impurity_concentrations,
+            _impurity_radiation_source_scale(solution),
         )
 
 
@@ -417,3 +455,36 @@ def _require_atomic_key(solution, key, message):
 
 def _assign_simple_view(solution, field_name, full_values):
     setattr(solution.views.simple.sources, field_name, prep_ops.project_full_to_simple(solution, full_values))
+
+
+def _impurity_cooling_factors_for_solution(solution, conservative):
+    metadata = get_impurity_radiation_metadata(solution, require_coefficients=True)
+    if _uses_saved_impurity_coefficients(solution):
+        return calculate_impurity_cooling_factors_cons(
+            conservative,
+            metadata.impurity_cooling_coefficients_adim,
+            solution.parameters["physics"]["Mref"],
+        )
+    _require_atomic_key(solution, "cooling_factor", "Please, provide atomic settings for the cooling factor for the simulation")
+    return calculate_cooling_factor_cons(
+        conservative,
+        solution.additional_parameters.atomic["cooling_factor"],
+        solution.parameters["adimensionalization"]["temperature_scale"],
+        solution.parameters["physics"]["Mref"],
+        solution.parameters["adimensionalization"]["charge_scale"],
+    )[..., None]
+
+
+def _uses_saved_impurity_coefficients(solution):
+    return "impurity_cooling_coefficients_adim" in solution.parameters["physics"]
+
+
+def _impurity_radiation_source_scale(solution):
+    adim = solution.parameters["adimensionalization"]
+    if _uses_saved_impurity_coefficients(solution):
+        return (
+            adim["specific_energy_density_scale"]
+            / adim["time_scale"]
+            * adim["mass_scale"]
+        )
+    return adim["charge_scale"] * adim["density_scale"] ** 2

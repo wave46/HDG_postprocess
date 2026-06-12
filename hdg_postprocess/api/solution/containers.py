@@ -36,6 +36,8 @@ class SourceViewState:
     electron_gain_rec: object = None
     electron_sink_cooling_factor: object = None
     cooling_factor: object = None
+    impurity_cooling_factors: object = None
+    impurity_radiation: object = None
     cx_source: object = None
     external_heating: object = None
     external_heating_e: object = None
