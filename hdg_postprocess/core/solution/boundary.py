@@ -66,12 +66,14 @@ def summary_along_the_wall(solution):
         "q_e_tot_dep_bc_skeleton",
         "q_i_tot_dep_bc",
         "q_i_tot_dep_bc_skeleton",
-        "neutral_flux",
-        "neutral_flux_skeleton",
+        # "neutral_flux",
+        # "neutral_flux_skeleton",
     ]
 
     normal_vector = solution.mesh.boundary_state.normals_gauss
-    b_n = np.sum(boundary_equilibrium.magnetic_field_unit[:, :, :2] * normal_vector, axis=-1)
+    b_n = np.sum(
+        boundary_equilibrium.magnetic_field_unit[:, :, :2] * normal_vector, axis=-1
+    )
     p_dyn_scale = (
         (2 / 3 / solution.parameters["physics"]["Mref"])
         * solution.parameters["adimensionalization"]["density_scale"]
@@ -85,7 +87,9 @@ def summary_along_the_wall(solution):
     )
     evaluators = {
         "dl": lambda result: solution.mesh.boundary_state.segment_length_gauss[:, :, 0],
-        "ds": lambda result: solution.mesh.boundary_state.segment_surface_gauss[:, :, 0],
+        "ds": lambda result: solution.mesh.boundary_state.segment_surface_gauss[
+            :, :, 0
+        ],
         "normal_vector": lambda result: normal_vector,
         "b_n": lambda result: b_n,
         "solution": lambda result: boundary_solution,
@@ -135,15 +139,23 @@ def summary_along_the_wall(solution):
             solution.parameters["physics"]["Mref"],
             solution._cons_idx,
         ),
-        "M": lambda result: calculate_M_cons(boundary_solution, solution.metadata.indices.conservative),
+        "M": lambda result: calculate_M_cons(
+            boundary_solution, solution.metadata.indices.conservative
+        ),
         "M_skeleton": lambda result: calculate_M_cons(
             boundary_solution_skeleton, solution.metadata.indices.conservative
         ),
         "p_dyn": lambda result: calculate_pdyn_cons(
-            boundary_solution, p_dyn_scale, p_dyn_mass_scale, solution.metadata.indices.conservative
+            boundary_solution,
+            p_dyn_scale,
+            p_dyn_mass_scale,
+            solution.metadata.indices.conservative,
         ),
         "p_dyn_skeleton": lambda result: calculate_pdyn_cons(
-            boundary_solution_skeleton, p_dyn_scale, p_dyn_mass_scale, solution.metadata.indices.conservative
+            boundary_solution_skeleton,
+            p_dyn_scale,
+            p_dyn_mass_scale,
+            solution.metadata.indices.conservative,
         ),
         "gamma": lambda result: calculate_parallel_flux_cons(
             boundary_solution,
@@ -157,36 +169,88 @@ def summary_along_the_wall(solution):
             * solution.parameters["adimensionalization"]["speed_scale"],
             solution._cons_idx,
         ),
-        "gamma_perp_dep": lambda result: _calculate_gamma_perp_dep(solution, boundary_solution),
-        "gamma_perp_dep_skeleton": lambda result: _calculate_gamma_perp_dep(solution, boundary_solution_skeleton),
-        "gamma_tot_dep": lambda result: result["gamma"] * result["b_n"] + result["gamma_perp_dep"],
-        "gamma_tot_dep_skeleton": lambda result: result["gamma_skeleton"] * result["b_n"] + result["gamma_perp_dep_skeleton"],
-        "q_i_par_cond": lambda result: _calculate_q_i_par_cond(solution, boundary_solution),
-        "q_i_par_cond_skeleton": lambda result: _calculate_q_i_par_cond(solution, boundary_solution_skeleton),
-        "q_e_par_cond": lambda result: _calculate_q_e_par_cond(solution, boundary_solution),
-        "q_e_par_cond_skeleton": lambda result: _calculate_q_e_par_cond(solution, boundary_solution_skeleton),
-        "q_i_par_conv": lambda result: _calculate_q_i_par_conv(solution, boundary_solution),
-        "q_i_par_conv_skeleton": lambda result: _calculate_q_i_par_conv(solution, boundary_solution_skeleton),
-        "q_e_par_conv": lambda result: _calculate_q_e_par_conv(solution, boundary_solution),
-        "q_e_par_conv_skeleton": lambda result: _calculate_q_e_par_conv(solution, boundary_solution_skeleton),
+        "gamma_perp_dep": lambda result: _calculate_gamma_perp_dep(
+            solution, boundary_solution
+        ),
+        "gamma_perp_dep_skeleton": lambda result: _calculate_gamma_perp_dep(
+            solution, boundary_solution_skeleton
+        ),
+        "gamma_tot_dep": lambda result: (
+            result["gamma"] * result["b_n"] + result["gamma_perp_dep"]
+        ),
+        "gamma_tot_dep_skeleton": lambda result: (
+            result["gamma_skeleton"] * result["b_n"] + result["gamma_perp_dep_skeleton"]
+        ),
+        "q_i_par_cond": lambda result: _calculate_q_i_par_cond(
+            solution, boundary_solution
+        ),
+        "q_i_par_cond_skeleton": lambda result: _calculate_q_i_par_cond(
+            solution, boundary_solution_skeleton
+        ),
+        "q_e_par_cond": lambda result: _calculate_q_e_par_cond(
+            solution, boundary_solution
+        ),
+        "q_e_par_cond_skeleton": lambda result: _calculate_q_e_par_cond(
+            solution, boundary_solution_skeleton
+        ),
+        "q_i_par_conv": lambda result: _calculate_q_i_par_conv(
+            solution, boundary_solution
+        ),
+        "q_i_par_conv_skeleton": lambda result: _calculate_q_i_par_conv(
+            solution, boundary_solution_skeleton
+        ),
+        "q_e_par_conv": lambda result: _calculate_q_e_par_conv(
+            solution, boundary_solution
+        ),
+        "q_e_par_conv_skeleton": lambda result: _calculate_q_e_par_conv(
+            solution, boundary_solution_skeleton
+        ),
         "q_i_par": lambda result: _calculate_q_i_par(solution, boundary_solution),
-        "q_i_par_skeleton": lambda result: _calculate_q_i_par(solution, boundary_solution_skeleton),
+        "q_i_par_skeleton": lambda result: _calculate_q_i_par(
+            solution, boundary_solution_skeleton
+        ),
         "q_e_par": lambda result: _calculate_q_e_par(solution, boundary_solution),
-        "q_e_par_skeleton": lambda result: _calculate_q_e_par(solution, boundary_solution_skeleton),
-        "q_i_perp_dep": lambda result: _calculate_q_i_perp_dep(solution, boundary_solution),
-        "q_i_perp_dep_skeleton": lambda result: _calculate_q_i_perp_dep(solution, boundary_solution_skeleton),
-        "q_e_perp_dep": lambda result: _calculate_q_e_perp_dep(solution, boundary_solution),
-        "q_e_perp_dep_skeleton": lambda result: _calculate_q_e_perp_dep(solution, boundary_solution_skeleton),
-        "q_i_tot_dep": lambda result: result["q_i_par"] * result["b_n"] + result["q_i_perp_dep"],
-        "q_i_tot_dep_skeleton": lambda result: result["q_i_par_skeleton"] * result["b_n"] + result["q_i_perp_dep_skeleton"],
-        "q_e_tot_dep": lambda result: result["q_e_par"] * result["b_n"] + result["q_e_perp_dep"],
-        "q_e_tot_dep_skeleton": lambda result: result["q_e_par_skeleton"] * result["b_n"] + result["q_e_perp_dep_skeleton"],
-        "q_e_tot_dep_bc": lambda result: _calculate_q_e_tot_dep_bc(solution, boundary_solution),
-        "q_e_tot_dep_bc_skeleton": lambda result: _calculate_q_e_tot_dep_bc(solution, boundary_solution_skeleton),
-        "q_i_tot_dep_bc": lambda result: _calculate_q_i_tot_dep_bc(solution, boundary_solution),
-        "q_i_tot_dep_bc_skeleton": lambda result: _calculate_q_i_tot_dep_bc(solution, boundary_solution_skeleton),
-        "neutral_flux": lambda result: _calculate_neutral_flux(solution, boundary_solution),
-        "neutral_flux_skeleton": lambda result: _calculate_neutral_flux(solution, boundary_solution_skeleton),
+        "q_e_par_skeleton": lambda result: _calculate_q_e_par(
+            solution, boundary_solution_skeleton
+        ),
+        "q_i_perp_dep": lambda result: _calculate_q_i_perp_dep(
+            solution, boundary_solution
+        ),
+        "q_i_perp_dep_skeleton": lambda result: _calculate_q_i_perp_dep(
+            solution, boundary_solution_skeleton
+        ),
+        "q_e_perp_dep": lambda result: _calculate_q_e_perp_dep(
+            solution, boundary_solution
+        ),
+        "q_e_perp_dep_skeleton": lambda result: _calculate_q_e_perp_dep(
+            solution, boundary_solution_skeleton
+        ),
+        "q_i_tot_dep": lambda result: (
+            result["q_i_par"] * result["b_n"] + result["q_i_perp_dep"]
+        ),
+        "q_i_tot_dep_skeleton": lambda result: (
+            result["q_i_par_skeleton"] * result["b_n"] + result["q_i_perp_dep_skeleton"]
+        ),
+        "q_e_tot_dep": lambda result: (
+            result["q_e_par"] * result["b_n"] + result["q_e_perp_dep"]
+        ),
+        "q_e_tot_dep_skeleton": lambda result: (
+            result["q_e_par_skeleton"] * result["b_n"] + result["q_e_perp_dep_skeleton"]
+        ),
+        "q_e_tot_dep_bc": lambda result: _calculate_q_e_tot_dep_bc(
+            solution, boundary_solution
+        ),
+        "q_e_tot_dep_bc_skeleton": lambda result: _calculate_q_e_tot_dep_bc(
+            solution, boundary_solution_skeleton
+        ),
+        "q_i_tot_dep_bc": lambda result: _calculate_q_i_tot_dep_bc(
+            solution, boundary_solution
+        ),
+        "q_i_tot_dep_bc_skeleton": lambda result: _calculate_q_i_tot_dep_bc(
+            solution, boundary_solution_skeleton
+        ),
+        # "neutral_flux": lambda result: _calculate_neutral_flux(solution, boundary_solution),
+        # "neutral_flux_skeleton": lambda result: _calculate_neutral_flux(solution, boundary_solution_skeleton),
     }
     result = {}
     for variable in variables:
@@ -194,7 +258,10 @@ def summary_along_the_wall(solution):
 
     for key, item in result.items():
         result[key] = item[:, ::-1]
-    result["time"] = solution.parameters["time"]["Current_time"] * solution.parameters["adimensionalization"]["time_scale"]
+    result["time"] = (
+        solution.parameters["time"]["Current_time"]
+        * solution.parameters["adimensionalization"]["time_scale"]
+    )
     result["r"] = solution.mesh.boundary_state.vertices_gauss[:, ::-1, 0]
     result["z"] = solution.mesh.boundary_state.vertices_gauss[:, ::-1, 1]
     result["psi"] = boundary_equilibrium.poloidal_flux[:, ::-1]
@@ -209,7 +276,9 @@ def calculate_boundary_summary(solution):
 
 
 def _ensure_default_boundary_gauss(solution):
-    default_boundaries = tuple(np.unique(solution.raw.boundary_infos[0]["boundary_flags"]).tolist())
+    default_boundaries = tuple(
+        np.unique(solution.raw.boundary_infos[0]["boundary_flags"]).tolist()
+    )
     if (
         not solution.metadata.flags.combined_boundary_gauss
         or solution.metadata.cache.boundary_gauss_boundaries != default_boundaries
@@ -243,7 +312,9 @@ def _boundary_diffusion(solution, key):
 
 def _calculate_gamma_perp_dep(solution, boundary_solution):
     boundary_gauss = solution.views.boundary_gauss
-    diffusion = _boundary_diffusion(solution, "diff_n") * np.ones_like(boundary_solution[:, :, 0])
+    diffusion = _boundary_diffusion(solution, "diff_n") * np.ones_like(
+        boundary_solution[:, :, 0]
+    )
     return calculate_particle_perp_flux_wall_cons(
         boundary_solution,
         boundary_gauss.gradient.conservative,
@@ -361,13 +432,18 @@ def _calculate_q_e_par(solution, boundary_solution):
 def _calculate_q_i_perp_dep(solution, boundary_solution):
     boundary_gauss = solution.views.boundary_gauss
     if (
-        (solution.parameters["physics"]["diff_n"] != solution.parameters["physics"]["diff_e"])
-        or (solution.parameters["physics"]["diff_e"] != solution.parameters["physics"]["diff_u"])
+        solution.parameters["physics"]["diff_n"]
+        != solution.parameters["physics"]["diff_e"]
+    ) or (
+        solution.parameters["physics"]["diff_e"]
+        != solution.parameters["physics"]["diff_u"]
     ):
         print("Warning: different perpendicular diffusions and heat conductivities")
         print("Not calculating, providing zeros as perpendicular heat fluxes")
         return np.zeros_like(boundary_solution[:, :, 0])
-    diffusion = _boundary_diffusion(solution, "diff_e") * np.ones_like(boundary_solution[:, :, 0])
+    diffusion = _boundary_diffusion(solution, "diff_e") * np.ones_like(
+        boundary_solution[:, :, 0]
+    )
     return calculate_perp_ion_heat_wall_cons(
         boundary_solution,
         boundary_gauss.gradient.conservative,
@@ -386,11 +462,16 @@ def _calculate_q_i_perp_dep(solution, boundary_solution):
 
 def _calculate_q_e_perp_dep(solution, boundary_solution):
     boundary_gauss = solution.views.boundary_gauss
-    if solution.parameters["physics"]["diff_n"] != solution.parameters["physics"]["diff_ee"]:
+    if (
+        solution.parameters["physics"]["diff_n"]
+        != solution.parameters["physics"]["diff_ee"]
+    ):
         print("Warning: different perpendicular diffusions and heat conductivities")
         print("Not calculating, providing zeros as perpendicular heat fluxes")
         return np.zeros_like(boundary_solution[:, :, 0])
-    diffusion = _boundary_diffusion(solution, "diff_ee") * np.ones_like(boundary_solution[:, :, 0])
+    diffusion = _boundary_diffusion(solution, "diff_ee") * np.ones_like(
+        boundary_solution[:, :, 0]
+    )
     return calculate_perp_electron_heat_wall_cons(
         boundary_solution,
         boundary_gauss.gradient.conservative,

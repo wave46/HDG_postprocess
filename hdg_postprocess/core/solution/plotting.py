@@ -26,7 +26,9 @@ def plot_overview(solution, n_levels=100):
     for i in range(solution.neq):
         cons_variable = solution.parameters["physics"]["conservative_variable_names"][i]
         if cons_variable == b"rho":
-            solutions_dimensional[:, i] *= solution.parameters["adimensionalization"]["density_scale"]
+            solutions_dimensional[:, i] *= solution.parameters["adimensionalization"][
+                "density_scale"
+            ]
             colorbar_labels.append(r"n, m$^{-3}$")
             solutions_dimensional[solutions_dimensional[:, i] < 1e8, i] = 1e8
         elif cons_variable == b"Gamma":
@@ -48,11 +50,15 @@ def plot_overview(solution, n_levels=100):
             )
             colorbar_labels.append(r"nE$_e$, m$^{-1}$ s$^{-2}$")
         elif cons_variable == b"rhon":
-            solutions_dimensional[:, i] *= solution.parameters["adimensionalization"]["density_scale"]
+            solutions_dimensional[:, i] *= solution.parameters["adimensionalization"][
+                "density_scale"
+            ]
             colorbar_labels.append(r"$n_n$, m$^{-3}$")
             solutions_dimensional[solutions_dimensional[:, i] < 1e8, i] = 1e8
         elif cons_variable == b"k":
-            solutions_dimensional[:, i] *= solution.parameters["adimensionalization"]["speed_scale"] ** 2
+            solutions_dimensional[:, i] *= (
+                solution.parameters["adimensionalization"]["speed_scale"] ** 2
+            )
             colorbar_labels.append(r"$k$, m$^{-2}$/s$^{-2}$")
         else:
             raise NameError("Unknown conservative varibale")
@@ -97,7 +103,9 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
     for i in range(solution.neq):
         cons_variable = solution.parameters["physics"]["conservative_variable_names"][i]
         if cons_variable == b"rho":
-            difference_dimensional[:, i] *= solution.parameters["adimensionalization"]["density_scale"]
+            difference_dimensional[:, i] *= solution.parameters["adimensionalization"][
+                "density_scale"
+            ]
             colorbar_labels.append(r"n, m$^{-3}$")
         elif cons_variable == b"Gamma":
             difference_dimensional[:, i] *= (
@@ -118,10 +126,14 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
             )
             colorbar_labels.append(r"nE$_e$, m$^{-1}$ s$^{-2}$")
         elif cons_variable == b"rhon":
-            difference_dimensional[:, i] *= solution.parameters["adimensionalization"]["density_scale"]
+            difference_dimensional[:, i] *= solution.parameters["adimensionalization"][
+                "density_scale"
+            ]
             colorbar_labels.append(r"$n_n$, m$^{-3}$")
         elif cons_variable == b"k":
-            difference_dimensional[:, i] *= solution.parameters["adimensionalization"]["speed_scale"] ** 2
+            difference_dimensional[:, i] *= (
+                solution.parameters["adimensionalization"]["speed_scale"] ** 2
+            )
             colorbar_labels.append(r"$k$, m$^{-2}$/s$^{-2}$")
         else:
             raise NameError("Unknown conservative varibale")
@@ -157,7 +169,15 @@ def plot_overview_difference(solution, second_solution, n_levels=100):
 def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
     prep_ops.ensure_simple_physical(solution)
 
-    colorbar_labels = [r"n [m$^{-3}$]", r"$n_n$ [m$^{-3}$]", r"$T_i [eV]$", r"$T_e [eV] $", r"M", r"$k$ [m$^2$/s$^2$]"]
+    colorbar_labels = [
+        r"n [m$^{-3}$]",
+        r"$n_n$ [m$^{-3}$]",
+        r"$T_i [eV]$",
+        r"$T_e [eV] $",
+        r"M",
+        r"$k$ [m$^2$/s$^2$]",
+        r"$\epsilon$ [m$^2$/s$^3$]",
+    ]
     simple_phys = solution.views.simple.solution.physical
     solutions_plot = np.zeros_like(solution.views.simple.solution.conservative)
     solutions_plot[:, 0] = simple_phys[:, 0]
@@ -169,6 +189,8 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
         solutions_plot[:, 1] = simple_phys[:, 10]
     if solution.neq > 5:
         solutions_plot[:, 5] = simple_phys[:, 11]
+    if solution.neq > 6:
+        solutions_plot[:, 6] = simple_phys[:, 12]
     solutions_plot[:, 4] = simple_phys[:, 9]
 
     prep_ops.ensure_connectivity_big(solution)
@@ -178,7 +200,7 @@ def plot_overview_physical(solution, n_levels=100, limits=None, ticks=None):
     for i in range(solution.neq):
         limit = None if limits is None else limits[i]
         tick = None if ticks is None else ticks[i]
-        if (i != 4) and (i != 5):
+        if (i != 4) and (i != 5) and (i != 6):
             data = solutions_plot[:, i].copy()
             if (i == 0) or (i == 1):
                 data[data < 0] = 1e8
@@ -225,7 +247,14 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     prep_ops.ensure_simple_physical(solution)
     prep_ops.ensure_simple_physical(second_solution)
 
-    colorbar_labels = [r"n, m$^{-3}$", r"$n_n$, m$^{-3}$", r"$T_i$", r"$T_e$", r"M", r"k"]
+    colorbar_labels = [
+        r"n, m$^{-3}$",
+        r"$n_n$, m$^{-3}$",
+        r"$T_i$",
+        r"$T_e$",
+        r"M",
+        r"k",
+    ]
     left_simple_phys = solution.views.simple.solution.physical
     right_simple_phys = second_solution.views.simple.solution.physical
     solutions_plot = np.zeros_like(solution.views.simple.solution.conservative)
@@ -266,11 +295,25 @@ def plot_overview_physical_difference(solution, second_solution, n_levels=100):
     return fig, axes, solutions_plot
 
 
-def plot_variables_overview(solution, variable_list, labels, limits, n_levels, ticks, tick_lables, logs, title=None):
+def plot_variables_overview(
+    solution,
+    variable_list,
+    labels,
+    limits,
+    n_levels,
+    ticks,
+    tick_lables,
+    logs,
+    title=None,
+):
     defined_variables = ["n", "nn", "te", "ti", "M", "dnn", "k", "dk"]
     for variable in variable_list:
         if variable not in defined_variables:
-            raise KeyError(f"{variable} is not in the list of posible variables: {defined_variables}")
+            raise KeyError(
+                f"{variable} is not in the list of posible variables: {
+                    defined_variables
+                }"
+            )
 
     prep_ops.ensure_connectivity_big(solution)
     prep_ops.ensure_simple_solution(solution)
@@ -291,11 +334,15 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
     ):
         if variable == "n":
             data = calculate_n_cons(
-                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative
+                simple_solution,
+                solution.parameters["adimensionalization"]["density_scale"],
+                solution.metadata.indices.conservative,
             )
         elif variable == "nn":
             data = calculate_nn_cons(
-                simple_solution, solution.parameters["adimensionalization"]["density_scale"], solution.metadata.indices.conservative
+                simple_solution,
+                solution.parameters["adimensionalization"]["density_scale"],
+                solution.metadata.indices.conservative,
             )
         elif variable == "te":
             data = calculate_Te_cons(
@@ -312,7 +359,9 @@ def plot_variables_overview(solution, variable_list, labels, limits, n_levels, t
                 solution.metadata.indices.conservative,
             )
         elif variable == "M":
-            data = calculate_M_cons(simple_solution, solution.metadata.indices.conservative)
+            data = calculate_M_cons(
+                simple_solution, solution.metadata.indices.conservative
+            )
         elif variable == "dnn":
             data = solution.neutrals.dnn("simple")
         elif variable == "k":

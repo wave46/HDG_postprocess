@@ -1,5 +1,3 @@
-import numpy as np
-
 from hdg_postprocess.api.solution import (
     AtomicRateState,
     InterpolatorState,
@@ -23,14 +21,36 @@ from hdg_postprocess.api.solution import (
 
 class HDGsolution:
     ""
-    def __init__(self,raw_solutions, raw_solutions_skeleton, raw_gradients,
-                 raw_equilibriums,raw_solution_boundary_infos, parameters, 
-                 n_partitions, mesh):
-        self._store_input_metadata(parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh)
+
+    def __init__(
+        self,
+        raw_solutions,
+        raw_solutions_skeleton,
+        raw_gradients,
+        raw_equilibriums,
+        raw_solution_boundary_infos,
+        parameters,
+        n_partitions,
+        mesh,
+    ):
+        self._store_input_metadata(
+            parameters,
+            n_partitions,
+            raw_equilibriums,
+            raw_solution_boundary_infos,
+            mesh,
+        )
         self._store_raw_partitions(raw_solutions, raw_solutions_skeleton, raw_gradients)
         self._initial_setup()
 
-    def _store_input_metadata(self, parameters, n_partitions, raw_equilibriums, raw_solution_boundary_infos, mesh):
+    def _store_input_metadata(
+        self,
+        parameters,
+        n_partitions,
+        raw_equilibriums,
+        raw_solution_boundary_infos,
+        mesh,
+    ):
         self._parameters = parameters
         self._neq = parameters["Neq"][0]
         self._nphys = len(parameters["physics"]["physical_variable_names"])
@@ -45,16 +65,26 @@ class HDGsolution:
             boundary_infos=raw_solution_boundary_infos,
         )
 
-    def _store_raw_partitions(self, raw_solutions, raw_solutions_skeleton, raw_gradients):
+    def _store_raw_partitions(
+        self, raw_solutions, raw_solutions_skeleton, raw_gradients
+    ):
         for raw_solution, raw_solution_skeleton, raw_gradient in zip(
             raw_solutions, raw_solutions_skeleton, raw_gradients
         ):
-            self._raw.solutions.append(raw_solution.reshape(raw_solution.shape[0] // self.neq, self.neq))
-            self._raw.solutions_skeleton.append(
-                raw_solution_skeleton.reshape(raw_solution_skeleton.shape[0] // self.neq, self.neq)
+            self._raw.solutions.append(
+                raw_solution.reshape(raw_solution.shape[0] // self.neq, self.neq)
             )
-            raw_gradient = raw_gradient.reshape(raw_gradient.shape[0] // (self.neq * self.ndim), self.neq * self.ndim)
-            self._raw.gradients.append(raw_gradient.reshape(raw_gradient.shape[0], self.neq, self.ndim))
+            self._raw.solutions_skeleton.append(
+                raw_solution_skeleton.reshape(
+                    raw_solution_skeleton.shape[0] // self.neq, self.neq
+                )
+            )
+            raw_gradient = raw_gradient.reshape(
+                raw_gradient.shape[0] // (self.neq * self.ndim), self.neq * self.ndim
+            )
+            self._raw.gradients.append(
+                raw_gradient.reshape(raw_gradient.shape[0], self.neq, self.ndim)
+            )
 
     def _initial_setup(self):
         self._init_state_containers()
@@ -93,33 +123,38 @@ class HDGsolution:
 
     def _init_variable_indices(self):
         self._cons_idx = {}
-        for i,label in enumerate(self.parameters['physics']['conservative_variable_names']):
+        for i, label in enumerate(
+            self.parameters["physics"]["conservative_variable_names"]
+        ):
             self._cons_idx[label] = i
         self._phys_idx = {}
-        for i,label in enumerate(self.parameters['physics']['physical_variable_names']):
+        for i, label in enumerate(
+            self.parameters["physics"]["physical_variable_names"]
+        ):
             self._phys_idx[label] = i
         self._metadata.indices.conservative = self._cons_idx
         self._metadata.indices.physical = self._phys_idx
 
     def _init_charge_scale(self):
-        if 'charge_scale' in self.parameters['adimensionalization'].keys():
-            self._e = self.parameters['adimensionalization']['charge_scale']
+        if "charge_scale" in self.parameters["adimensionalization"].keys():
+            self._e = self.parameters["adimensionalization"]["charge_scale"]
         else:
             self._e = 1.60217662e-19
         self._metadata.constants.elemental_charge = self._e
-        if 'charge_scale' not in self.parameters['adimensionalization'].keys():
-            self.parameters['adimensionalization']['charge_scale'] = self._e
+        if "charge_scale" not in self.parameters["adimensionalization"].keys():
+            self.parameters["adimensionalization"]["charge_scale"] = self._e
 
     def _normalize_external_heating_inputs(self):
         energy_scale = (
-            self.parameters['adimensionalization']['specific_energy_density_scale']
-            / self.parameters['adimensionalization']['time_scale']
-            * self.parameters['adimensionalization']['mass_scale']
+            self.parameters["adimensionalization"]["specific_energy_density_scale"]
+            / self.parameters["adimensionalization"]["time_scale"]
+            * self.parameters["adimensionalization"]["mass_scale"]
         )
-        for key in ('external_heating', 'external_heating_i', 'external_heating_e'):
-            if key in self.parameters['physics']:
-                self.parameters['physics'][key] = self.parameters['physics'][key] * energy_scale
-
+        for key in ("external_heating", "external_heating_i", "external_heating_e"):
+            if key in self.parameters["physics"]:
+                self.parameters["physics"][key] = (
+                    self.parameters["physics"][key] * energy_scale
+                )
 
     @property
     def parameters(self):
@@ -135,7 +170,7 @@ class HDGsolution:
     def ndim(self):
         """number of dimensions"""
         return self._ndim
-    
+
     @property
     def nphys(self):
         """number of physical variables"""

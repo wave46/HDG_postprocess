@@ -23,7 +23,9 @@ def _ensure_boundary(mesh, raw_boundary_info):
 def _ensure_boundary_gauss(mesh, raw_boundary_info):
     if raw_boundary_info is None:
         raise ValueError("Please, provide raw boundary info as input to this method")
-    unique_boundaries = tuple(np.unique(raw_boundary_info[0]["boundary_flags"]).tolist())
+    unique_boundaries = tuple(
+        np.unique(raw_boundary_info[0]["boundary_flags"]).tolist()
+    )
     mesh.assembly.boundary_gauss(unique_boundaries, raw_boundary_info)
 
 
@@ -34,13 +36,17 @@ def _default_plot_connectivity(mesh):
             return mesh.global_state.connectivity[:, :3]
         return mesh.global_state.connectivity[:, :4]
     print("Full mesh is plotted includin curved edges")
-    return mesh.global_state.connectivity[:, mesh.metadata.reference_element["faceNodes"].flatten()]
+    return mesh.global_state.connectivity[
+        :, mesh.metadata.reference_element["faceNodes"].flatten()
+    ]
 
 
 def _plot_with_connectivity(ax, vertices, connectivity, data, linewidth):
     if data is None:
         verts = vertices[connectivity]
-        collection = PolyCollection(verts, facecolor="none", edgecolor="k", linewidth=linewidth)
+        collection = PolyCollection(
+            verts, facecolor="none", edgecolor="k", linewidth=linewidth
+        )
         ax.add_collection(collection)
         return None
     if data.shape[0] == connectivity.shape[0]:
@@ -118,7 +124,9 @@ def plot_raw_meshes(mesh, data=None, ax=None):
     colors = cm.get_cmap("hsv", mesh.n_partitions)
     if ax is None:
         _, ax = plt.subplots(constrained_layout=True)
-    for i, (vertices, connectivity) in enumerate(zip(mesh.raw.vertices, mesh.raw.connectivity)):
+    for i, (vertices, connectivity) in enumerate(
+        zip(mesh.raw.vertices, mesh.raw.connectivity)
+    ):
         if mesh.metadata.reference_element is None:
             print("No reference element, the mesh is plotted assuming straight edges")
             if mesh.mesh_parameters["element_type"] == "triangle":
@@ -127,10 +135,14 @@ def plot_raw_meshes(mesh, data=None, ax=None):
                 verts = vertices[connectivity[:, :4]]
         else:
             print("Full mesh is plotted includin curved edges")
-            verts = vertices[connectivity[:, mesh.metadata.reference_element["faceNodes"].flatten()]]
+            verts = vertices[
+                connectivity[:, mesh.metadata.reference_element["faceNodes"].flatten()]
+            ]
 
         if data is None:
-            collection = PolyCollection(verts, facecolor="none", edgecolor=colors(i), linewidth=0.05)
+            collection = PolyCollection(
+                verts, facecolor="none", edgecolor=colors(i), linewidth=0.05
+            )
         else:
             collection = PolyCollection(verts)
             collection.set_array(data[i][connectivity[:, :3]].mean(axis=1))
@@ -143,8 +155,20 @@ def plot_raw_meshes(mesh, data=None, ax=None):
     return ax
 
 
-def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity=None,
-                   n_levels=100, limits=None, ticks=None, tick_labels=None, cmap=None, linewidth=0.1):
+def plot_full_mesh(
+    mesh,
+    data=None,
+    ax=None,
+    log=False,
+    label=None,
+    connectivity=None,
+    n_levels=100,
+    limits=None,
+    ticks=None,
+    tick_labels=None,
+    cmap=None,
+    linewidth=0.1,
+):
     _ensure_full_mesh(mesh)
     cmap = _default_cmap(data, log=log, cmap=cmap)
     norm = _default_norm(data, log=log, limits=limits)
@@ -156,7 +180,9 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
     if connectivity is None:
         connectivity = _default_plot_connectivity(mesh)
 
-    plot_mode = _plot_with_connectivity(ax, mesh.global_state.vertices, connectivity, data, linewidth)
+    plot_mode = _plot_with_connectivity(
+        ax, mesh.global_state.vertices, connectivity, data, linewidth
+    )
     if data is not None and plot_mode is None:
         verts = mesh.global_state.vertices[connectivity]
         collection = PolyCollection(verts, linewidth=linewidth)
@@ -193,7 +219,9 @@ def plot_full_mesh(mesh, data=None, ax=None, log=False, label=None, connectivity
                     triangulation,
                     data,
                     levels=np.logspace(limits[0], limits[1], n_levels),
-                    cmap=cmap, vmin=10.0 ** limits[0], vmax=10.0 ** limits[1],
+                    cmap=cmap,
+                    vmin=10.0 ** limits[0],
+                    vmax=10.0 ** limits[1],
                     norm=norm,
                     extend="both",
                 )
@@ -258,7 +286,9 @@ def plot_mesh_outline(mesh, raw_boundary_info=None, ax=None):
     return ax
 
 
-def plot_mesh_normals_tangentials(mesh, raw_boundary_info=None, ax=None, scale=None, scale_units=None):
+def plot_mesh_normals_tangentials(
+    mesh, raw_boundary_info=None, ax=None, scale=None, scale_units=None
+):
     _ensure_full_mesh(mesh)
     _ensure_boundary_gauss(mesh, raw_boundary_info)
     r = mesh.boundary_state.vertices_gauss[:, ::-1, 0].flatten()
