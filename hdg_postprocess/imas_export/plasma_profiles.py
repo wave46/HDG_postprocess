@@ -6,6 +6,7 @@ from .config import IMASExportMetadata, RectangularGrid2D
 from .common import add_constant_zeff_metadata, rectangular_grid_metadata, set_constant_zeff, store_node_field, store_parallel_velocity
 from .evaluate import evaluate_variables_on_grid
 from .ggd_geometry import populate_rectangular_grid_ggd_array
+from hdg_postprocess.core.solution.impurity_radiation import get_impurity_radiation_metadata
 
 
 def build_plasma_profiles_ids(solution, metadata: IMASExportMetadata, grid: RectangularGrid2D):
@@ -77,7 +78,6 @@ def populate_plasma_ggd(ggd, sampled, *, grid_index):
 
 
 def build_plasma_profiles_metadata(solution, grid):
-    physics = solution.parameters["physics"]
     extracted = rectangular_grid_metadata(grid)
     extracted.update(
         {
@@ -93,13 +93,11 @@ def build_plasma_profiles_metadata(solution, grid):
         ),
     })
     add_constant_zeff_metadata(extracted, solution)
-    if "impurity_name" in physics:
-        impurity_name = physics["impurity_name"]
-        if isinstance(impurity_name, bytes):
-            impurity_name = impurity_name.decode()
-        elif hasattr(impurity_name, "item"):
-            impurity_name = impurity_name.item()
-            if isinstance(impurity_name, bytes):
-                impurity_name = impurity_name.decode()
-        extracted["impurity_name"] = impurity_name
+    impurity_metadata = get_impurity_radiation_metadata(solution, require_coefficients=False)
+    if impurity_metadata is not None:
+        extracted["n_impurities"] = impurity_metadata.n_impurities
+        extracted["impurity_names"] = list(impurity_metadata.impurity_names)
+        extracted["impurity_concentrations"] = impurity_metadata.impurity_concentrations.tolist()
+        if impurity_metadata.n_impurities == 1:
+            extracted["impurity_name"] = impurity_metadata.impurity_names[0]
     return extracted

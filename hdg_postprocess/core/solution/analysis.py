@@ -2,6 +2,7 @@ import numpy as np
 
 from hdg_postprocess.core.solution import preparation as prep_ops
 from hdg_postprocess.core.solution import boundary as boundary_ops
+from hdg_postprocess.core.solution.impurity_radiation import get_impurity_radiation_metadata
 
 
 def calculate_power_balance(solution):
@@ -33,10 +34,18 @@ def calculate_power_balance(solution):
         + source_summary.ion_sink_cx_total
         - source_summary.ion_gain_iz_total
     )
-    if "impurity_concentration" in solution.parameters["physics"].keys():
-        if solution.parameters["physics"]["impurity_concentration"] > 0:
-            power_balance["electron_sink_cooling_factor"] = source_summary.electron_sink_cooling_factor_total
-            power_balance["electron_sink_tot"] += source_summary.electron_sink_cooling_factor_total
+    impurity_metadata = _active_impurity_radiation_metadata(solution)
+    if impurity_metadata is not None:
+        power_balance["electron_sink_cooling_factor"] = source_summary.electron_sink_cooling_factor_total
+        power_balance["electron_sink_tot"] += source_summary.electron_sink_cooling_factor_total
+        if source_summary.impurity_radiation_total_by_species is not None:
+            power_balance["impurity_radiation_by_species"] = {
+                name: float(total)
+                for name, total in zip(
+                    source_summary.impurity_radiation_species_names,
+                    source_summary.impurity_radiation_total_by_species,
+                )
+            }
     power_balance["total_loss"] = power_balance["electron_sink_tot"] + power_balance["ion_sink_tot"]
     if "external_heating" in solution.parameters["physics"].keys():
         power_balance["external_heating"] = source_summary.external_heating_total
@@ -79,11 +88,10 @@ def calculate_volumetric_sources(solution):
             print(message)
             calculator("gauss")
 
-    if "impurity_concentration" in solution.parameters["physics"].keys():
-        if solution.parameters["physics"]["impurity_concentration"] > 0:
-            if gauss_sources.electron_sink_cooling_factor is None:
-                print("Calculating impurity radiation on gauss points first")
-                solution.sources.electron_sink_cooling_factor("gauss")
+    impurity_metadata = _active_impurity_radiation_metadata(solution)
+    if impurity_metadata is not None and gauss_sources.electron_sink_cooling_factor is None:
+        print("Calculating impurity radiation on gauss points first")
+        solution.sources.electron_sink_cooling_factor("gauss")
 
     source_summary = solution.summary.sources
     gauss_volumes = solution.mesh.derived_geometry.gauss_volumes
@@ -103,11 +111,15 @@ def calculate_volumetric_sources(solution):
         source_summary.external_heating_total = (
             source_summary.external_heating_e_total + source_summary.external_heating_i_total
         )
-    if "impurity_concentration" in solution.parameters["physics"].keys():
-        if solution.parameters["physics"]["impurity_concentration"] > 0:
-            source_summary.electron_sink_cooling_factor_total = np.sum(
-                gauss_sources.electron_sink_cooling_factor * gauss_volumes
-            )
+    if impurity_metadata is not None:
+        source_summary.electron_sink_cooling_factor_total = np.sum(
+            gauss_sources.electron_sink_cooling_factor * gauss_volumes
+        )
+        if gauss_sources.impurity_radiation is not None:
+            species_totals = gauss_sources.impurity_radiation * gauss_volumes[..., None]
+            sum_axes = tuple(range(species_totals.ndim - 1))
+            source_summary.impurity_radiation_species_names = impurity_metadata.impurity_names
+            source_summary.impurity_radiation_total_by_species = np.sum(species_totals, axis=sum_axes)
 
 
 def calculate_power_losses_to_wall(solution):
@@ -124,3 +136,10 @@ def calculate_power_losses_to_wall(solution):
         boundary_summary.electron_energy_sheath_loss_total = (
             boundary_summary.profile["q_e_tot_dep_bc_skeleton"] * boundary_summary.profile["ds"]
         ).sum()
+
+
+def _active_impurity_radiation_metadata(solution):
+    metadata = get_impurity_radiation_metadata(solution, require_coefficients=False)
+    if metadata is None or not np.any(metadata.impurity_concentrations > 0.0):
+        return None
+    return metadata

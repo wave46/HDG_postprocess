@@ -4,6 +4,7 @@ import numpy as np
 
 from .common import extend_time_metadata
 from .config import IMASExportMetadata
+from hdg_postprocess.core.solution.impurity_radiation import get_impurity_radiation_metadata
 
 
 _TRANSPORT_KEYS = (
@@ -68,6 +69,15 @@ def extract_solution_summary_metadata(solution):
         if value is None:
             continue
         extracted[key] = _decode_if_bytes(_as_python_scalar(value))
+
+    impurity_metadata = get_impurity_radiation_metadata(solution, require_coefficients=False)
+    if impurity_metadata is not None:
+        extracted["n_impurities"] = impurity_metadata.n_impurities
+        extracted["impurity_names"] = list(impurity_metadata.impurity_names)
+        extracted["impurity_concentrations"] = impurity_metadata.impurity_concentrations.tolist()
+        if impurity_metadata.n_impurities == 1:
+            extracted["impurity_name"] = impurity_metadata.impurity_names[0]
+            extracted["impurity_concentration"] = float(impurity_metadata.impurity_concentrations[0])
 
     extracted.update(_extract_transport_metadata(parameters))
 

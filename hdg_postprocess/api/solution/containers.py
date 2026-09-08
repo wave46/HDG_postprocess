@@ -54,6 +54,8 @@ class SourceSummaryState:
     electron_sink_rec_total: object = None
     electron_gain_rec_total: object = None
     electron_sink_cooling_factor_total: object = None
+    impurity_radiation_species_names: object = None
+    impurity_radiation_total_by_species: object = None
     external_heating_total: object = None
     external_heating_e_total: object = None
     external_heating_i_total: object = None
